@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE | default:'de' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content=""/>
+
+    <!--link rel="apple-touch-icon" href="{% static '' %}"-->
+    <!--link rel="icon" type="image/png" href="{% static '' %}"-->
+    <!--meta name="msapplication-TileColor" content="#00aba9"-->
+    <!--meta name="msapplication-TileImage" content="{% static '' %}"-->
+
+    <meta property="fb:pages" content="124436167285">
+
+    <title>{% block title %}{% endblock %}</title>
+    <script>
+        var LANGUAGE_CODE = "{{ LANGUAGE_CODE | default:'de' }}";
+        var CSRF_TOKEN = '{{ csrf_token }}';
+    </script>
+
+    <!--link href="{% static '§MAIN_APP§/img/ico/cars.ico' %}" rel="shortcut icon"-->
+    <link rel="stylesheet" type="text/css" href="{% static '<!--§MAIN_APP§-->/css/style.css' %}"/>
+
+    <link rel="stylesheet" type="text/css" href="{% static 'bower/bootstrap/dist/css/bootstrap.css' %}"/>
+    <script type="text/javascript" src="{% static 'bower/jquery/dist/jquery.min.js' %}"></script>
+    <script src="{% static 'bower/moment/moment.js' %}"></script>
+    <script type="text/javascript" src="{% static 'bower/bootstrap/dist/js/bootstrap.js' %}"></script>
+
+    <script type="text/javascript" src="{% static 'simpleDomControl/content.router.js' %}"></script>
+    <script type="text/javascript" src="{% static 'simpleDomControl/event.router.js' %}"></script>
+    <script type="text/javascript" src="{% static 'simpleDomControl/dom.router.js' %}"></script>
+    <script type="text/javascript" src="{% static 'simpleDomControl/controller.manager.js' %}"></script>
+    <script type="text/javascript" src="{% static 'simpleDomControl/params.manager.js' %}"></script>
+    <script type="text/javascript" src="{% static 'simpleDomControl/public.adapter.js' %}" async></script>
+    <script type="text/javascript" src="{% static 'simpleDomControl/utils.js' %}"></script>
+</head>
+<body>
+
+<div class="super-container" role="application">
+    {% block content %}{% endblock %}
+</div>
+<div class="site-footer">
+    <p>By: Martin Starman</p>
+</div>
+</body>
+</html>
