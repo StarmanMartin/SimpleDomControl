@@ -1,0 +1,16 @@
+(function (app) {
+    "use strict";
+
+    function §CONTROLLERNAMETITLE§Controller() {
+        this.contentUrl = "§TEMPLATEURL§"; //§TAGNAME§
+        this.cssUrls = "/static/§APPNAME§/css/sdc/§CONTROLLERNAMESC§.css";
+
+        this.events = {
+
+        };
+    }
+
+    app.registerController('§CONTROLLERNAMECC§', §CONTROLLERNAMETITLE§Controller);
+
+
+})(window.app);

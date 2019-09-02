@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Title{% endblock %}
+
+{% block content %}
+
+
+    <script>
+        var IS_DEBUG = {% if debug %} true {% else %} false {% endif %};
+    </script>
+
+<style>
+    {{style}}
+</style>
+
+<main-view>
+    <h1>{% trans 'Loading' %}...</h1>
+</main-view>
+
+
+<script type="text/javascript" src="{% static '<!--§MAIN_APP§-->/js/main.organizer.js' %}"></script>
+
+{% if not debug %}
+<!--controller-src-section-start-->
+<!--controller-src-section-end-->
+{% endif %}
+
+{% endblock %}

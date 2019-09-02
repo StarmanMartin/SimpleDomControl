@@ -1,0 +1,9 @@
+body {
+    background-color: cornflowerblue;
+}
+
+body::before {
+    content: "SDC Works";
+    font-size: larger;
+    color: red;
+}
