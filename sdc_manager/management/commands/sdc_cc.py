@@ -52,4 +52,3 @@ class Command(BaseCommand):
         add_sdc_manager.add_view_class_to_sdc_views()
         add_sdc_manager.prepare_files()
         add_sdc_manager.add_to_organizer()
-        add_sdc_manager.add_to_index()

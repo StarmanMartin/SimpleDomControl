@@ -58,5 +58,4 @@ class Command(BaseCommand):
                     if file.endswith(".js"):
                         controller_name_sc = file.replace(".js", "")
                         acm = AddControllerManager(app_name, controller_name_sc)
-                        acm.add_to_index()
                         acm.add_to_organizer()

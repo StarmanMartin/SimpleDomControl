@@ -112,13 +112,6 @@ class AddControllerManager:
         line = '"/static/%s/js/sdc/%s.js"\n' % (self.app_name, self.controller_name_sc)
         return self._add_js_to_src(org_file_path, line, ',' + options.SEP)
 
-    def add_to_index(self):
-        org_file_path = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "templates", options.MAIN_APP_NAME,
-                                     "index.html")
-        line = '<script src="/static/%s/js/sdc/%s.js" type="text/javascript"></script>\n' % (
-            self.app_name, self.controller_name_sc)
-        return self._add_js_to_src(org_file_path, line, '')
-
     @staticmethod
     def _add_js_to_src(org_file_path, new_line, sep):
         fin = open(org_file_path, "rt")
