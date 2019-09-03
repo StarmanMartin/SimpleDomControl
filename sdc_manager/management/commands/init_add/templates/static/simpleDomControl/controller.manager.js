@@ -390,11 +390,11 @@
         debug = isdebug;
         controllerAmount = list.length;
 
-        if (isdebug) {
+        //if (isdebug) {
             app.contentRouter.downloadController(list);
-        } else {
-            checkIfAllControllerRegistered();
-        }
+        //} else {
+        //    checkIfAllControllerRegistered();
+        //}
     };
 
     /**
