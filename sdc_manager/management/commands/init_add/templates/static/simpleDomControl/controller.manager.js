@@ -111,10 +111,22 @@
             let args = arguments;
             let contentUrlOrigin = controller.contentUrl,
                 cssUrlsOrigin = controller.cssUrls;
-            controller.contentUrl = superController.contentUrl;
-            controller.cssUrls = superController.cssUrls;
+            if(!contentUrlOrigin) {
+                contentUrlOrigin = superController.contentUrl;
+            }
+            controller.contentUrl = null;
+            controller.cssUrls = [];
 
             return superController.onLoad.apply(controller, args).then(function (result) {
+                if(!Array.isArray(cssUrlsOrigin)) {
+                    cssUrlsOrigin = [cssUrlsOrigin];
+                }
+
+                if(!Array.isArray(superController.cssUrls)) {
+                    cssUrlsOrigin.push(superController.cssUrls);
+                } else {
+                    cssUrlsOrigin = cssUrlsOrigin.concat(superController.cssUrls);
+                }
                 controller.contentUrl = contentUrlOrigin;
                 controller.cssUrls = cssUrlsOrigin;
                 if (result) {

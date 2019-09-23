@@ -245,7 +245,7 @@ function RunPublic(app) {
             !app.simpleDomInit) {
 
             setTimeout(checkElements, 10);
-            return;
+            return;sdc_cc
         }
 
         RunPublic(app);

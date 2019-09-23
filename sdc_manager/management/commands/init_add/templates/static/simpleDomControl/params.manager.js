@@ -1,4 +1,5 @@
 (function (app) {
+    "use strict";
     /**
      * The public parameter manager objects
      * @type {{}}
@@ -8,13 +9,12 @@
     var innerReplaceToken = "#_TOKEN_#_REPLACE_#_INNER_#";
     var innerReplaceTokenReg = new RegExp(innerReplaceToken, 'g');
 
-    pm.runOnInitWithParameter = function (controller, $element) {
-        reg_runOnInitWithParameter(controller, $element, controller);
-    };
 
-    pm.getUrlParam = function (controller, $element) {
-        return getDomTagParamsWithList(controller, $element, controller._urlParams);
-    };
+
+    function getDomTagParamsWithList(controller, $element, paramNameList) {
+        let paramList = pm.getParamList(paramNameList, $element);
+        return pm.parse(controller.parentController, paramList);
+    }
 
     function reg_runOnInitWithParameter(controller, $element, applyController) {
         if (!controller) {
@@ -29,10 +29,15 @@
         reg_runOnInitWithParameter(controller.super, $element, applyController);
     }
 
-    function getDomTagParamsWithList(controller, $element, paramNameList) {
-        let paramList = pm.getParamList(paramNameList, $element);
-        return pm.parse(controller.parentController, paramList);
-    }
+
+
+    pm.runOnInitWithParameter = function (controller, $element) {
+        reg_runOnInitWithParameter(controller, $element, controller);
+    };
+
+    pm.getUrlParam = function (controller, $element) {
+        return getDomTagParamsWithList(controller, $element, controller._urlParams);
+    };
 
     pm.getParamList = function (paramNameList, $element) {
         var returnList, paramListAsString = '';

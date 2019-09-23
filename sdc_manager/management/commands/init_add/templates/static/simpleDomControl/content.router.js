@@ -137,7 +137,7 @@
             if (events.hasOwnProperty(firstEventKey)) {
                 let eventList = events[firstEventKey];
                 for (let secondEventKey in eventList) {
-                    if (!secondEventKey.startsWith("_dh") &&eventList.hasOwnProperty(secondEventKey)) {
+                    if (!secondEventKey.startsWith("_dh") && eventList.hasOwnProperty(secondEventKey)) {
                         let handler = eventList[secondEventKey];
                         let domSelector = secondEventKey;
                         let eventType = firstEventKey;
@@ -147,10 +147,10 @@
                         }
 
                         if (domSelector === "$.window") {
-                            eventList["_dh" + secondEventKey] =  generateEventHandler(controller, handler);
+                            eventList["_dh" + secondEventKey] = generateEventHandler(controller, handler);
                             $(window).on(eventType, eventList["_dh" + secondEventKey])
                         } else if (domSelector.startsWith("$.")) {
-                            eventList["_dh" + secondEventKey] =  generateEventHandler(controller, handler);
+                            eventList["_dh" + secondEventKey] = generateEventHandler(controller, handler);
                             $(domSelector.substring(2)).on(eventType, eventList["_dh" + secondEventKey]);
                         } else if (domSelector === 'this') {
                             $content.on(eventType, generateEventHandler(controller, handler));
@@ -186,7 +186,7 @@
                         }
 
                         if (domSelector === "$.window") {
-                            $(window).unbind(eventType, eventList["_dh" + secondEventKey] );
+                            $(window).unbind(eventType, eventList["_dh" + secondEventKey]);
                         } else if (domSelector.startsWith("$.")) {
                             $(domSelector.substring(2)).unbind(eventType, eventList["_dh" + secondEventKey]);
                         } else if (domSelector === 'this') {
@@ -414,7 +414,6 @@
      * @returns {string} - the correct URL with prefix.
      */
     contentRouter.parseContentUrl = function (controller, url) {
-
         if (controller && !controller._urlParams) {
             let re = /%\(([^)]+)\)\w/gm;
             let matches;
@@ -423,7 +422,9 @@
                 controller._urlParams.push(matches[1]);
                 controller.contentRelaod = true;
             }
+        }
 
+        if (controller._urlParams.length) {
             let params = app.paramManager.getUrlParam(controller, controller.$container);
             url = replacePlaceholderController(controller, url, params);
         }

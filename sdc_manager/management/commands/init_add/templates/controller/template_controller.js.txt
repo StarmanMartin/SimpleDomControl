@@ -10,6 +10,18 @@
         };
     }
 
+    //-------------------------------------------------//
+    // Lifecycle handler                               //
+    // - onInit (tag parameter)                        //
+    // - onLoad (DOM not set)                          //
+    // - willShow  (DOM set)                           //
+    // - afterShow  (recalled on reload)               //
+    //-------------------------------------------------//
+    // - onRemove                                      //
+    //-------------------------------------------------//
+
+    // §CONTROLLERNAMETITLE§Controller.prototype.onLoad = function () {}
+
     app.registerController('§CONTROLLERNAMECC§', §CONTROLLERNAMETITLE§Controller);
 
 
