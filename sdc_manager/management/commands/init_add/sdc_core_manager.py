@@ -24,7 +24,7 @@ def clean_up():
 
 
 def add_sdc_to_main_urls(main_urls_path):
-    fin = open(main_urls_path, "rt")
+    fin = open(main_urls_path, "rt", encoding='utf-8')
     text = ""
     is_done = False
 
@@ -43,7 +43,7 @@ def add_sdc_to_main_urls(main_urls_path):
             "urlpatterns += [\n%spath('', include('scd_core.urls')),\n # scd view below\n]" % options.SEP))
         print(options.CMD_COLORS.as_warning("to: %s " % main_urls_path))
 
-    fout = open(main_urls_path, "w+")
+    fout = open(main_urls_path, "w+", encoding='utf-8')
     fout.write(text)
 
     fout.close()

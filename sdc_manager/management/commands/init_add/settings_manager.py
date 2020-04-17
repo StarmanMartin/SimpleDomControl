@@ -23,7 +23,7 @@ class SettingsManager:
         return self.settings_file_path
 
     def find_and_set_whitespace_sep(self):
-        manage_py_file = open(self.manage_py_file_path, "r")
+        manage_py_file = open(self.manage_py_file_path, "r", encoding='utf-8')
         regexp = re.compile(r'DJANGO_SETTINGS_MODULE')
 
         for line in manage_py_file.readlines():
@@ -39,11 +39,11 @@ class SettingsManager:
 
         new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n%s'192.168.1.23',\n)\n" % (options.SEP, options.SEP)
 
-        fin = open(self.get_settings_file_path(), "rt")
+        fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')
         data = fin.read()
         fin.close()
         new_data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
-        fout = open(self.get_settings_file_path(), "wt")
+        fout = open(self.get_settings_file_path(), "wt", encoding='utf-8')
         fout.write(new_data)
         fout.close()
 

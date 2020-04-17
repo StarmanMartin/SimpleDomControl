@@ -21,7 +21,7 @@ def empty_src_index():
 
 
 def empty_src_list(file_path):
-    fin = open(file_path, 'rt')
+    fin = open(file_path, 'rt', encoding='utf-8')
     data = ""
     write = True
     for line in fin:

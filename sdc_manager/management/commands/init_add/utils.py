@@ -13,10 +13,10 @@ def makedirs_if_not_exist(directory):
 
 
 def copy_and_prepare(src, des, map_val):
-    fin = open(src, "rt")
+    fin = open(src, "rt", encoding='utf-8')
 
     makedirs_if_not_exist(os.path.dirname(des))
-    fout = open(des, "wt")
+    fout = open(des, "wt", encoding='utf-8')
 
     for line in fin:
         for key in map_val:
@@ -25,7 +25,6 @@ def copy_and_prepare(src, des, map_val):
 
     fin.close()
     fout.close()
-
 
 def copy(src, dest):
     try:

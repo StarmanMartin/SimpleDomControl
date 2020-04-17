@@ -33,7 +33,7 @@ class AddControllerManager:
         cmd = 'python manage.py get_url_of_a_sdc %s' % self.controller_name_sc
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
         out = p.communicate()[0]
-        out = re.sub(r'\\n', r'', str(out))
+        out = re.sub(r'\\r?\\n', r'', str(out))
         self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
         return self._template_url
 
@@ -73,12 +73,12 @@ class AddControllerManager:
                                      self.controller_name_tcc, self.controller_name_sc))
 
     def add_view_class_to_sdc_views(self):
-        fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at")
+        fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at", encoding='utf-8')
         fin.write(
             "\n\nclass %s(View):\n%stemplate_name='%s/sdc/%s.html'\n" % (
                 self.controller_name_tcc, options.SEP, self.app_name, self.controller_name_sc))
         fin.close()
-        fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at")
+        fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at", encoding='utf-8')
 
         fin.write(
             "\n%sdef get(self, request%s, *args, **kwargs):\n%sreturn render(request, self.template_name)" % (
@@ -114,7 +114,7 @@ class AddControllerManager:
 
     @staticmethod
     def _add_js_to_src(org_file_path, new_line, sep):
-        fin = open(org_file_path, "rt")
+        fin = open(org_file_path, "rt", encoding='utf-8')
         text = ""
         is_done = False
         is_first = False
@@ -132,13 +132,13 @@ class AddControllerManager:
 
         fin.close()
 
-        fout = open(org_file_path, "w+")
+        fout = open(org_file_path, "w+", encoding='utf-8')
         fout.write(text)
         fout.close()
 
     @staticmethod
     def _add_to_urls(main_urls_path, url_path, handler):
-        fin = open(main_urls_path, "rt")
+        fin = open(main_urls_path, "rt", encoding='utf-8')
         text = ""
         is_done = False
 
@@ -155,7 +155,7 @@ class AddControllerManager:
                 "%spath('%s', %s),\n # scd view below\n]" % (options.SEP, url_path.lower(), handler)))
             print(options.CMD_COLORS.as_warning("to: %s " % main_urls_path))
 
-        fout = open(main_urls_path, "w+")
+        fout = open(main_urls_path, "w+", encoding='utf-8')
         fout.write(text)
         fout.close()
 
