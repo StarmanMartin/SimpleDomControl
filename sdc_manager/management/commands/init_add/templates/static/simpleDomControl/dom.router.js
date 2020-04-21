@@ -229,6 +229,11 @@
             domRouter.getControllerOfElement(allChildren[i].dom).remove();
         }
 
+        let dc = domRouter.getControllerOfElement($dom);
+        if(dc) {
+            dc.remove();
+        }
+
         $dom.remove();
     };
 })(window.app || (window.app = {}));
