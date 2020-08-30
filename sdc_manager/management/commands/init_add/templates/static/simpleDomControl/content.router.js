@@ -1,7 +1,9 @@
 (function (app) {
     "use strict";
 
-
+    if(!app.VERSION) {
+        app.VERSION = "V0.0"
+    }
     /**
      * contentRouter - public contentRouter object.
      * @type {{
@@ -341,7 +343,7 @@
      */
     contentRouter.downloadController = function (list) {
         for (let i = 0; i < list.length; i++) {
-            getBody().append('<script src="' + list[i] + '" type="text/javascript">');
+            getBody().append('<script src="' + list[i] + '?' + app.VERSION + '" type="text/javascript">');
         }
     };
 

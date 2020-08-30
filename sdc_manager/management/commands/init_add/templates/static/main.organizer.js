@@ -1,5 +1,7 @@
 (function (app) {
     "use strict";
+    
+    app.VERSION = "V0.0";
 
     app.simpleDomInit = function (app) {
 
