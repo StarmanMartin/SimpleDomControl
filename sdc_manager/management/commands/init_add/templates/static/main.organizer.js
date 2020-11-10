@@ -1,7 +1,5 @@
 (function (app) {
     "use strict";
-    
-    app.VERSION = "V0.0";
 
     app.simpleDomInit = function (app) {
 
@@ -11,6 +9,7 @@
         ];
 
         app.setContentUrlPrefix('');
+        app.setVersion('0.1');
         app.setMainContainer($('.super-container'));
         app.registerControllerList(controllers, IS_DEBUG);
     };

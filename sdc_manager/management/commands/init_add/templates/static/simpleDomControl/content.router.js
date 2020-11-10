@@ -4,6 +4,7 @@
     if(!app.VERSION) {
         app.VERSION = "V0.0"
     }
+    
     /**
      * contentRouter - public contentRouter object.
      * @type {{
@@ -277,6 +278,10 @@
             return Promise.resolve(htmlFiles[tag])
         }
 
+        if(path.indexOf('?') === -1) {
+            path += '?' + app.VERSION;
+        }
+
         return $.get(path).then(function (data) {
             let $scripts = $('<div>' + data + '</div>').find('script');
             data = data.replace(/<script[^>]*>(.*?<\/script[^>]*>)?/gmi, '');
@@ -285,6 +290,7 @@
             if (!hardReload) {
                 htmlFiles[tag] = data;
             }
+
             return data;
         }).catch(function (err) {
             console.error(err);
@@ -319,6 +325,9 @@
         let cssFileLoadPromises = [];
 
         for (let i = 0; i < pathList.length; i++) {
+            if(pathList[i].indexOf('?') === -1) {
+                pathList[i] += '?' + app.VERSION;
+            }
             cssFileLoadPromises.push($.get(pathList[i]));
         }
 
@@ -396,6 +405,20 @@
         }).catch(function (err) {
             console.error("loadFiles-catch", err);
         });
+    };
+
+    /**
+     * reloadHTMLController loads the content (HTML) of a
+     * Controller. If you have an alternative content URL is registered, for this
+     * controller the origin content URL is ignored.
+     *
+     *
+     * @param controller - a instance of a JavaScript controller object.
+     *
+     * @returns {Promise<jQuery>} - the promise waits to the files are loaded. it returns the jQuery object.
+     */
+    contentRouter.reloadHTMLController = function (controller) {
+        return loadHTMLFile(controller.contentUrl, controller.__tagName, controller.contentRelaod);
     };
 
     /**

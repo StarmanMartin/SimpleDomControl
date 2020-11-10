@@ -28,6 +28,38 @@ function RunPublic(app) {
     };
 
     /**
+     * Set version of css & js files.
+     */
+    app.setVersion = function(version) {
+        app.VERSION = version;
+    }
+
+    /**
+     * reloadHTMLController requests the content of a controller and replaces the current controller content
+     * with the new loaded content
+     *
+     *
+     * @param controller
+     *
+     * @returns {Promise<jQuery | void>}
+     */
+    app.reloadHTMLController = function(controller) {
+        return app.contentRouter.reloadHTMLController(controller).then(function (htmlFile) {
+            if (htmlFile) {
+                app.safeEmpty(controller.$container);
+                controller.$content = $(htmlFile);
+                controller.$container.append(controller.$content);
+                app.refreshController(controller);
+                return controller.$content;
+            }
+
+            return null;
+        }).catch(function (err) {
+            console.error("loadFiles-catch", err);
+        });
+    }
+
+    /**
      * setContentUrlPrefix is a setter for the content URLs prefix
      *
      * @param prefix

@@ -32,8 +32,9 @@ class AddControllerManager:
             return self._template_url
         cmd = 'python manage.py get_url_of_a_sdc %s' % self.controller_name_sc
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
-        out = p.communicate()[0]
-        out = re.sub(r'\\r?\\n', r'', str(out))
+        out = str(p.communicate()[0], encoding="utf-8")
+        out = re.sub(r'\\r?\\n', r'', out)
+        out = re.sub(r'\r?\n', r'', out)
         self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
         return self._template_url
 
