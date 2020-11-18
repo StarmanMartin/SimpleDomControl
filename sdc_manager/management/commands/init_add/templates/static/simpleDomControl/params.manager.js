@@ -165,8 +165,8 @@
 
     function checkIfParamNumberBoolOrString(paramElement) {
         var isStringReg = /^(['][^']*['])|(["][^"]*["])$/;
-        var isFloatReg = /^\d+\.?\d+$/;
-        var isIntReg = /^\d+$/;
+        var isFloatReg = /^-?\d+\.?\d+$/;
+        var isIntReg = /^-?\d+$/;
         var isBoolReg = /^(true|false)$/;
 
         var returnObject = {};

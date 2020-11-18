@@ -4,7 +4,7 @@
     if(!app.VERSION) {
         app.VERSION = "V0.0"
     }
-    
+
     /**
      * contentRouter - public contentRouter object.
      * @type {{
@@ -451,7 +451,7 @@
 
         if (controller._urlParams.length) {
             let params = app.paramManager.getUrlParam(controller, controller.$container);
-            url = replacePlaceholderController(controller, url, params);
+            controller.parsedContentUrl = url = replacePlaceholderController(controller, url, params);
         }
 
         if (url.indexOf(_contentPrefix) === 0) {
