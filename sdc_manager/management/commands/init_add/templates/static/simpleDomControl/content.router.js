@@ -451,8 +451,15 @@
 
         if (controller._urlParams.length) {
             let params = app.paramManager.getUrlParam(controller, controller.$container);
-            controller.parsedContentUrl = url = replacePlaceholderController(controller, url, params);
+            url = replacePlaceholderController(controller, url, params);
         }
+
+
+        if(controller.$container.data('get-args')) {
+            url += '?' + controller.$container.data('get-args');
+        }
+
+        controller.parsedContentUrl = url;
 
         if (url.indexOf(_contentPrefix) === 0) {
             return url;

@@ -46,10 +46,13 @@ function RunPublic(app) {
     app.reloadHTMLController = function(controller) {
         return app.contentRouter.reloadHTMLController(controller).then(function (htmlFile) {
             if (htmlFile) {
-                app.safeEmpty(controller.$container);
+
                 controller.$content = $(htmlFile);
-                controller.$container.append(controller.$content);
                 app.refreshController(controller);
+                app.safeEmpty(controller.$container);
+
+                controller.$container.append(controller.$content);
+
                 return controller.$content;
             }
 
