@@ -1,8 +1,5 @@
 import re
 import os
-import pathlib
-import importlib
-import sys
 from sdc_manager.management.commands.init_add import options
 from django.conf import settings
 

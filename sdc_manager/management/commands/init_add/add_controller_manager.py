@@ -2,7 +2,8 @@ import os
 import re
 import subprocess
 
-from sdc_manager.management.commands import check_if_sdc_exists, get_url_of_a_sdc
+from django.urls import get_resolver
+
 from sdc_manager.management.commands.init_add import options
 from sdc_manager.management.commands.init_add.utils import convert_to_snake_case, copy_and_prepare, \
     convert_to_camel_case, \
@@ -24,19 +25,34 @@ class AddControllerManager:
                                                 '§APPNAME§': self.app_name
                                                 }}
 
+    @staticmethod
+    def check_controller_name(c_name_sc):
+        url_name = "scd_view_" + c_name_sc
+
+        for i in get_resolver().reverse_dict.keys():
+            if str(i).endswith(url_name):
+                return True
+
+        return False
+
+    @staticmethod
+    def get_url(c_name_sc):
+        url_name = "scd_view_" + c_name_sc
+
+        for i in get_resolver().reverse_dict.keys():
+            if str(i).endswith(url_name):
+                url_to_sdc = "/" + get_resolver().reverse_dict[i][0][0][0]
+                return url_to_sdc
+        return ''
+
     def check_if_url_is_unique(self):
-        return not check_if_sdc_exists.Command.check_controller_name(self.controller_name_sc)
+        return not self.check_controller_name(self.controller_name_sc)
 
     def get_template_url(self):
         if self._template_url is not None:
             return self._template_url
-        cmd = 'python manage.py get_url_of_a_sdc %s' % self.controller_name_sc
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
-        out = str(p.communicate()[0], encoding="utf-8")
-        out = re.sub(r'\\r?\\n', r'', out)
-        out = re.sub(r'\r?\n', r'', out)
-        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
-        return self._template_url
+        return self.get_url(self.controller_name_sc)
+
 
     def get_url_params(self):
         url = self.get_template_url()

@@ -1,13 +1,16 @@
-(function (app) {
-    "use strict";
+import {AbstractSDC} from '../sdc/AbstractSDC.js';
+import {app} from '../sdc/sdc_main.js';
 
-    function §CONTROLLERNAMETITLE§Controller() {
-        this.contentUrl = "§TEMPLATEURL§"; //§TAGNAME§
-        this.cssUrls = "/static/§APPNAME§/css/sdc/§CONTROLLERNAMESC§.css";
 
-        this.events = {
+class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
+    contentUrl = '§TEMPLATEURL§' //§TAGNAME§
 
-        };
+    constructor() {
+        super();
+        this._cssUrls.push('/static/§APPNAME§/css/sdc/§CONTROLLERNAMESC§.css')
+        this.events.unshift({
+
+        });
     }
 
     //-------------------------------------------------//
@@ -20,9 +23,21 @@
     // - onRemove                                      //
     //-------------------------------------------------//
 
-    // §CONTROLLERNAMETITLE§Controller.prototype.onLoad = function () {}
+    onInit() {
+    }
 
-    app.registerController('§CONTROLLERNAMECC§', §CONTROLLERNAMETITLE§Controller);
+    onLoad($html) {
+        return super.onLoad($html);
+    }
 
+    willShow() {
+        return super.willShow();
+    }
 
-})(window.app);
+    afterShow() {
+        return super.afterShow();
+    }
+
+}
+
+app.register(§CONTROLLERNAMETITLE§Controller);
