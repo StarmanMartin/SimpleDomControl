@@ -51,8 +51,8 @@ class Command(BaseCommand):
                          os.path.join(options.PROJECT_ROOT, ".jshintrc"),
                          options.REPLACEMENTS)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", ".jshintrc"),
-                         os.path.join(options.PROJECT_ROOT, ".jshintrc"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "bower.json"),
+                         os.path.join(options.PROJECT_ROOT, "bower.json"),
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "static", "main.organizer.js"),
