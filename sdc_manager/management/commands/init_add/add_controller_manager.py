@@ -35,24 +35,19 @@ class AddControllerManager:
 
         return False
 
-    @staticmethod
-    def get_url(c_name_sc):
-        url_name = "scd_view_" + c_name_sc
-
-        for i in get_resolver().reverse_dict.keys():
-            if str(i).endswith(url_name):
-                url_to_sdc = "/" + get_resolver().reverse_dict[i][0][0][0]
-                return url_to_sdc
-        return ''
-
     def check_if_url_is_unique(self):
         return not self.check_controller_name(self.controller_name_sc)
 
     def get_template_url(self):
         if self._template_url is not None:
             return self._template_url
-        return self.get_url(self.controller_name_sc)
-
+        cmd = 'python manage.py get_url_of_a_sdc %s' % self.controller_name_sc
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
+        out = str(p.communicate()[0], encoding="utf-8")
+        out = re.sub(r'\\r?\\n', r'', out)
+        out = re.sub(r'\r?\n', r'', out)
+        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
+        return self._template_url
 
     def get_url_params(self):
         url = self.get_template_url()
@@ -103,7 +98,8 @@ class AddControllerManager:
         fin.close()
 
     def prepare_files(self):
-        main_static = os.path.join(options.PROJECT_ROOT, self.app_name, "static")
+        main_static = os.path.join(
+            options.PROJECT_ROOT, self.app_name, "static")
         main_templates = os.path.join(options.PROJECT_ROOT, self.app_name, "templates", self.app_name)
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
@@ -124,28 +120,29 @@ class AddControllerManager:
                          self.reps)
 
     def add_to_organizer(self):
-        org_file_path = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "static", options.MAIN_APP_NAME, "js",
-                                     "main.organizer.js")
-        line = '"/static/%s/js/sdc/%s.js"\n' % (self.app_name, self.controller_name_sc)
-        return self._add_js_to_src(org_file_path, line, ',' + options.SEP)
+        org_file_path = os.path.join(options.PROJECT_ROOT, self.app_name, "static", self.app_name, "js",
+                                     "%s.organizer.js" % self.app_name)
+
+        if not os.path.exists(org_file_path):
+            org_file_path_root = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "static",
+                                         "main.organizer.js")
+            line = 'import {} from "./%s/js/%s.organizer.js"\n' % (self.app_name, self.app_name)
+
+            self._add_js_to_src(org_file_path_root, line)
+
+        line = 'import {} from "./sdc/%s.js"\n' % (self.controller_name_sc)
+        return self._add_js_to_src(org_file_path, line)
 
     @staticmethod
-    def _add_js_to_src(org_file_path, new_line, sep):
-        fin = open(org_file_path, "rt", encoding='utf-8')
-        text = ""
-        is_done = False
-        is_first = False
-        for line in fin:
-            if not is_done and "controller-src-section-start" in line:
-                is_first = True
-            elif not is_done and "controller-src-section-end" in line:
-                line = '%s%s' % (new_line, line)
-                if not is_first:
-                    line = "%s%s" % (sep, line)
-                is_done = True
-            else:
-                is_first = False
-            text += line
+    def _add_js_to_src(org_file_path, new_line):
+        text = new_line
+        if not os.path.exists(org_file_path):
+            fin = open(org_file_path, 'x', encoding='utf-8')
+        else:
+            fin = open(org_file_path, 'r', encoding='utf-8')
+
+            for line in fin:
+                text += line
 
         fin.close()
 
@@ -155,13 +152,13 @@ class AddControllerManager:
 
     @staticmethod
     def _add_to_urls(main_urls_path, url_path, handler):
-        fin = open(main_urls_path, "rt", encoding='utf-8')
+        fin = open(main_urls_path, "r+", encoding='utf-8')
         text = ""
         is_done = False
 
         for line in fin:
             if not is_done and "# scd view below" in line:
-                line += "%spath('%s', %s),\n" % (options.SEP, url_path.lower(), handler)
+                line += "%surl('%s', %s),\n" % (options.SEP, url_path.lower(), handler)
                 is_done = True
             text += line
 
@@ -169,7 +166,7 @@ class AddControllerManager:
         if not is_done:
             print(options.CMD_COLORS.as_warning("Do not forgett to add:"))
             print(options.CMD_COLORS.as_important(
-                "%spath('%s', %s),\n # scd view below\n]" % (options.SEP, url_path.lower(), handler)))
+                "%surl('%s', %s),\n # scd view below\n]" % (options.SEP, url_path.lower(), handler)))
             print(options.CMD_COLORS.as_warning("to: %s " % main_urls_path))
 
         fout = open(main_urls_path, "w+", encoding='utf-8')

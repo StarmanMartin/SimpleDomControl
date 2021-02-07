@@ -31,8 +31,12 @@ class SettingsManager:
         return settings
 
     def update_settings(self):
+
+        apps = self.get_setting_vals().INSTALLED_APPS
+        apps = [a for a in apps if a != 'sdc_manager']
+
         new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s\'%s\',\n]" % (options.SEP, ("\',\n%s\'" % options.SEP).join(
-            self.get_setting_vals().INSTALLED_APPS))
+            apps))
 
         new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n%s'192.168.1.23',\n)\n" % (options.SEP, options.SEP)
 

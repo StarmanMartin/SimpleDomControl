@@ -1,54 +1,54 @@
 import {allOff} from "./sdc_events.js";
+import {app} from "./sdc_main.js";
 
 export class AbstractSDC {
-    contentUrl = '';
-    contentReload = false;
-
-    _events = [];
-
-    _cssUrls = [];
-
-    _urlParams = [];
-
-
-    /**
-     *
-     * @type {{string: AbstractSDC}}
-     */
-    _mixins = {};
-
-    /**
-     * @type {string}
-     */
-    _tagName = '';
-
-    /**
-     * @type {{string:AbstractSDC}}
-     */
-    _childController = {};
-
-    /**
-     * @type {AbstractSDC}
-     */
-    _parentController = null;
-
-    /**
-     * @type {boolean}
-     */
-    _onLoadDone = false;
-
-    /**
-     * @type {jquery}
-     */
-    $container = null;
-
-    /**
-     *
-     * @type {boolean}
-     */
-    _isMixin = false;
-
     constructor() {
+        this.contentUrl = '';
+        this.contentReload = false;
+
+        this._events = [];
+
+        this._cssUrls = [];
+
+        this._urlParams = [];
+
+
+        /**
+         *
+         * @type {{string: AbstractSDC}}
+         */
+        this._mixins = {};
+
+        /**
+         * @type {string}
+         */
+        this._tagName = '';
+
+        /**
+         * @type {{string:AbstractSDC}}
+         */
+        this._childController = {};
+
+        /**
+         * @type {AbstractSDC}
+         */
+        this._parentController = null;
+
+        /**
+         * @type {boolean}
+         */
+        this._onLoadDone = false;
+
+        /**
+         * @type {jquery}
+         */
+        this.$container = null;
+
+        /**
+         *
+         * @type {boolean}
+         */
+        this._isMixin = false;
     }
 
     get cssUrls() {
@@ -57,11 +57,11 @@ export class AbstractSDC {
             allCssUrls = [allCssUrls];
         }
 
-        if(this._isMixin) {
+        if (this._isMixin) {
             return allCssUrls;
         }
 
-        for(let mixinKey in this._mixins) {
+        for (let mixinKey in this._mixins) {
             let mixin = this._mixins[mixinKey];
             allCssUrls = allCssUrls.concat(mixin._cssUrls);
         }
@@ -72,7 +72,7 @@ export class AbstractSDC {
     get events() {
         let events = this._events;
 
-        for(let mixinKey in this._mixins) {
+        for (let mixinKey in this._mixins) {
             let mixin = this._mixins[mixinKey];
             events = events.concat(mixin._events);
         }
@@ -87,15 +87,18 @@ export class AbstractSDC {
      *
      */
     _runLifecycle(method, args) {
-        console.log(method, this._isMixin);
+        if(app.DEBUG) {
+            console.log(method, this._tagName);
+        }
+
         let returnPromisses = [];
-        if(this._isMixin) {
+        if (this._isMixin) {
             return;
         }
         this._isMixin = true;
-        for(let mixinKey in this._mixins) {
+        for (let mixinKey in this._mixins) {
             let mixin = this._mixins[mixinKey];
-            if(typeof mixin[method] === 'function') {
+            if (typeof mixin[method] === 'function') {
 
                 returnPromisses.push(mixin[method].apply(this, args));
             }
@@ -107,7 +110,9 @@ export class AbstractSDC {
     }
 
     onInit() {
-        return;
+        if(app.DEBUG) {
+            console.log(Array.apply(null, arguments), this._tagName);
+        }
     }
 
     onLoad() {
@@ -130,8 +135,8 @@ export class AbstractSDC {
     remove() {
         let _childController = this._childController;
         for (let i in _childController) {
-            if (_childController.hasOwnProperty(i)){
-                for(let cc of _childController[i]) {
+            if (_childController.hasOwnProperty(i)) {
+                for (let cc of _childController[i]) {
                     if (!cc.remove()) {
                         return false;
                     }

@@ -10,10 +10,10 @@
 
     <title>{% block title %}{% endblock %}</title>
     <script>
-        const LANGUAGE_CODE = "{{ LANGUAGE_CODE | default:'de' }}";
-        const CSRF_TOKEN = '{{ csrf_token }}';
-        const IS_DEBUG = {% if debug %} true {% else %} false {% endif %};
-        const VERSION = '{{VERSION}}';
+        window.LANGUAGE_CODE = "{{ LANGUAGE_CODE | default:'de' }}";
+        window.CSRF_TOKEN = '{{ csrf_token }}';
+        window.DEBUG = {% if debug %} true {% else %} false {% endif %};
+        window.VERSION = '{{VERSION}}';
     </script>
 
     <!--link href="{% static '§MAIN_APP§/img/ico/favicon.ico' %}" rel="shortcut icon"-->

@@ -26,6 +26,27 @@ function prepareMixins(superTagNameList, tagName) {
     }
     return superTagNameList;
 }
+
+/**
+ * setParentController sets the parent controller as property: 'parentController'
+ * to the child controller. Also it adds the child controller to the property list:
+ * 'parentController' to the parent controller
+ *
+ * @param {AbstractSDC} parentController - js controller instance, controller of the parent DOM of the controllers DOM
+ * @param {AbstractSDC} controller - js controller instance
+ * @return {AbstractSDC} - parentController
+ */
+function setParentController(parentController, controller) {
+    if (parentController) {
+        if (!parentController._childController[controller._tagName]) {
+            parentController._childController[controller._tagName] = [];
+        }
+
+        parentController._childController[controller._tagName].push(controller);
+    }
+
+    return (controller._parentController = parentController)
+}
 /**
  * controllerFactoryInstance it generates a controller instance
  * depending if the controller is registered as a global controller. It sets the
@@ -59,27 +80,6 @@ function controllerFactoryInstance(parentController, $element, tagName, superTag
 
 
     return controller;
-}
-
-/**
- * setParentController sets the parent controller as property: 'parentController'
- * to the child controller. Also it adds the child controller to the property list:
- * 'parentController' to the parent controller
- *
- * @param {AbstractSDC} parentController - js controller instance, controller of the parent DOM of the controllers DOM
- * @param {AbstractSDC} controller - js controller instance
- * @return {AbstractSDC} - parentController
- */
-function setParentController(parentController, controller) {
-    if (parentController) {
-        if (!parentController._childController[controller._tagName]) {
-            parentController._childController[controller._tagName] = [];
-        }
-
-        parentController._childController[controller._tagName].push(controller);
-    }
-
-    return (controller._parentController = parentController)
 }
 
 /**
@@ -132,24 +132,6 @@ function runControllerShow(controller, $html) {
 }
 
 
-/**
- * runControlFlowFunctions runs the control flow functions:
- * 1. onLoad()
- * 2. fill content
- * 3. willShow(dom parameter)
- * 4. afterShow()
- *
- * @param controller
- */
-export function runControlFlowFunctions(controller) {
-    return runControllerLoad(controller)
-        .then(function ($html) {
-            return runControllerShow(controller, $html);
-        }).then(() => {
-            setupEvents(controller);
-            return controller.afterShow && controller.afterShow();
-        });
-}
 
 /**
  * runControllerLoad Calls the onLoad function of the controller.
@@ -171,4 +153,23 @@ function runControllerLoad(controller) {
             return html;
         });
     });
+}
+
+/**
+ * runControlFlowFunctions runs the control flow functions:
+ * 1. onLoad()
+ * 2. fill content
+ * 3. willShow(dom parameter)
+ * 4. afterShow()
+ *
+ * @param controller
+ */
+export function runControlFlowFunctions(controller) {
+    return runControllerLoad(controller)
+        .then(function ($html) {
+            return runControllerShow(controller, $html);
+        }).then(() => {
+            setupEvents(controller);
+            return controller.afterShow && controller.afterShow();
+        });
 }

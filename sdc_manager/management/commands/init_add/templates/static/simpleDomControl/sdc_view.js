@@ -95,22 +95,22 @@ function replacePlaceholderController(controller, url, urlValues) {
  * If the HTML file is loaded already the function takes no action.
  *
  * @param path - a content URL from the controller.
+ * @param {object} args - get args.
  * @param tag - a normalized tag-name as string.
  * @param hardReload - true if the file has to be reloaded every time.
  * @returns {Promise<Boolean>} - waits for the file to be loaded.
  */
-function loadHTMLFile(path, tag, hardReload) {
+function loadHTMLFile(path, args, tag, hardReload) {
     if (!path) {
         return Promise.resolve(false);
     } else if (htmlFiles[tag]) {
         return Promise.resolve(htmlFiles[tag])
     }
 
-    if (path.indexOf('?') === -1) {
-        path += '?' + app.VERSION;
-    }
+    args.VERSION = app.VERSION;
 
-    return $.get(path).then(function (data) {
+
+    return $.get(path, args).then(function (data) {
         if (!hardReload) {
             htmlFiles[tag] = data;
         }
@@ -181,6 +181,35 @@ function replaceAllTagElementsInContainer($container, parentController) {
 }
 
 /**
+ * parseContentUrl uses the content URL prefix to marge the
+ * correct URL. Also parses the url parameter
+ *
+ * @param {AbstractSDC} controller - controller object
+ * @returns {string} - the correct URL with prefix.
+ */
+function parseContentUrl(controller) {
+    let url = controller.contentUrl;
+    if (controller && !controller._urlParams) {
+        let re = /%\(([^)]+)\)\w/gm;
+        let matches;
+        controller._urlParams = [];
+        while ((matches = re.exec(url))) {
+            controller._urlParams.push(matches[1]);
+            controller.contentReload = true;
+        }
+    }
+
+    let params = getUrlParam(controller, controller.$container);
+    if (controller._urlParams.length) {
+        url = replacePlaceholderController(controller, url, params);
+    }
+
+    controller.parsedContentUrl = url;
+
+    return {url:url, args:params[params.length-1]};
+}
+
+/**
  * loadFilesFromController loads the content (HTML) and the CSS files of a
  * Controller. If you have an alternative content URL is registered, for this
  * controller the origin content URL is ignored.
@@ -194,12 +223,14 @@ function replaceAllTagElementsInContainer($container, parentController) {
  * @returns {Promise<jQuery>} - the promise waits to the files are loaded. it returns the jQuery object.
  */
 export function loadFilesFromController(controller) {
+    let getElements = {args:{}};
     if (controller.contentUrl) {
-        controller.contentUrl = parseContentUrl(controller, controller.contentUrl);
+        getElements = parseContentUrl(controller, controller.contentUrl);
+        controller.contentUrl = getElements.url;
     }
 
     return Promise.all([
-        loadHTMLFile(controller.contentUrl, controller._tagName, controller.contentReload),
+        loadHTMLFile(controller.contentUrl, getElements.args, controller._tagName, controller.contentReload),
         loadCSSFile(controller.cssUrls, controller._tagName)
     ]).then(function (results) {
         let htmlFile = results[0];
@@ -225,40 +256,6 @@ export function loadFilesFromController(controller) {
  */
 export function reloadHTMLController(controller) {
     return loadHTMLFile(controller.contentUrl, controller._tagName, controller.contentReload);
-}
-
-/**
- * parseContentUrl uses the content URL prefix to marge the
- * correct URL. Also parses the url parameter
- *
- * @param {AbstractSDC} controller - controller object
- * @returns {string} - the correct URL with prefix.
- */
-function parseContentUrl(controller) {
-    let url = controller.contentUrl;
-    if (controller && !controller._urlParams) {
-        let re = /%\(([^)]+)\)\w/gm;
-        let matches;
-        controller._urlParams = [];
-        while ((matches = re.exec(url))) {
-            controller._urlParams.push(matches[1]);
-            controller.contentReload = true;
-        }
-    }
-
-    if (controller._urlParams.length) {
-        let params = getUrlParam(controller, controller.$container);
-        url = replacePlaceholderController(controller, url, params);
-    }
-
-
-    if (controller.$container.data('get-args')) {
-        url += '?' + controller.$container.data('get-args');
-    }
-
-    controller.parsedContentUrl = url;
-
-    return url;
 }
 
 /**
@@ -307,7 +304,7 @@ export function runControllerFillContent(controller, $html) {
 }
 
 
-    /**
+/**
  * replaceTagElementsInContainer Finds all registered tags in a container. But it ignores
  * registered tags in registered tags. For each registered tag it loads the content.
  * Afterwards it starts the life cycle of the controller. I the next step it starts the
@@ -341,4 +338,3 @@ export function replaceTagElementsInContainer(tagList, $container, parentControl
         }
     });
 }
-

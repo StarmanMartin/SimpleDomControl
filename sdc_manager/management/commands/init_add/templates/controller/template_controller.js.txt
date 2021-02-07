@@ -1,12 +1,12 @@
-import {AbstractSDC} from '../sdc/AbstractSDC.js';
-import {app} from '../sdc/sdc_main.js';
+import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
+import {app} from '../../../simpleDomControl/sdc_main.js';
 
 
 class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
-    contentUrl = '§TEMPLATEURL§' //§TAGNAME§
 
     constructor() {
         super();
+        this.contentUrl = '§TEMPLATEURL§' //§TAGNAME§
         this._cssUrls.push('/static/§APPNAME§/css/sdc/§CONTROLLERNAMESC§.css')
         this.events.unshift({
 

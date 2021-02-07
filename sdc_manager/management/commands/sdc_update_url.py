@@ -13,15 +13,15 @@ def change_content_url(file_path, app_name, controller_name):
     data = ""
     app_controller = AddControllerManager(app_name, controller_name)
     new_url_line = '"%s"; //%s' % (app_controller.get_template_url(), app_controller.prepare_tag_name())
-    regexp = re.compile(r'(\s+this.)contentUrl *= *.*')
+    regexp = re.compile(r'(\s*this.)contentUrl *= *.*')
     is_done = False
     for line in fin:
         match = regexp.match(line)
         if not is_done and match:
             line = regexp.sub(r'\1contentUrl = %s' % new_url_line, line)
             is_done = True
-
         data += line
+
     fin.close()
     fout = open(file_path, 'wt')
     fout.write(data)

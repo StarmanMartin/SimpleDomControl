@@ -1,4 +1,4 @@
-import {app} from './simpleDomControl/AbstractSDC.js';
+import {app} from './simpleDomControl/sdc_main.js';
 
 
 app.init_sdc();

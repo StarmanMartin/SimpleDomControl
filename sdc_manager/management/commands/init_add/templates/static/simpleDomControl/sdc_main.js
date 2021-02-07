@@ -4,17 +4,28 @@ import {AbstractSDC} from "./AbstractSDC.js";
 import {Global, controllerList} from "./sdc_controller.js";
 import {updateEvents} from "./sdc_dom_events.js";
 
+
 export const app = {
-    VERSION: '0.0',
+    CSRF_TOKEN: window.CSRF_TOKEN || '',
+    LANGUAGE_CODE: window.LANGUAGE_CODE || 'en',
+    DEBUG: window.DEBUG || false,
+    VERSION: window.VERSION || '0.0',
     tagNames: [],
     Global: Global,
     rootController: null,
 
 
     init_sdc: () => {
+        "use strict"
         app.rootController = app.rootController || new AbstractSDC();
         app.tagNames = Object.keys(controllerList);
         replaceTagElementsInContainer(app.tagNames, getBody(), app.rootController);
+    },
+
+    controllerToTag: (Controller) => {
+        "use strict"
+        let tagName = camelCaseToTagName(Controller.name);
+        return tagName.replace(/-controller$/, '');
     },
 
     /**
@@ -22,7 +33,8 @@ export const app = {
      * @param {AbstractSDC} Controller
      */
     registerGlobal: (Controller) => {
-        let tagName = camelCaseToTagName(Controller.name);
+        "use strict"
+        let tagName = app.controllerToTag(Controller);
         let globalController = new Controller();
         controllerList[tagName] = [new globalController(), true];
         globalController._tagName = tagName;
@@ -34,7 +46,8 @@ export const app = {
      * @param {AbstractSDC} Controller
      */
     register: (Controller) => {
-        let tagName = camelCaseToTagName(Controller.name);
+        "use strict"
+        let tagName = app.controllerToTag(Controller);
         controllerList[tagName] = [Controller, []];
 
         return {
@@ -47,21 +60,45 @@ export const app = {
         }
     },
 
-    post: (url, params) => {
-        return app.ajax(url, params, $.post);
+    /**
+     *
+     * @param {AbstractSDC} controller
+     * @param {string} url
+     * @param {object} params
+     * @return {Promise}
+     */
+    post: (controller, url, params) => {
+        "use strict"
+        return app.ajax(controller, url, params, $.post);
     },
 
-    get: (url, params) => {
-        return app.ajax(url, params, $.get);
+    /**
+     *
+     * @param {AbstractSDC} controller
+     * @param {string} url
+     * @param {object} params
+     * @return {Promise}
+     */
+    get: (controller, url, params) => {
+        "use strict"
+        return app.ajax(controller, url, params, $.get);
     },
 
-    ajax: (url, params, method) => {
+    /**
+     *
+     * @param {AbstractSDC} controller
+     * @param {string} url
+     * @param {object} params
+     * @param {function} method $.get or $.post
+     * @return {Promise}
+     */
+    ajax: (controller, url, params, method) => {
+        "use strict"
         const p = new Promise((resolve, reject) => {
             return method(url, params).then((a, b, c) => {
-                re
-                solve(a, b, c);
+                resolve(a, b, c);
                 p.then(() => {
-                    app.refresh($(form));
+                    app.refresh(controller.$container);
                 });
             }).catch(reject);
         });
@@ -70,7 +107,8 @@ export const app = {
     },
 
     submitFormAndUpdateView: (form, url, method) => {
-        var formData = new FormData(form);
+        "use strict"
+        let formData = new FormData(form);
         const p = new Promise((resolve, reject) => {
             uploadFileFormData(formData, (url || form.action), (method || form.method))
                 .then((a, b, c) => {
@@ -85,7 +123,8 @@ export const app = {
 
     },
     submitForm: (form, url, method) => {
-        var formData = new FormData(form);
+        "use strict"
+        let formData = new FormData(form);
         return new Promise((resolve, reject) => {
             uploadFileFormData(formData, (url || form.action), (method || form.method))
                 .then(resolve).catch(reject);
@@ -98,6 +137,7 @@ export const app = {
      * @return {AbstractSDC}
      */
     getController: ($elem) => {
+        "use strict"
         return $elem.closest(`.${CONTROLLER_CLASS}`).data(`${DATA_CONTROLLER_KEY}`);
     },
 
@@ -106,8 +146,9 @@ export const app = {
      * @param {jquery} $container
      */
     refresh: ($container) => {
-        let leafController;
-        let controller = leafController = app.getController($container);
+        "use strict"
+        let leafController = app.getController($container);
+        let controller = leafController;
         let controllerList = [];
         while (controller) {
             controllerList.unshift(controller);
