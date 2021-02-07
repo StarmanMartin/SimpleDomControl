@@ -26,7 +26,7 @@ class Command(BaseCommand):
 
         sdc_settings.find_and_set_whitespace_sep()
         main_static = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "static")
-        main_templates = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "templates")
+        main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
         if os.path.exists(sdc_dir):
@@ -51,12 +51,16 @@ class Command(BaseCommand):
                          os.path.join(options.PROJECT_ROOT, ".jshintrc"),
                          options.REPLACEMENTS)
 
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", ".jshintrc"),
+                         os.path.join(options.PROJECT_ROOT, ".jshintrc"),
+                         options.REPLACEMENTS)
+
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "static", "main.organizer.js"),
-                         os.path.join(main_static, options.MAIN_APP_NAME, "js", "main.organizer.js"),
+                         os.path.join(main_static, "main.organizer.js"),
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "static", "style.css"),
-                         os.path.join(main_static, options.MAIN_APP_NAME, "css", "style.css"),
+                         os.path.join(main_static, "style.css"),
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "templates", "base.html"),

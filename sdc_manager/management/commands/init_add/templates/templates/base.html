@@ -13,6 +13,7 @@
         const LANGUAGE_CODE = "{{ LANGUAGE_CODE | default:'de' }}";
         const CSRF_TOKEN = '{{ csrf_token }}';
         const IS_DEBUG = {% if debug %} true {% else %} false {% endif %};
+        const VERSION = '{{VERSION}}';
     </script>
 
     <!--link href="{% static '§MAIN_APP§/img/ico/favicon.ico' %}" rel="shortcut icon"-->
