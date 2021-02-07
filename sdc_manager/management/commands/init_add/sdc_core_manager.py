@@ -30,7 +30,7 @@ def add_sdc_to_main_urls(main_urls_path):
 
     for line in fin:
         if 'from django.urls import path' in line:
-            line += ', include'
+            line = re.sub(r'path', 'path, include', line)
 
         if "urlpatterns = [" in line:
             line = re.sub(r'urlpatterns = \[',
