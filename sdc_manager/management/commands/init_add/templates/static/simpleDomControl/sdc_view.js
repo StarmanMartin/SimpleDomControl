@@ -108,6 +108,7 @@ function loadHTMLFile(path, args, tag, hardReload) {
     }
 
     args.VERSION = app.VERSION;
+    args._method = 'content';
 
 
     return $.get(path, args).then(function (data) {

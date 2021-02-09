@@ -1,4 +1,4 @@
-import {getParamsNameOfFunction} from "./sdc_utils.js";
+import {getParamsNameOfFunction, checkIfParamNumberBoolOrString} from "./sdc_utils.js";
 import {DATA_CONTROLLER_KEY} from "./sdc_view.js";
 
 
@@ -31,33 +31,6 @@ function getParamList(paramNameList, $element) {
 
     returnList.push(restdata)
     return returnList;
-}
-
-function checkIfParamNumberBoolOrString(paramElement) {
-    if(typeof paramElement !== 'string') {
-        return paramElement;
-    }
-
-    let isFloatReg = /^-?\d+\.?\d+$/;
-    let isIntReg = /^-?\d+$/;
-    let isBoolReg = /^(true|false)$/;
-    let isStringReg = /^(['][^']*['])|(["][^"]*["])$/;
-
-    if (paramElement.match(isBoolReg)) {
-        return paramElement === 'true';
-    } else if (paramElement === 'undefined') {
-        return undefined;
-    } else if (paramElement.toLowerCase() === 'none') {
-        return null;
-    } else if (paramElement.match(isIntReg)) {
-        return parseInt(paramElement);
-    } else if (paramElement.match(isFloatReg)) {
-        return parseFloat(paramElement);
-    } else if (paramElement.match(isStringReg)) {
-        return paramElement.substr(1, paramElement.length - 2);
-    }
-
-    return paramElement;
 }
 
 function parseParamNameList(list) {

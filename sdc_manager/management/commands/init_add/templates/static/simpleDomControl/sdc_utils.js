@@ -143,3 +143,31 @@ function progressHandlingFunction(e) {
         $progressContainer.find('.progress-bar').css({'width': percentVal}).text(percentVal);
     }
 }
+
+
+export function checkIfParamNumberBoolOrString(paramElement) {
+    if(typeof paramElement !== 'string') {
+        return paramElement;
+    }
+
+    let isFloatReg = /^-?\d+\.?\d+$/;
+    let isIntReg = /^-?\d+$/;
+    let isBoolReg = /^(true|false)$/;
+    let isStringReg = /^(['][^']*['])|(["][^"]*["])$/;
+
+    if (paramElement.match(isBoolReg)) {
+        return paramElement === 'true';
+    } else if (paramElement === 'undefined') {
+        return undefined;
+    } else if (paramElement.toLowerCase() === 'none') {
+        return null;
+    } else if (paramElement.match(isIntReg)) {
+        return parseInt(paramElement);
+    } else if (paramElement.match(isFloatReg)) {
+        return parseFloat(paramElement);
+    } else if (paramElement.match(isStringReg)) {
+        return paramElement.substr(1, paramElement.length - 2);
+    }
+
+    return paramElement;
+}

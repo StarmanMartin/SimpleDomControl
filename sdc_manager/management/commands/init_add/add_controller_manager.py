@@ -87,13 +87,13 @@ class AddControllerManager:
     def add_view_class_to_sdc_views(self):
         fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at", encoding='utf-8')
         fin.write(
-            "\n\nclass %s(View):\n%stemplate_name='%s/sdc/%s.html'\n" % (
+            "\n\nclass %s(SDCView):\n%stemplate_name='%s/sdc/%s.html'\n" % (
                 self.controller_name_tcc, options.SEP, self.app_name, self.controller_name_sc))
         fin.close()
         fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at", encoding='utf-8')
 
         fin.write(
-            "\n%sdef get(self, request%s, *args, **kwargs):\n%sreturn render(request, self.template_name)" % (
+            "\n%sdef get_content(self, request%s, *args, **kwargs):\n%sreturn render(request, self.template_name)" % (
                 options.SEP, self.get_params_as_string(), options.SEP * 2))
         fin.close()
 

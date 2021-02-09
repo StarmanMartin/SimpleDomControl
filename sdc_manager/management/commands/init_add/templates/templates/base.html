@@ -28,7 +28,7 @@
     <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}"/>
 </head>
 <body>
-
+{% block content %}{% endblock %}
 <div class="site-footer">
     <p>By: Martin Starman {% if debug %} DEBUG_MODE {% endif %}</p>
 </div>

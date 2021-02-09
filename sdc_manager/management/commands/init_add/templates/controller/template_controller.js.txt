@@ -6,8 +6,8 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = '§TEMPLATEURL§' //§TAGNAME§
-        this._cssUrls.push('/static/§APPNAME§/css/sdc/§CONTROLLERNAMESC§.css')
+        this.contentUrl = '§TEMPLATEURL§'; //§TAGNAME§
+        this._cssUrls.push('/static/§APPNAME§/css/sdc/§CONTROLLERNAMESC§.css');
         this.events.unshift({
 
         });
@@ -19,6 +19,8 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
     // - onLoad (DOM not set)                          //
     // - willShow  (DOM set)                           //
     // - afterShow  (recalled on reload)               //
+    //-------------------------------------------------//
+    // - onRefresh                                     //
     //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
@@ -36,6 +38,10 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
 
     afterShow() {
         return super.afterShow();
+    }
+
+    onRefresh() {
+        return super.onRefresh();
     }
 
 }

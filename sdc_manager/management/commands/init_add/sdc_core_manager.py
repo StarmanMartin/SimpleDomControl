@@ -34,10 +34,11 @@ def add_sdc_to_main_urls(main_urls_path):
 
         if "urlpatterns = [" in line:
             line = re.sub(r'urlpatterns = \[',
-                          "urlpatterns = [\n%spath('', include('%s.urls')),\n%s# scd view below\n" % (
-                          options.SEP, options.MAIN_APP_NAME, options.SEP), line)
+                          "urlpatterns = [\n%s# scd view below\n" % (options.SEP), line)
             is_done = True
         text += line
+
+    text += "\nurlpatterns += [path('', include('%s.urls'))]" % options.MAIN_APP_NAME
 
     fin.close()
     if not is_done:

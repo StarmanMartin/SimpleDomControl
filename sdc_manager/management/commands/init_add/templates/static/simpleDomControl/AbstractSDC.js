@@ -127,6 +127,10 @@ export class AbstractSDC {
         return this._runLifecycle('afterShow', arguments);
     }
 
+    onRefresh() {
+        return this._runLifecycle('onRefresh', arguments);
+    }
+
     onRemove() {
         this._runLifecycle('onRemove', arguments)
         return true;
@@ -158,4 +162,25 @@ export class AbstractSDC {
         return false;
     }
 
+
+
+    post(url, args) {
+        return app.post(this, url, args);
+    }
+
+    get(url, args) {
+        return app.get(this, url, args);
+    }
+
+    submitForm(form, url, method) {
+        return app.submitFormAndUpdateView(this, form, url, method);
+    }
+
+    /**
+     * Adapter to this.$container.find
+     * @param {string} domSelector
+     */
+    find(domSelector) {
+        return this.$container.find(domSelector);
+    }
 }
