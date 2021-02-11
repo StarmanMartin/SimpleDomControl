@@ -1,5 +1,6 @@
 import {allOff} from "./sdc_events.js";
 import {app} from "./sdc_main.js";
+import {unbindEvents} from "./sdc_dom_events.js"
 
 export class AbstractSDC {
     constructor() {
@@ -88,7 +89,7 @@ export class AbstractSDC {
      */
     _runLifecycle(method, args) {
         if(app.DEBUG) {
-            console.log(method, this._tagName);
+            console.debug(method, this._tagName);
         }
 
         let returnPromisses = [];
@@ -111,7 +112,7 @@ export class AbstractSDC {
 
     onInit() {
         if(app.DEBUG) {
-            console.log(Array.apply(null, arguments), this._tagName);
+            console.DEBUG(Array.apply(null, arguments), this._tagName);
         }
     }
 
@@ -150,11 +151,18 @@ export class AbstractSDC {
 
         if (!this.onRemove || this.onRemove()) {
             allOff(this);
+            unbindEvents(this);
             if (this._parentController._childController[this._tagName]) {
-                delete this._parentController._childController[this._tagName];
+                let arr = this._parentController._childController[this._tagName];
+                for( var i = 0; i < arr.length; i++){
+                    if ( arr[i] === this) {
+                        arr.splice(i, 1);
+                    }
+                }
             }
 
             this.$container.remove();
+            delete this;
             return true;
 
         }

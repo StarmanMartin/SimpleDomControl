@@ -1,0 +1,58 @@
+.alert_msg_container {
+    position: fixed;
+    left: 30vw;
+    top: 20px;
+    background: transparent;
+    min-height: 50px;
+    z-index: 5000;
+    width: 50%;
+}
+
+.dummy_row {
+    display: none;
+}
+
+.alert_box {
+    background: #17a2b8;
+    margin: auto;
+    width: 100%;
+    border-radius: 13px;
+    overflow: hidden;
+}
+
+.alert_box_msg {
+    margin: 7px;
+    position: relative;
+    width: auto;
+    left: 0;
+    right: 0;
+    background: white;
+    border-radius: 6px;
+    border: 3px solid #17a2b8;
+}
+
+.alert_box_msg.error_box {
+    border: 3px solid #dc3545;
+}
+
+.msg_header {
+    margin: 0 7px;
+    font-size: 1.3em;
+    border-bottom: 1px solid #17a2b8;
+}
+
+.alert_box_msg.error_box .msg_header {
+    border-bottom: 1px solid #dc3545;
+}
+
+.msg_date {
+    margin: 0;
+    font-size: 1.0em;
+}
+
+@media only screen and (max-width: 811px) {
+    .alert_msg_container {
+        left: 10vw;
+        width: 90%;
+    }
+}

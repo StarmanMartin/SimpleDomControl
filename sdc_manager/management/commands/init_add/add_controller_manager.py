@@ -35,6 +35,16 @@ class AddControllerManager:
 
         return False
 
+    @staticmethod
+    def get_url(c_name_sc):
+        url_name = "scd_view_" + c_name_sc
+
+        for i in get_resolver().reverse_dict.keys():
+            if str(i).endswith(url_name):
+                url_to_sdc = "/" + get_resolver().reverse_dict[i][0][0][0]
+                return url_to_sdc
+        return ''
+
     def check_if_url_is_unique(self):
         return not self.check_controller_name(self.controller_name_sc)
 
@@ -46,6 +56,13 @@ class AddControllerManager:
         out = str(p.communicate()[0], encoding="utf-8")
         out = re.sub(r'\\r?\\n', r'', out)
         out = re.sub(r'\r?\n', r'', out)
+        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
+        return self._template_url
+
+    def get_template_url_sync(self):
+        if self._template_url is not None:
+            return self._template_url
+        out = self.get_url(self.controller_name_sc)
         self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
         return self._template_url
 
@@ -158,7 +175,7 @@ class AddControllerManager:
 
         for line in fin:
             if not is_done and "# scd view below" in line:
-                line += "%surl('%s', %s),\n" % (options.SEP, url_path.lower(), handler)
+                line += "%spath('%s', %s),\n" % (options.SEP, url_path.lower(), handler)
                 is_done = True
             text += line
 
@@ -166,7 +183,7 @@ class AddControllerManager:
         if not is_done:
             print(options.CMD_COLORS.as_warning("Do not forgett to add:"))
             print(options.CMD_COLORS.as_important(
-                "%surl('%s', %s),\n # scd view below\n]" % (options.SEP, url_path.lower(), handler)))
+                "%spath('%s', %s),\n # scd view below\n]" % (options.SEP, url_path.lower(), handler)))
             print(options.CMD_COLORS.as_warning("to: %s " % main_urls_path))
 
         fout = open(main_urls_path, "w+", encoding='utf-8')

@@ -1,9 +1,20 @@
+import errno
 import os
 import re
+import shutil
 
 from sdc_manager.management.commands.init_add.utils import copy_and_prepare
 from sdc_manager.management.commands.init_add import options
 
+
+def copy_user_and_tools():
+    src = os.path.join(options.SCRIPT_ROOT, "templates", "sdc_tools")
+    try:
+        shutil.copytree(src, options.PROJECT_ROOT)
+    except OSError as exc: # python >2.5
+        if exc.errno == errno.ENOTDIR:
+            shutil.copy(src, options.PROJECT_ROOT)
+        else: raise
 
 def add_sdc_core():
     import subprocess

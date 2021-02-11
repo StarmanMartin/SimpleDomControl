@@ -1,0 +1,30 @@
+
+
+.nav-menu-set:not(.active) {
+    display: none!important;
+}
+
+.div-page-container {
+    transition: opacity 1s ease;
+    opacity: 0;
+
+}
+.div-page-container.active {
+    opacity: 1;
+}
+
+.div-page-container.active.loading {
+    opacity: 0.5;
+}
+
+.header-loading {
+    position: fixed;
+    top: -50px;
+    width: 70vw;
+    text-align: center;
+    transition: top 500ms ease;
+}
+
+.header-loading.active {
+    top: 100px;
+}

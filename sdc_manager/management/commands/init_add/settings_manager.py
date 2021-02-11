@@ -35,10 +35,13 @@ class SettingsManager:
         apps = self.get_setting_vals().INSTALLED_APPS
         apps = [a for a in apps if a != 'sdc_manager']
 
-        new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s\'%s\',\n]" % (options.SEP, ("\',\n%s\'" % options.SEP).join(
-            apps))
+        apps.append('sdc_tools')
+
+        new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s'%s',%s#'sdc_user'\n]" % (options.SEP, ("',\n%s'" % options.SEP).join(
+            apps),options.SEP)
 
         new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n%s'192.168.1.23',\n)\n" % (options.SEP, options.SEP)
+        new_val += "\n\n# AUTH_USER_MODEL = 'sdc_user.CustomUser'"
 
         fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')
         data = fin.read()

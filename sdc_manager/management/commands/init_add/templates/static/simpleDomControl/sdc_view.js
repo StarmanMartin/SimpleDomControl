@@ -256,7 +256,15 @@ export function loadFilesFromController(controller) {
  * @returns {Promise<jQuery>} - the promise waits to the files are loaded. it returns the jQuery object.
  */
 export function reloadHTMLController(controller) {
-    return loadHTMLFile(controller.contentUrl, controller._tagName, controller.contentReload);
+    if (controller.contentUrl) {
+        let getElements = parseContentUrl(controller, controller.contentUrl);
+        controller.contentUrl = getElements.url;
+        return loadHTMLFile(controller.contentUrl, getElements.args, controller._tagName, controller.contentReload);
+    }
+
+    return new Promise(resolve => {
+        resolve($());
+    });
 }
 
 /**
@@ -317,7 +325,6 @@ export function runControllerFillContent(controller, $html) {
  */
 export function replaceTagElementsInContainer(tagList, $container, parentController) {
     return new Promise((resolve) => {
-
 
         let tagDescriptionElements = findSdcTgs($container, tagList);
         let tagCount = tagDescriptionElements.length;

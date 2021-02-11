@@ -52,6 +52,11 @@ export function camelCaseToTagName(str) {
     return str.replace(/^[-]/g, ``);
 }
 
+export function tagNameToCamelCase(str) {
+    str = str.replace(/-./g, letter => `${letter[1].toUpperCase()}` );
+    return str;
+}
+
 const copyProps = (targetClass, sourceClass) => {
     let source = sourceClass;
     let propNamesTarget =  Object.getOwnPropertyNames(targetClass.prototype).concat(Object.getOwnPropertySymbols(targetClass.prototype))

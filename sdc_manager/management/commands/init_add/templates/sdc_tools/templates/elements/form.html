@@ -1,0 +1,71 @@
+{% load i18n %}
+{% load addclass %}
+
+<div class="hidden-form-fields">
+    {% for hidden in form.hidden_fields %}
+    {{ hidden }}
+    {% endfor %}
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger non-field-errors">
+    {{ form.non_field_errors }}
+</div>
+{% endif %}
+
+<style>
+    input[type="checkbox"] {
+        width: auto !important;
+        margin: -7px 9px 3px 0;
+    }
+
+    .label-container {
+        text-align: right;
+    }
+
+    .label-container .help{
+        text-align: left;
+        padding-left: 5px;
+    }
+
+    .label-container ul {
+        text-align: left;
+    }
+
+    .control-label:after {
+        content: ':';
+    }
+    @media only screen and (max-width: 600px) {
+        .label-container {
+            text-align: center;
+        }
+    }
+</style>
+
+{% for field in form.visible_fields %}
+<div style="border-bottom: 1px solid #cccccc"
+     class="row form-group{% if field.errors %} has-error{% endif %} {{ field.auto_id }}"
+     data-auto-id="{{ field.auto_id }}">
+    <div class="col-md-4 label-container">
+
+
+        <label for="{{ field.auto_id }}" class="control-label">{{ field.label|safe }}</label>
+
+        {% if field.help_text %}
+        <p class="help help_for_{{ field.auto_id }}">{{ field.help_text|safe }}</p>
+        {% endif %}
+
+    </div>
+    <div class="col-md-7 form-input-container">
+
+        {{ field | addclass:"form-control timer-change"}}
+
+
+        {% if field.errors %}
+        <div class="alert alert-danger">
+            {{ field.errors }}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}

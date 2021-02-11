@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 {% load i18n %}
+
 {% get_current_language as LANGUAGE_CODE %}
 
 <html lang="{{ LANGUAGE_CODE | default:'de' }}">
@@ -16,13 +17,13 @@
         window.VERSION = '{{VERSION}}';
     </script>
 
-    <!--link href="{% static '§MAIN_APP§/img/ico/favicon.ico' %}" rel="shortcut icon"-->
+    <!--link href="{% static 'sdc_core/img/ico/favicon.ico' %}" rel="shortcut icon"-->
 
     <link rel="stylesheet" type="text/css" href="{% static 'bower/bootstrap/dist/css/bootstrap.css' %}"/>
     <script type="text/javascript" src="{% static 'bower/jquery/dist/jquery.min.js' %}"></script>
     <script type="text/javascript" src="{% static 'bower/bootstrap/dist/js/bootstrap.js' %}"></script>
 
-    <script type="module" src="{% static 'main.organizer.js' %}"></script>
+    {% block scripts %}{% endblock %}
 
 
     <link rel="stylesheet" type="text/css" href="{% static 'style.css' %}"/>

@@ -70,7 +70,7 @@ function unbindEvent(controller, $content, events) {
         if (events.hasOwnProperty(firstEventKey)) {
             let eventList = events[firstEventKey];
             for (let secondEventKey in eventList) {
-                if (!secondEventKey.startsWith("_dh") && eventList.hasOwnProperty(secondEventKey)) {
+                if (eventList.hasOwnProperty(secondEventKey)) {
                     let domSelector = secondEventKey;
                     let eventType = firstEventKey;
                     if (switchedDomSelectorAndEvent(secondEventKey, firstEventKey)) {
@@ -128,8 +128,8 @@ function bindAllControllerEvent(controller, $content) {
 }
 
 /**
- * setupEvents first unbinds all HTML event handlers based on the events-object of
- * the controller. Then it rebinds all all HTML event handler using the events-object
+ * setupEvents handlers uses the the events-object of
+ * the controller. It binds all all HTML event handler using the events-object
  * of the controller.
  *
  * No action if the controler has no events object.
@@ -144,6 +144,25 @@ export function setupEvents(controller) {
     let $content = controller.$container;
 
     bindAllControllerEvent(controller, $content);
+
+}
+
+/**
+ * unbindEvents  unbinds all HTML event handlers based on the events-object of
+ * the controller.
+ *
+ * No action if the controler has no events object.
+ *
+ * @param {AbstractSDC} controller - a instance of a JavaScript controller object.
+ */
+export function unbindEvents(controller) {
+    if (!controller.events) {
+        return true;
+    }
+
+    let $content = controller.$container;
+
+    unbindAllControllerEvent(controller, $content);
 }
 
 /**

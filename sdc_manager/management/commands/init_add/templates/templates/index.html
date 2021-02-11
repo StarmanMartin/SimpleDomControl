@@ -1,9 +1,14 @@
 {% extends "base.html" %}
 
+{% load addclass %}
 {% load static %}
 {% load i18n %}
 
 {% block title %}Title{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'main.organizer.js' %}?{% random_tag 5%}"></script>
+{% endblock %}
 
 {% block content %}
 

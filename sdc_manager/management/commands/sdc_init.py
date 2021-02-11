@@ -4,7 +4,8 @@ import sys
 from django.core.management.base import BaseCommand
 
 from sdc_manager.management.commands.init_add import options, settings_manager
-from sdc_manager.management.commands.init_add.sdc_core_manager import add_sdc_core, clean_up, add_sdc_to_main_urls
+from sdc_manager.management.commands.init_add.sdc_core_manager import add_sdc_core, clean_up, add_sdc_to_main_urls, \
+    copy_user_and_tools
 from sdc_manager.management.commands.init_add.utils import makedirs_if_not_exist, copy, copy_and_prepare
 
 
@@ -33,6 +34,7 @@ class Command(BaseCommand):
             print(options.CMD_COLORS.as_error("SimpleDomControl has init already!"))
             exit(2)
 
+        copy_user_and_tools()
         add_sdc_core()
         clean_up()
 

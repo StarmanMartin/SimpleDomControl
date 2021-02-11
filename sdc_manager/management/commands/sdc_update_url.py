@@ -12,7 +12,7 @@ def change_content_url(file_path, app_name, controller_name):
     fin = open(file_path, 'rt')
     data = ""
     app_controller = AddControllerManager(app_name, controller_name)
-    new_url_line = '"%s"; //%s' % (app_controller.get_template_url(), app_controller.prepare_tag_name())
+    new_url_line = '"%s"; //%s' % (app_controller.get_template_url_sync(), app_controller.prepare_tag_name())
     regexp = re.compile(r'(\s*this.)contentUrl *= *.*')
     is_done = False
     for line in fin:

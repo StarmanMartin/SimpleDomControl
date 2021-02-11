@@ -1,4 +1,4 @@
-import {promiseDummyFactory, agileAggregation} from "./sdc_utils.js";
+import {promiseDummyFactory, tagNameToCamelCase, agileAggregation} from "./sdc_utils.js";
 import {loadFilesFromController, runControllerFillContent} from "./sdc_view.js";
 import {setupEvents} from "./sdc_dom_events.js";
 import {runOnInitWithParameter} from "./sdc_params.js";
@@ -38,11 +38,12 @@ function prepareMixins(superTagNameList, tagName) {
  */
 function setParentController(parentController, controller) {
     if (parentController) {
-        if (!parentController._childController[controller._tagName]) {
-            parentController._childController[controller._tagName] = [];
+        let controllerName = tagNameToCamelCase(controller._tagName);
+        if (!parentController._childController[controllerName]) {
+            parentController._childController[controllerName] = [];
         }
 
-        parentController._childController[controller._tagName].push(controller);
+        parentController._childController[controllerName].push(controller);
     }
 
     return (controller._parentController = parentController)
@@ -96,10 +97,12 @@ function controllerFactoryInstance(parentController, $element, tagName, superTag
  * @return {AbstractSDC} -  new Controller
  */
 export function controllerFactory(parentController, $element, tagName, superTagNameList) {
-    if (Global[tagName]) {
-        let controller = Global[tagName];
+    let gTagName = tagNameToCamelCase(tagName);
+    if (Global[gTagName]) {
+        let controller = Global[gTagName];
         setParentController(parentController, controller);
         controller.$container = $element;
+
         return controller;
     }
 

@@ -1,5 +1,10 @@
-import {camelCaseToTagName, getBody, uploadFileFormData} from "./sdc_utils.js";
-import {replaceTagElementsInContainer, DATA_CONTROLLER_KEY, CONTROLLER_CLASS} from "./sdc_view.js";
+import {camelCaseToTagName, tagNameToCamelCase, getBody, uploadFileFormData} from "./sdc_utils.js";
+import {
+    replaceTagElementsInContainer,
+    reloadHTMLController,
+    DATA_CONTROLLER_KEY,
+    CONTROLLER_CLASS
+} from "./sdc_view.js";
 import {AbstractSDC} from "./AbstractSDC.js";
 import {Global, controllerList} from "./sdc_controller.js";
 import {updateEvents} from "./sdc_dom_events.js";
@@ -34,9 +39,9 @@ export const app = {
     registerGlobal: (Controller) => {
         let tagName = app.controllerToTag(Controller);
         let globalController = new Controller();
-        controllerList[tagName] = [new globalController(), true];
+        controllerList[tagName] = [globalController, []];
         globalController._tagName = tagName;
-        Global[tagName] = globalController;
+        Global[tagNameToCamelCase(tagName)] = globalController;
     },
 
     /**
@@ -52,8 +57,8 @@ export const app = {
              *
              * @param {Array<string>} mixins Controller tag names
              */
-            addMixin:(...mixins)=> {
-                for(let mixin of mixins) {
+            addMixin: (...mixins) => {
+                for (let mixin of mixins) {
                     let mixinName = camelCaseToTagName(mixin);
                     controllerList[tagName][1].push(mixinName);
                 }
@@ -69,7 +74,7 @@ export const app = {
      * @return {Promise}
      */
     post: (controller, url, args) => {
-        if(!args) {
+        if (!args) {
             args = {};
         }
 
@@ -97,7 +102,7 @@ export const app = {
      * @return {Promise}
      */
     ajax: (controller, url, args, method) => {
-        if(!args) {
+        if (!args) {
             args = {};
         }
 
@@ -107,7 +112,7 @@ export const app = {
         const p = new Promise((resolve, reject) => {
             return method(url, args).then((a, b, c) => {
                 resolve(a, b, c);
-                if(a.status === 'redirect') {
+                if (a.status === 'redirect') {
                     trigger('onNavLink', a['url-link']);
                 } else {
                     p.then(() => {
@@ -126,9 +131,13 @@ export const app = {
             uploadFileFormData(formData, (url || form.action), (method || form.method))
                 .then((a, b, c) => {
                     resolve(a, b, c);
-                    p.then(() => {
-                        app.refresh(controller.$container);
-                    });
+                    if (a.status === 'redirect') {
+                        trigger('onNavLink', a['url-link']);
+                    } else {
+                        p.then(() => {
+                            app.refresh(controller.$container);
+                        });
+                    }
                 }).catch(reject);
         });
 
@@ -149,7 +158,7 @@ export const app = {
      * @return {AbstractSDC}
      */
     getController: ($elem) => {
-        if($elem.hasClass(CONTROLLER_CLASS)) {
+        if ($elem.hasClass(CONTROLLER_CLASS)) {
             return $elem.data(`${DATA_CONTROLLER_KEY}`);
         }
         return $elem.closest(`.${CONTROLLER_CLASS}`).data(`${DATA_CONTROLLER_KEY}`);
@@ -162,13 +171,25 @@ export const app = {
      * @param $elem - jQuery DOM container to be emptyed
      */
     safeEmpty: ($elem) => {
-        var $children = $elem.children();
+        let $children = $elem.children();
         $children.each(function (_, element) {
-            var $element = $(element);
+            let $element = $(element);
             app.safeRemove($element);
         });
 
         return $elem;
+    },
+
+    /**
+     * safeReplace removes all content of a dom
+     * and deletes all child controller safely.
+     *
+     * @param $elem - jQuery DOM to be repleaced
+     * @param $new - jQuery new DOM container
+     */
+    safeReplace: ($elem, $new) => {
+        $new.insertBefore($elem);
+        app.safeRemove($elem);
     },
 
 
@@ -177,15 +198,15 @@ export const app = {
      *
      * @param $elem - jQuery Dom
      */
-    safeRemove: ($elem)=> {
-        $elem.each(function() {
+    safeRemove: ($elem) => {
+        $elem.each(function () {
             let $this = $(this);
-            if($this.hasClass(CONTROLLER_CLASS)) {
+            if ($this.hasClass(CONTROLLER_CLASS)) {
                 $this.data(`${DATA_CONTROLLER_KEY}`).remove();
             }
         });
 
-        $elem.find(`.${CONTROLLER_CLASS}`).each(function() {
+        $elem.find(`.${CONTROLLER_CLASS}`).each(function () {
             $(this).data(`${DATA_CONTROLLER_KEY}`).remove();
         });
 
@@ -194,11 +215,27 @@ export const app = {
 
     /**
      *
+     * @param {AbstractSDC} controller
+     * @return {Promise<jQuery>}
+     */
+    reloadController: (controller) => {
+        return reloadHTMLController(controller).then((html) => {
+            let $html = $(html);
+            controller._childController = {};
+            replaceTagElementsInContainer(app.tagNames, $html, controller);
+            app.safeEmpty(controller.$container);
+            controller.$container.append($html);
+            app.refresh(controller.$container, controller);
+        });
+    },
+
+    /**
+     *
      * @param {jquery} $container
      * @param {AbstractSDC} leafController
      */
-    refresh: ($container,leafController) => {
-        if (!leafController){
+    refresh: ($container, leafController) => {
+        if (!leafController) {
             leafController = app.getController($container);
         }
 
@@ -209,7 +246,7 @@ export const app = {
             controller = controller._parentController;
         }
 
-        replaceTagElementsInContainer(app.tagNames, leafController.$container, leafController).then(()=> {
+        replaceTagElementsInContainer(app.tagNames, leafController.$container, leafController).then(() => {
             for (let con of controllerList) {
                 updateEvents(con);
                 con.onRefresh($container);
