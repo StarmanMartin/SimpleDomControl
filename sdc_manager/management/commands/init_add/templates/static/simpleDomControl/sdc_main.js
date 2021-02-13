@@ -107,7 +107,6 @@ export const app = {
         }
 
         args.VERSION = app.VERSION;
-        args._method = args._method || 'api';
 
         const p = new Promise((resolve, reject) => {
             return method(url, args).then((a, b, c) => {
@@ -116,7 +115,7 @@ export const app = {
                     trigger('onNavLink', a['url-link']);
                 } else {
                     p.then(() => {
-                        app.refresh(controller.$container);
+                        app.refresh(controller.$container, controller);
                     });
                 }
             }).catch(reject);
@@ -135,7 +134,7 @@ export const app = {
                         trigger('onNavLink', a['url-link']);
                     } else {
                         p.then(() => {
-                            app.refresh(controller.$container);
+                            app.refresh(controller.$container, controller);
                         });
                     }
                 }).catch(reject);
@@ -237,6 +236,9 @@ export const app = {
     refresh: ($container, leafController) => {
         if (!leafController) {
             leafController = app.getController($container);
+        }
+        if (!leafController) {
+             return new Promise((resolve, reject) => reject());
         }
 
         let controller = leafController;

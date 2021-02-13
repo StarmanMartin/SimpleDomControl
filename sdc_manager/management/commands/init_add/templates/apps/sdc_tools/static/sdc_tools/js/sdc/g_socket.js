@@ -10,7 +10,7 @@ class GSocketController extends AbstractSDC {
         this.contentUrl = '/sdc_view/sdc_tools/g_socket'; //<g-socket></g-socket>
         this._cssUrls.push('/static/sdc_tools/css/sdc/g_socket.css');
 
-        this.user_id = -1;
+        this.game_id = null;
         this.chatSocket = null;
         this._isConnected = false;
 
@@ -56,16 +56,16 @@ class GSocketController extends AbstractSDC {
             if (window.location.protocol === "https:") {
                 self.chatSocket = new WebSocket(
                     'wss://' + window.location.host +
-                    '/ws/' + self.user_id  + '/');
+                    '/ws/' + self.game_id  + '/');
             } else {
                 self.chatSocket = new WebSocket(
                     'ws://' + window.location.host +
-                    '/ws/' + self.user_id + '/');
+                    '/ws/' + self.game_id + '/');
             }
 
 
             self.chatSocket.onmessage = function (e) {
-                var data = JSON.parse(e.data);
+                let data = JSON.parse(e.data);
                 if (data.is_error) {
                     if (data.msg || data.header) {
                         app.Global.gAlertMsg.push_error_msg(data.header || '', data.msg || '');
@@ -85,27 +85,43 @@ class GSocketController extends AbstractSDC {
             };
 
             self.chatSocket.onclose = function (e) {
-                console.error('Socket closed unexpectedly');
-                this._isConnected = false;
-                setTimeout(() => {
-                    connect(self);
-                }, 1000);
+                if(self._isConnected ) {
+                    console.error('Socket closed unexpectedly');
+                    self._isConnected = false;
+                    setTimeout(() => {
+                        self._connect();
+                    }, 1000);
+                }
             };
 
             self.chatSocket.onerror = function(err) {
                 console.error('Socket encountered error: ', err.message, 'Closing socket');
-                self.chatSocket.close();
+                if(self._isConnected) {
+                    try {
+                        this.chatSocket.close();
+                    } catch (e) {
+
+                    }
+                }
             };
 
             self.chatSocket.onopen = function () {
                 self._isConnected = true;
-                resolve(self.user_id);
+                resolve(self.game_id);
             }
         })
     };
 
+    send(msg) {
+        this.isConnected().then(()=> {
+            this.chatSocket.send(msg);
+        })
+    }
+
+
     close() {
         if(this._isConnected) {
+            this.chatSocket.send('disconnect');
             this._isConnected = false;
             try {
                 this.chatSocket.close();
@@ -116,15 +132,11 @@ class GSocketController extends AbstractSDC {
         }
     }
 
-    connect_to(user_id) {
+    connect_to(game_id) {
 
-        let check = user_id === this.user_id;
+        let check = game_id === this.game_id;
         if (!check) {
-            user_id = parseInt(user_id, 10);
-            if (!isNaN(user_id)) {
-                this.user_id = user_id;
-            }
-
+            this.game_id = game_id;
             if (this._isConnected) {
                 this.close();
             }
@@ -137,9 +149,9 @@ class GSocketController extends AbstractSDC {
         let self = this;
         return new Promise((resolve, reject) => {
             if (self._isConnected) {
-                return resolve(self.user_id);
-            } else if (self.user_id >= 0) {
-                return resolve(self._connect(self));
+                return resolve(self.game_id);
+            } else if (self.game_id !== null) {
+                return resolve(self._connect());
             }
 
             console.error('Websocket rejected');
