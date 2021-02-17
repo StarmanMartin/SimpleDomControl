@@ -15,7 +15,7 @@ from django.core.asgi import get_asgi_application
 
 import sdc_core.routing as routing
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', '$PROJECT$.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', '§PROJECT§.settings')
 
 
 application = ProtocolTypeRouter({

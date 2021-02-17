@@ -1,7 +1,7 @@
 
 STATIC_ROOT = './static/'
 
-ASGI_APPLICATION = '$PROJECT$.asgi.application'
+ASGI_APPLICATION = '§PROJECT§.asgi.application'
 
 if DEBUG:
     CHANNEL_LAYERS = {

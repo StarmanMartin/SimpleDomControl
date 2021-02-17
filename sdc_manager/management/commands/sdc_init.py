@@ -65,6 +65,10 @@ class Command(BaseCommand):
                          os.path.join(options.PROJECT_ROOT, "bower.json"),
                          options.REPLACEMENTS)
 
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "requirements.txt"),
+                         os.path.join(options.PROJECT_ROOT, "requirements.txt"),
+                         options.REPLACEMENTS)
+
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "static", "main.organizer.js"),
                          os.path.join(main_static, "main.organizer.js"),
                          options.REPLACEMENTS)

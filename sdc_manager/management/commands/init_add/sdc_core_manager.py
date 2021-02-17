@@ -8,7 +8,7 @@ from sdc_manager.management.commands.init_add import options
 
 
 def copy_user_and_tools():
-    for tool in ['sdc_tools', 'sdc_user']:
+    for tool in ['sdc_tools', 'sdc_user', 'sdc_examples']:
         src = os.path.join(options.SCRIPT_ROOT, "templates", 'apps', tool)
         dest = os.path.join(options.PROJECT_ROOT, tool)
         try:
