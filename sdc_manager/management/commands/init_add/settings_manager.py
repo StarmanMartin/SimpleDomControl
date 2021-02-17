@@ -30,7 +30,7 @@ class SettingsManager:
     def get_setting_vals(self):
         return settings
 
-    def update_settings(self):
+    def update_settings(self, settings_extension):
 
         apps = self.get_setting_vals().INSTALLED_APPS
         apps = [a for a in apps if a != 'sdc_manager']
@@ -44,9 +44,13 @@ class SettingsManager:
         new_val += "\n\n# AUTH_USER_MODEL = 'sdc_user.CustomUser'"
 
         fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')
+
         data = fin.read()
         fin.close()
         new_data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
+
+        new_data += settings_extension
+
         fout = open(self.get_settings_file_path(), "wt", encoding='utf-8')
         fout.write(new_data)
         fout.close()

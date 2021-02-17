@@ -26,6 +26,18 @@ def copy_and_prepare(src, des, map_val):
     fin.close()
     fout.close()
 
+
+def prepare_as_string(src, map_val):
+    fin = open(src, "rt", encoding='utf-8')
+    fout = ""
+    for line in fin:
+        for key in map_val:
+            line = line.replace(key, map_val[key])
+        fout += line
+
+    fin.close()
+    return fout
+
 def copy(src, dest):
     try:
         shutil.copytree(src, dest)
