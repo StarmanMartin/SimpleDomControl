@@ -1,6 +1,7 @@
 import {allOff} from "./sdc_events.js";
 import {app} from "./sdc_main.js";
 import {unbindEvents} from "./sdc_dom_events.js"
+import {callServer} from "./sdc_socket.js";
 
 export class AbstractSDC {
     constructor() {
@@ -184,6 +185,16 @@ export class AbstractSDC {
         return app.submitFormAndUpdateView(this, form, url, method);
     }
 
+    serverCall(methode, args) {
+        let re = /sdc_view\/([^/]+)/i;
+        let app = this.contentUrl.match(re);
+        if(!app || app.length < 2) {
+            console.error('To use the serverCall function the contentUrl must be set: ' + this.name);
+            return;
+        }
+
+        return callServer(app[1], this._tagName, methode, args);
+    }
     /**
      * Adapter to this.$container.find
      * @param {string} domSelector

@@ -1,0 +1,76 @@
+Controller JS:
+
+...
+import {addGroup, removeGroup} from '../../../simpleDomControl/sdc_socket.js';
+import {on} from '../../../simpleDomControl/sdc_event.js';
+...
+class ...Conttroller {
+
+    onLoad() {
+        // Register for event 'sample_event'
+        // Do not forgett to implement sample_event()
+        // In this example it is triggerd by the server (see below)
+        on('sample_event', this);
+        ...
+    }
+
+    ... () {
+        // To add the websocket to a group
+        addGroup('chat-group');
+
+        // This calls the method sampleFunction(channel, a, b)
+        // of the responding SDCView class
+        this.serverCall(
+                'sampleFunction',
+                {a:1,b:true}).expect((args)=> {
+                                console.log(args);
+                            });
+        // To add the websocket to a group
+        addGroup('chat-group');
+
+        // To remove the websocket to a group
+        removeGroup('chat-group');
+    }
+    ...
+    sample_event(payload) {
+        //Do something
+    }
+
+}
+
+Python sdc_view.py
+...
+from django.utils.decorators import method_decorator
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+...
+class ...(SDCView):
+    template_name='...'
+
+    # Decorator for channel callable function
+    @method_decorator(channel_login)
+    def sampleFunction(self, channel, a, b):
+        #Get Auth user
+        user = channel.scope['user']
+        ...
+        async_to_sync(get_channel_layer().group_send)('chat-group', {
+            'type': 'state_redirect',
+            'args': {...}, #JSON parsable object. Args for the cotroller
+            'controller': 'controller-tag-name' #Controller name to redirect to
+        })
+        ...
+        async_to_sync(get_channel_layer().send)(channel.channel_name, {
+            'type': 'state_sdc_event',
+            'msg': 'All Good!!',
+            'header': 'Super',
+            'event': 'sample_event',
+            'payload': {...} #JSON parsable object
+        })
+        ...
+        async_to_sync(get_channel_layer().send)(channel.channel_name, {
+            'type': 'state_error',
+            'msg': 'Error ...',
+            'header': 'Upps!!'
+        })
+        ...
+        return {...} #JSON parsable object

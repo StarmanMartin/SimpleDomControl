@@ -61,3 +61,7 @@ class SettingsManager:
 
     def get_main_url_path(self):
         return os.path.join(options.PROJECT_ROOT, self.get_setting_vals().ROOT_URLCONF.replace(".", "/") + ".py")
+
+    def find_and_set_project_name(self):
+        options.setPROJECT(self.get_setting_vals().ROOT_URLCONF.split(".")[0])
+        print(options.PROJECT)

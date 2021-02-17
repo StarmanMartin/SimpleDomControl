@@ -9,9 +9,7 @@ class GAlertMsgController extends AbstractSDC {
         this.contentUrl = "/sdc_view/sdc_tools/g_alert_msg"; //<g-alert-msg></g-alert-msg>
         this._cssUrls.push('/static/sdc_tools/css/sdc/g_alert_msg.css');
         this.msg_counter = 0;
-        this.events.unshift({
-
-        });
+        this.events.unshift({});
     }
 
     //-------------------------------------------------//
@@ -54,8 +52,17 @@ class GAlertMsgController extends AbstractSDC {
         return this._push_msg(header, msg, true);
     }
 
-    _push_msg(header, msg, isError) {
+    _push_msg(header, msgList, isError) {
+        if (typeof msgList === 'string') {
+            msgList = [msgList];
+        }
 
+        for (let msg of msgList) {
+            this._push_msg_array(header, msgList, isError);
+        }
+    }
+
+    _push_msg_array(header, msg, isError) {
         let $dummyRow = this.find('.dummy_row');
         let $cloneRow = $dummyRow.clone();
         $cloneRow.removeClass('dummy_row');

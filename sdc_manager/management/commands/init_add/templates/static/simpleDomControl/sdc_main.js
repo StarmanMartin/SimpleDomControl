@@ -9,6 +9,7 @@ import {AbstractSDC} from "./AbstractSDC.js";
 import {Global, controllerList} from "./sdc_controller.js";
 import {updateEvents} from "./sdc_dom_events.js";
 import {trigger} from "./sdc_events.js";
+import {isConnected} from "./sdc_socket.js";
 
 
 export const app = {
@@ -22,6 +23,7 @@ export const app = {
 
 
     init_sdc: () => {
+        isConnected();
         app.rootController = app.rootController || new AbstractSDC();
         app.tagNames = Object.keys(controllerList);
         replaceTagElementsInContainer(app.tagNames, getBody(), app.rootController);
@@ -107,6 +109,7 @@ export const app = {
         }
 
         args.VERSION = app.VERSION;
+        args._method = args._method || 'api';
 
         const p = new Promise((resolve, reject) => {
             return method(url, args).then((a, b, c) => {
@@ -115,7 +118,7 @@ export const app = {
                     trigger('onNavLink', a['url-link']);
                 } else {
                     p.then(() => {
-                        app.refresh(controller.$container, controller);
+                        app.refresh(controller.$container);
                     });
                 }
             }).catch(reject);
@@ -134,7 +137,7 @@ export const app = {
                         trigger('onNavLink', a['url-link']);
                     } else {
                         p.then(() => {
-                            app.refresh(controller.$container, controller);
+                            app.refresh(controller.$container);
                         });
                     }
                 }).catch(reject);
@@ -236,9 +239,6 @@ export const app = {
     refresh: ($container, leafController) => {
         if (!leafController) {
             leafController = app.getController($container);
-        }
-        if (!leafController) {
-             return new Promise((resolve, reject) => reject());
         }
 
         let controller = leafController;

@@ -26,8 +26,11 @@ class Command(BaseCommand):
             exit(1)
 
         sdc_settings.find_and_set_whitespace_sep()
-        main_static = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "static")
+        sdc_settings.find_and_set_project_name()
+        main_app_root = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME)
+        main_static = os.path.join(main_app_root, "static")
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
+        project_app_root = os.path.join(options.PROJECT_ROOT, options.PROJECT)
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
         if os.path.exists(sdc_dir):
@@ -67,6 +70,18 @@ class Command(BaseCommand):
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "templates", "base.html"),
                          os.path.join(main_templates, "base.html"),
+                         options.REPLACEMENTS)
+
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "consumers.py"),
+                         os.path.join(main_app_root, "consumers.py"),
+                         options.REPLACEMENTS)
+
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "routing.py"),
+                         os.path.join(main_app_root, "routing.py"),
+                         options.REPLACEMENTS)
+
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "asgi.py"),
+                         os.path.join(project_app_root, "asgi.py"),
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "templates", "index.html"),

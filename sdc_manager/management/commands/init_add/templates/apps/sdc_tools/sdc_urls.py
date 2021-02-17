@@ -8,7 +8,6 @@ from . import sdc_views
 urlpatterns = [
     # scd view below
     path('auto_submit_mixin', sdc_views.AutoSubmitMixin.as_view(), name='scd_view_auto_submit_mixin'),
-    path('g_socket', sdc_views.GSocket.as_view(), name='scd_view_g_socket'),
     path('search_controller', sdc_views.SearchController.as_view(), name='scd_view_search_controller'),
     path('change_sync_mixin', sdc_views.ChangeSyncMixin.as_view(), name='scd_view_change_sync_mixin'),
     path('g_alert_msg', sdc_views.GAlertMsg.as_view(), name='scd_view_g_alert_msg'),

@@ -2,9 +2,17 @@ import os
 
 MAIN_APP_NAME = "sdc_core"
 SEP = '    '
+PROJECT = 'Undefined'
 PROJECT_ROOT = os.getcwd()
 SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
-REPLACEMENTS = {"<!--§MAIN_APP§-->": MAIN_APP_NAME,"§MAIN_APP§": MAIN_APP_NAME}
+REPLACEMENTS = {"<!--§MAIN_APP§-->": MAIN_APP_NAME,"§MAIN_APP§": MAIN_APP_NAME,
+                "<!--§PROJECT§-->": PROJECT,"§PROJECT§": PROJECT}
+
+def setPROJECT(project):
+    global PROJECT
+    PROJECT = project
+    REPLACEMENTS['<!--§PROJECT§-->'] = project
+    REPLACEMENTS['§PROJECT§'] = project
 
 class CMD_COLORS:
     HEADER = '\033[95m'

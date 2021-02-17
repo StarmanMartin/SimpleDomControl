@@ -37,12 +37,6 @@ class SearchController(SDCView):
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
 
-class GSocket(SDCView):
-    template_name='sdc_tools/sdc/g_socket.html'
-
-    def get_content(self, request, *args, **kwargs):
-        return render(request, self.template_name)
-
 class AutoSubmitMixin(SDCView):
     template_name='sdc_tools/sdc/auto_submit_mixin.html'
 
