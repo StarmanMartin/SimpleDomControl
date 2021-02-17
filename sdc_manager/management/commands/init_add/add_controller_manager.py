@@ -76,7 +76,7 @@ class AddControllerManager:
             return ', ' + ', '.join(params_list)
         return ''
 
-    def add_url_to_url_pattern(self, main_urls_path):
+    def add_url_to_url_pattern(self, main_urls_path, consumers_path):
         urls_path = os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_urls.py")
 
         if not os.path.exists(urls_path):
@@ -89,8 +89,14 @@ class AddControllerManager:
                              self.reps)
 
             self._add_new_sdc_to_main_urls(main_urls_path)
+            self._add_new_sdc_to_routing(consumers_path)
 
         self._add_sdc_views_to_main_urls(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_urls.py"))
+
+    def _add_new_sdc_to_routing(self, consumers_path):
+        new_line = "from {0} import sdc_views as {0}".format(self.app_name)
+        with open(consumers_path, 'r', encoding='utf-8') as original: data = original.read()
+        with open(consumers_path, 'w', encoding='utf-8') as modified: modified.write("%s\n%s" % (new_line, data))
 
     def _add_new_sdc_to_main_urls(self, main_urls_path):
         return self._add_to_urls(main_urls_path, "sdc_view/%s/" % self.app_name,

@@ -1,3 +1,4 @@
+import os
 import sys
 
 from django.core.management.base import BaseCommand
@@ -48,7 +49,9 @@ class Command(BaseCommand):
             print(options.CMD_COLORS.as_error("%s already exists. Controller name has to be unique!" % controller_name))
             exit(1)
 
-        add_sdc_manager.add_url_to_url_pattern(sdc_settings.get_main_url_path())
+
+        consumers_path = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "consumers.py")
+        add_sdc_manager.add_url_to_url_pattern(sdc_settings.get_main_url_path(), consumers_path)
         add_sdc_manager.add_view_class_to_sdc_views()
         add_sdc_manager.prepare_files()
         add_sdc_manager.add_to_organizer()
