@@ -1,10 +1,12 @@
+# from sdc_tools import sdc_views as sdc_tools
+# from sdc_user import sdc_views as sdc_user
 from asgiref.sync import async_to_sync
 from django.core.exceptions import PermissionDenied
 
 import json
 from channels.generic.websocket import WebsocketConsumer
 from django.utils.translation import ugettext as _f
-from sdc_tools.django_extension.response import  sdc_link_factory, sdc_link_obj_factory
+from sdc_tools.django_extension.response import sdc_link_factory, sdc_link_obj_factory
 
 
 importlist = []
@@ -80,14 +82,14 @@ class SDCConsumer(WebsocketConsumer):
             elif json_data['event'] == 'sdc_add_group':
                 if json_data['group'] not in self.group_list:
                     self.group_list.append(json_data['group'])
-                    async_to_sync(self.channel_layer.group_discard)(
+                    async_to_sync(self.channel_layer.group_add)(
                         json_data['group'],
                         self.channel_name
                     )
             elif json_data['event'] == 'sdc_remove_group':
                 if json_data['group'] in self.group_list:
                     self.group_list.remove(json_data['group'])
-                    async_to_sync(self.channel_layer.gr)(
+                    async_to_sync(self.channel_layer.group_discard)(
                         json_data['group'],
                         self.channel_name
                     )

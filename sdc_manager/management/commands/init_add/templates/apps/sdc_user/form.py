@@ -1,5 +1,5 @@
 import datetime
-from datetime import date, timedelta
+from datetime import date
 
 from django.conf import settings
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
@@ -10,9 +10,6 @@ from django.utils.translation import ugettext_lazy as _
 from sdc_tools.django_extension.forms import CaptchaField
 from .models import CustomUser, EmailLink, getUUID
 from django.core.mail import EmailMessage
-
-from geopy.geocoders import Nominatim
-
 
 class CustomUserCreationForm(UserCreationForm):
     phone = forms.RegexField(regex=r'^\+?1?\d{4,15}$',
@@ -41,11 +38,6 @@ class CustomUserCreationForm(UserCreationForm):
         super(CustomUserCreationForm, self).__init__(*args, **kwargs)
 
     def save(self, commit=True):
-        geolocator = Nominatim(user_agent="Baby_shop")
-        addresse = '%s, %s %s, %s' % (self.cleaned_data['street'], self.cleaned_data['zip'], self.cleaned_data['city'], self.instance.get_land_display())
-        location = geolocator.geocode(addresse)
-        self.instance.latitude = location.latitude
-        self.instance.longitude = location.longitude
         super(CustomUserCreationForm, self).save(commit)
 
 
@@ -76,14 +68,6 @@ class CustomEditForm(UserChangeForm):
         if self.cleaned_data['email'] != self.origin_email:
             self.instance.is_email_confirmed = False
             self.send_confirm_email(request)
-            ret_val = True
-
-        if 'street' in self.changed_data or 'zip' in self.changed_data or 'city' in self.changed_data or 'land' in self.changed_data:
-            geolocator = Nominatim(user_agent="SDC_APP")
-            addresse = '%s, %s %s, %s' % (self.cleaned_data['street'], self.cleaned_data['zip'], self.cleaned_data['city'], self.instance.get_land_display())
-            location = geolocator.geocode(addresse)
-            self.instance.latitude = location.latitude
-            self.instance.longitude = location.longitude
             ret_val = True
 
         return ret_val

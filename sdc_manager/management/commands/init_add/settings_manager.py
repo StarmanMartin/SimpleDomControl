@@ -35,6 +35,7 @@ class SettingsManager:
         apps = self.get_setting_vals().INSTALLED_APPS
         apps = [a for a in apps if a != 'sdc_manager']
 
+        apps.append('channels')
         apps.append('sdc_tools')
 
         new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s'%s',\n%s#'sdc_user'\n]" % (options.SEP, ("',\n%s'" % options.SEP).join(

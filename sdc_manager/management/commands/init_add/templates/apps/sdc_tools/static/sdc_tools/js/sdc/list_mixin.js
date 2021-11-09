@@ -6,7 +6,7 @@ class ListMixinController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_tools/list_mixin"; //<list-mixin></list-mixin>
+        //<list-mixin></list-mixin>
         this._cssUrls.push('/static/sdc_tools/css/sdc/list_mixin.css');
         this.events.unshift({});
     }

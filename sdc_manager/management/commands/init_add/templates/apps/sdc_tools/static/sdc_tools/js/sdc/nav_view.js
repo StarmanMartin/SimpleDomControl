@@ -14,6 +14,7 @@ class NavViewController extends AbstractSDC {
         this.menu_id = 1;
         this._defaultController = null;
         this._currentButton = null;
+        this.contentReload = true;
 
         this.events.unshift({
             'click': {
@@ -48,6 +49,8 @@ class NavViewController extends AbstractSDC {
         on('changeMenu', this);
         on('navigateToPage', this);
         on('navLoaded', this);
+        on('login', this);
+        on('logout', this);
 
         let temp = this.$container.html();
         $html.filter('.main-nav-import-container').append(this.$container.html());
@@ -185,6 +188,26 @@ class NavViewController extends AbstractSDC {
             this.$container.find('.header-loading').removeClass('active');
         }, 100);
     };
+
+    login (pk) {
+        for (let i in this._childController) {
+            if (this._childController.hasOwnProperty(i)) {
+                for (let cc of this._childController[i]) {
+                    app.reloadController(cc);
+                }
+            }
+        }
+    }
+
+    logout (pk) {
+        for (let i in this._childController) {
+            if (this._childController.hasOwnProperty(i)) {
+                for (let cc of this._childController[i]) {
+                    app.reloadController(cc);
+                }
+            }
+        }
+    }
 
 }
 

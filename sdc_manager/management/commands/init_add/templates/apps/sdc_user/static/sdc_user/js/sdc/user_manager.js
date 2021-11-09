@@ -1,17 +1,15 @@
 import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
-import {trigger} from "../../../simpleDomControl/sdc_events.js";
 
 
-class LoginViewController extends AbstractSDC {
+class UserManagerController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/login_view"; //<login-view></login-view>
-        this._cssUrls.push('/static/sdc_user/css/sdc/login_view.css');
+        this.contentUrl = "/sdc_view/sdc_user/user_manager"; //<user-manager></user-manager>
+        this._cssUrls.push('/static/sdc_user/css/sdc/user_manager.css');
 
         this.contentReload = true;
-        this.isAutoChange = false;
 
         this.events.unshift({
 
@@ -42,17 +40,15 @@ class LoginViewController extends AbstractSDC {
     }
 
     afterShow() {
+        this.find('.navigation-links').addClass('dropdown-item');
         return super.afterShow();
     }
 
     onRefresh() {
+        this.find('.navigation-links').addClass('dropdown-item');
         return super.onRefresh();
-    }
-
-    onSubmit(res) {
-        trigger('login', res.pk)
     }
 
 }
 
-app.register(LoginViewController).addMixin('change-sync-mixin', 'auto-submit-mixin');
+app.register(UserManagerController);

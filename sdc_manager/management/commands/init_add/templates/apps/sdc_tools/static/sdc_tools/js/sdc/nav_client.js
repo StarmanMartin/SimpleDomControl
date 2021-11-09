@@ -7,7 +7,7 @@ class NavClientController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_tools/nav_client"; //<nav-client></nav-client>
+        //<nav-client></nav-client>
         this._cssUrls.push('/static/sdc_tools/css/sdc/nav_client.css');
         this.menu_id = 0;
         this.events.unshift({

@@ -3,16 +3,12 @@ import {app} from '../../../simpleDomControl/sdc_main.js';
 import {trigger} from "../../../simpleDomControl/sdc_events.js";
 
 
-class LoginViewController extends AbstractSDC {
+class UserLogoutController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/login_view"; //<login-view></login-view>
-        this._cssUrls.push('/static/sdc_user/css/sdc/login_view.css');
-
-        this.contentReload = true;
-        this.isAutoChange = false;
-
+        this.contentUrl = '/sdc_view/sdc_user/user_logout'; //<user-logout></user-logout>
+        this._cssUrls.push('/static/sdc_user/css/sdc/user_logout.css');
         this.events.unshift({
 
         });
@@ -50,9 +46,9 @@ class LoginViewController extends AbstractSDC {
     }
 
     onSubmit(res) {
-        trigger('login', res.pk)
+        trigger('logout')
     }
 
 }
 
-app.register(LoginViewController).addMixin('change-sync-mixin', 'auto-submit-mixin');
+app.register(UserLogoutController).addMixin('auto-submit-mixin');

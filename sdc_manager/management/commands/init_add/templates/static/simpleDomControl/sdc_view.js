@@ -190,7 +190,7 @@ function replaceAllTagElementsInContainer($container, parentController) {
  */
 function parseContentUrl(controller) {
     let url = controller.contentUrl;
-    if (controller && !controller._urlParams) {
+    if (controller && controller._urlParams.length === 0) {
         let re = /%\(([^)]+)\)\w/gm;
         let matches;
         controller._urlParams = [];

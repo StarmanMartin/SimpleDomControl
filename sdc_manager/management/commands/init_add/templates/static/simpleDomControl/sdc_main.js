@@ -224,10 +224,11 @@ export const app = {
         return reloadHTMLController(controller).then((html) => {
             let $html = $(html);
             controller._childController = {};
-            replaceTagElementsInContainer(app.tagNames, $html, controller);
-            app.safeEmpty(controller.$container);
-            controller.$container.append($html);
-            app.refresh(controller.$container, controller);
+            replaceTagElementsInContainer(app.tagNames, $html, controller).then(() => {
+                app.safeEmpty(controller.$container);
+                controller.$container.append($html);
+                app.refresh(controller.$container, controller);
+            });
         });
     },
 

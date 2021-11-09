@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 
 from django.core.management.base import BaseCommand
 
@@ -13,6 +14,22 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         pass
+
+    def check_snake_name(self, name):
+        x = re.search("[A-Z]", name)
+        if x:
+            print(options.CMD_COLORS.as_error("Lower case letters only."))
+            return False
+        x = re.search("[^0-9a-z_]", name)
+        if x:
+            print(options.CMD_COLORS.as_error("No special characters. Only lowercase letters, numbers and '_'"))
+            return False
+        x = re.search("^[a-z]", name)
+        if not x:
+            print(options.CMD_COLORS.as_error("Only lowercase letters at first symbol"))
+            return False
+
+        return True
 
     def handle(self, *args, **ops):
         manage_py_file_path = sys.argv[1] if len(sys.argv) > 2 else 'manage.py'
@@ -41,6 +58,10 @@ class Command(BaseCommand):
 
         text = "Enter the name of the new controller (use snake_case):"
         controller_name = str(input(text))
+
+        if not self.check_snake_name(controller_name):
+            exit(1)
+
         add_sdc_manager = AddControllerManager(app_name, controller_name)
         if len(controller_name) == 0:
             print(options.CMD_COLORS.as_error("Controller name must not be empty!"))

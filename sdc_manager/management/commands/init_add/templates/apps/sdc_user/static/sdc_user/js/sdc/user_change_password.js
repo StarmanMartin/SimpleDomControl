@@ -1,14 +1,13 @@
 import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
-import {trigger} from "../../../simpleDomControl/sdc_events.js";
 
 
-class LoginViewController extends AbstractSDC {
+class UserChangePasswordController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/login_view"; //<login-view></login-view>
-        this._cssUrls.push('/static/sdc_user/css/sdc/login_view.css');
+        this.contentUrl = '/sdc_view/sdc_user/user_change_password'; //<user-change-password></user-change-password>
+        this._cssUrls.push('/static/sdc_user/css/sdc/user_change_password.css');
 
         this.contentReload = true;
         this.isAutoChange = false;
@@ -49,10 +48,6 @@ class LoginViewController extends AbstractSDC {
         return super.onRefresh();
     }
 
-    onSubmit(res) {
-        trigger('login', res.pk)
-    }
-
 }
 
-app.register(LoginViewController).addMixin('change-sync-mixin', 'auto-submit-mixin');
+app.register(UserChangePasswordController).addMixin('change-sync-mixin', 'auto-submit-mixin');;

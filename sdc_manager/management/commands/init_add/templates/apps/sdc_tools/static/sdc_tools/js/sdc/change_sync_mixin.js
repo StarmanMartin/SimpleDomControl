@@ -6,7 +6,7 @@ class ChangeSyncMixinController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_tools/change_sync_mixin"; //<change-sync-mixin></change-sync-mixin>
+         //<change-sync-mixin></change-sync-mixin>
 
         this._timer = null;
         this.isAutoChange = true;
