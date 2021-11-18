@@ -13,6 +13,6 @@
   "ignore": [],
   "dependencies": {
     "jquery": "^3.5.1",
-    "bootstrap": "^4.1"
+    "bootstrap": "^5.1"
   }
 }
