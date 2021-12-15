@@ -42,3 +42,9 @@ class AutoSubmitMixin(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class GlobalDomEvents(SDCView):
+    template_name='sdc_tools/sdc/global_dom_events.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)

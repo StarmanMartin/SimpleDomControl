@@ -1,4 +1,9 @@
-
+.main-page-frame {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
 
 .nav-menu-set:not(.active) {
     display: none!important;
@@ -10,10 +15,28 @@
 
 }
 .div-page-container.active {
+    flex: 1 0 auto;
+    position: relative;
     opacity: 1;
 }
 
 .div-page-container.active.loading {
+    opacity: 0.5;
+}
+
+.sub-page-container {
+    transition: opacity 1s ease;
+    opacity: 1;
+}
+.sub-page-container.empty {
+    opacity: 0;
+}
+
+.sub-page-container.active {
+    opacity: 1;
+}
+
+.sub-page-container.active.loading {
     opacity: 0.5;
 }
 
@@ -27,4 +50,19 @@
 
 .header-loading.active {
     top: 100px;
+}
+
+.main-nav-import-container {
+    flex: 0 0 auto;
+}
+
+.navbar-collapse.collapse {
+    text-align: right;
+}
+
+@media (min-width: 992px) {
+    .navbar-expand-lg .navbar-nav {
+        flex: 1 1 auto;
+        justify-content: right;
+    }
 }

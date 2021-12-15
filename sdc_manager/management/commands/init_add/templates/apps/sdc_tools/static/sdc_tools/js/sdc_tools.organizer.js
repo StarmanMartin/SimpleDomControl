@@ -1,3 +1,4 @@
+import {} from "./sdc/global_dom_events.js"
 import {} from "./sdc/auto_submit_mixin.js"
 import {} from "./sdc/search_controller.js"
 import {} from "./sdc/change_sync_mixin.js"

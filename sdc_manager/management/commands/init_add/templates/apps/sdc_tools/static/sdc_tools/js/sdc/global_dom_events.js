@@ -3,13 +3,11 @@ import {app} from '../../../simpleDomControl/sdc_main.js';
 import {trigger} from "../../../simpleDomControl/sdc_events.js";
 
 
-class NavClientController extends AbstractSDC {
+class GlobalDomEventsController extends AbstractSDC {
 
     constructor() {
         super();
-        //<nav-client></nav-client>
-        this._cssUrls.push('/static/sdc_tools/css/sdc/nav_client.css');
-        this.menu_id = 0;
+
         this.events.unshift({
 
         });
@@ -22,6 +20,8 @@ class NavClientController extends AbstractSDC {
     // - willShow  (DOM set)                           //
     // - afterShow  (recalled on reload)               //
     //-------------------------------------------------//
+    // - onRefresh                                     //
+    //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
 
@@ -33,8 +33,9 @@ class NavClientController extends AbstractSDC {
     }
 
     willShow() {
-        trigger('navLoaded', this);
-        trigger('changeMenu', this.menu_id);
+        window.addEventListener('scroll', function() {
+            trigger('onScroll', this);
+        });
         return super.willShow();
     }
 
@@ -42,6 +43,10 @@ class NavClientController extends AbstractSDC {
         return super.afterShow();
     }
 
+    onRefresh() {
+        return super.onRefresh();
+    }
+
 }
 
-app.register(NavClientController);
+app.registerGlobal(GlobalDomEventsController);

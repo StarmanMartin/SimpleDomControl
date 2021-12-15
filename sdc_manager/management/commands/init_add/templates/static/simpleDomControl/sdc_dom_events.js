@@ -8,7 +8,7 @@
  * @returns {boolean|*} - If the domSelector is a selector and not the eventType
  */
 function switchedDomSelectorAndEvent(domSelector, eventType) {
-    return (!/^[.#]/.test(domSelector) && /^[.#]/.test(eventType)) || eventType === 'this' || eventType.startsWith("$.");
+    return (!/^[.#]/.test(domSelector) && /^[.#]/.test(eventType)) || typeof eventType === 'object' || eventType === 'this' || eventType.startsWith("$.");
 }
 
 /**
@@ -46,8 +46,7 @@ function bindEvent(controller, $content, events) {
                         eventType = secondEventKey;
                     }
 
-                    let eventCheckClass = `${controller._tagName}_${eventType}`;
-
+                    let eventCheckClass = `${controller._uuid}_${eventType}`;
                     $content.find(`${domSelector}:not(.${eventCheckClass})`)
                         .on(eventType, generateEventHandler(controller, handler))
                         .addClass(eventCheckClass);
@@ -78,7 +77,7 @@ function unbindEvent(controller, $content, events) {
                         eventType = secondEventKey;
                     }
 
-                    let eventCheckClass = `${controller._tagName}_${eventType}`;
+                    let eventCheckClass = `${controller._uuid}_${eventType}`;
                     $content.find(domSelector).unbind(eventType).removeClass(eventCheckClass);
 
                 }

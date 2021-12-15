@@ -2,11 +2,14 @@ import {allOff} from "./sdc_events.js";
 import {app} from "./sdc_main.js";
 import {unbindEvents} from "./sdc_dom_events.js"
 import {callServer} from "./sdc_socket.js";
+import {uuidv4} from "./sdc_utils.js";
 
 export class AbstractSDC {
     constructor() {
+        this._uuid = uuidv4();
         this.contentUrl = '';
         this.contentReload = false;
+        this.hasSubnavView = false;
 
         this._events = [];
 

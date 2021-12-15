@@ -7,6 +7,7 @@ from . import sdc_views
 
 urlpatterns = [
     # scd view below
+    path('global_dom_events', sdc_views.GlobalDomEvents.as_view(), name='scd_view_global_dom_events'),
     path('auto_submit_mixin', sdc_views.AutoSubmitMixin.as_view(), name='scd_view_auto_submit_mixin'),
     path('search_controller', sdc_views.SearchController.as_view(), name='scd_view_search_controller'),
     path('change_sync_mixin', sdc_views.ChangeSyncMixin.as_view(), name='scd_view_change_sync_mixin'),
