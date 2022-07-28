@@ -3,3 +3,4 @@ __pycache__/
 
 \.idea/
 /sdctest/db.sqlite3
+/sdc.iml
