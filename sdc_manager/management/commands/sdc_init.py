@@ -36,7 +36,7 @@ class Command(BaseCommand):
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
-        if os.path.exists(sdc_dir):
+        if 'sdc_tools' in sdc_settings.get_setting_vals().INSTALLED_APPS:
             print(options.CMD_COLORS.as_error("SimpleDomControl has initialized already!"))
             exit(2)
 
