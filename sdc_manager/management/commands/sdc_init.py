@@ -12,7 +12,6 @@ from sdc_manager.management.commands.init_add.utils import makedirs_if_not_exist
 class Command(BaseCommand):
     help = 'This function inits SDC in your django Project'
 
-
     def add_arguments(self, parser):
         pass
 
@@ -38,14 +37,9 @@ class Command(BaseCommand):
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
         if os.path.exists(sdc_dir):
-            print(options.CMD_COLORS.as_error("SimpleDomControl has init already!"))
+            print(options.CMD_COLORS.as_error("SimpleDomControl has initialized already!"))
             exit(2)
 
-        #copy_user_and_tools()
-        #add_sdc_core()
-        #clean_up()
-
-        sdc_settings.get_setting_vals().INSTALLED_APPS.append(options.MAIN_APP_NAME)
         sdc_settings.update_settings(prepare_as_string(os.path.join(options.SCRIPT_ROOT, "templates", "settings_extension.py"), options.REPLACEMENTS))
 
         makedirs_if_not_exist(main_static)

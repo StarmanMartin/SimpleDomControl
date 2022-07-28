@@ -3,11 +3,6 @@ import re
 
 from sdc_manager.management.commands.init_add import options
 
-
-
-
-
-
 def add_sdc_to_main_urls(main_urls_path):
     fin = open(main_urls_path, "rt", encoding='utf-8')
     text = ""
