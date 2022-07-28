@@ -32,7 +32,7 @@ class Command(BaseCommand):
         sdc_settings.find_and_set_project_name()
 
         project_app_root = os.path.join(options.PROJECT_ROOT, options.PROJECT)
-        main_static = os.path.join(project_app_root, "static")
+        main_static = os.path.join(options.PROJECT_ROOT, "static")
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
