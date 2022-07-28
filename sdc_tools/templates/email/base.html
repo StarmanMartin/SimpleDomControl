@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        .body {
+            padding: 20px;
+        }
+
+        .email-header {
+            background-color: white;
+            padding: 10px;
+            overflow: hidden;
+            border-bottom: 2px solid rgb(202, 182, 182);
+        }
+
+        .email-body {
+            background-color: white;
+            padding: 10px;
+        }
+
+        .email-footer {
+            background-color: white;
+            padding: 10px;
+        }
+
+        .btn {
+            background: #00d4ff;
+            padding: 10px;
+            border: none;
+            border-radius: 7px;
+            color: white;
+            text-decoration: none;
+        }
+
+        .btn-container {
+            margin: 10px;
+            text-align: center;
+        }
+
+    </style>
+</head>
+<body>
+<div class="body">
+{% block content %}{% endblock %}
+
+
+<div class="email-footer">
+    <p>Betse Regards</p>
+    <p></p>
+    <p>{{ request.request.META.HTTP_HOST }}</p>
+</div>
+</div>
+</body>
+</html>

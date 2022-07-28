@@ -32,19 +32,19 @@ class Command(BaseCommand):
 
         sdc_settings.find_and_set_whitespace_sep()
         sdc_settings.find_and_set_project_name()
-        main_app_root = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME)
-        main_static = os.path.join(main_app_root, "static")
-        main_templates = os.path.join(options.PROJECT_ROOT, "templates")
+
         project_app_root = os.path.join(options.PROJECT_ROOT, options.PROJECT)
+        main_static = os.path.join(project_app_root, "static")
+        main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
         if os.path.exists(sdc_dir):
             print(options.CMD_COLORS.as_error("SimpleDomControl has init already!"))
             exit(2)
 
-        copy_user_and_tools()
-        add_sdc_core()
-        clean_up()
+        #copy_user_and_tools()
+        #add_sdc_core()
+        #clean_up()
 
         sdc_settings.get_setting_vals().INSTALLED_APPS.append(options.MAIN_APP_NAME)
         sdc_settings.update_settings(prepare_as_string(os.path.join(options.SCRIPT_ROOT, "templates", "settings_extension.py"), options.REPLACEMENTS))
@@ -82,11 +82,11 @@ class Command(BaseCommand):
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "consumers.py"),
-                         os.path.join(main_app_root, "consumers.py"),
+                         os.path.join(project_app_root, "consumers.py"),
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "routing.py"),
-                         os.path.join(main_app_root, "routing.py"),
+                         os.path.join(project_app_root, "routing.py"),
                          options.REPLACEMENTS)
 
         asgi_file = os.path.join(project_app_root, "asgi.py")

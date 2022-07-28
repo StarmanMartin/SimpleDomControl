@@ -43,11 +43,11 @@ def add_sdc_to_main_urls(main_urls_path):
 
     for line in fin:
         if 'from django.urls import path' in line:
-            line = re.sub(r'path', 'path, include\nfrom django.conf.urls import url', line)
+            line = re.sub(r'path', 'path, re_path', line)
 
         if "urlpatterns = [" in line:
-            new_apps = "%spath('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),\n" % options.SEP
-            new_apps += "%s# path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
+            new_apps = "%sre_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),\n" % options.SEP
+            new_apps += "%s# re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
             line = re.sub(r'urlpatterns = \[',
                           "urlpatterns = [\n%s%s# scd view below\n" % (new_apps,options.SEP), line)
             is_done = True

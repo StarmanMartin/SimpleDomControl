@@ -5,7 +5,7 @@ from django.core.exceptions import PermissionDenied
 
 import json
 from channels.generic.websocket import WebsocketConsumer
-from django.utils.translation import ugettext as _f
+from django.utils.translation import gettext as _f
 from sdc_tools.django_extension.response import sdc_link_factory, sdc_link_obj_factory
 
 

@@ -1,0 +1,21 @@
+{% extends "email/base.html" %}
+
+{% load i18n %}
+
+
+{% block content %}
+
+    <div class="email-header">
+        <h3>{% trans 'Hello' %} {{ user.first_name }} {{ user.last_name }},</h3>
+    </div>
+
+    <div class="email-body">
+        <p>{% trans 'Thank you for registering at' %} {{ request.META.HTTP_HOST }}</p>
+        <p>{% trans 'Use the following link to confirm your email address.' %}</p>
+        <div class="btn-container">
+            <a class="btn"
+               href="{{ request.scheme }}://{{ request.META.HTTP_HOST }}{% url 'sdc_index' %}~user-confirm-email~&key={{ link.email_confirm_link }}">{% trans 'Confirm email' %}</a>
+        </div>
+    </div>
+
+{% endblock %}
