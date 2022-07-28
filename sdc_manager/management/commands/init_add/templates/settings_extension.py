@@ -1,6 +1,8 @@
 
 STATIC_ROOT = './static/'
 
+STATICFILES_DIRS = ["./§PROJECT§/static"]
+
 ASGI_APPLICATION = '§PROJECT§.asgi.application'
 
 if DEBUG:
