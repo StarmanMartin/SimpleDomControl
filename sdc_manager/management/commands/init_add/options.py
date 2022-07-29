@@ -10,7 +10,7 @@ REPLACEMENTS = {"<!--§MAIN_APP§-->": MAIN_APP_NAME,"§MAIN_APP§": MAIN_APP_NA
 
 def setPROJECT(project):
     global PROJECT, MAIN_APP_NAME
-    MAIN_APP_NAME = PROJECT
+    MAIN_APP_NAME = project
     PROJECT = project
     REPLACEMENTS['<!--§PROJECT§-->'] = project
     REPLACEMENTS['§PROJECT§'] = project
