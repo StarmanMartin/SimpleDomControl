@@ -4,7 +4,7 @@ import sys
 from django.core.management.base import BaseCommand
 
 from sdc_manager.management.commands.init_add import options, settings_manager
-from sdc_manager.management.commands.init_add.sdc_core_manager import add_sdc_to_main_urls
+from sdc_manager.management.commands.init_add.sdc_core_manager import add_sdc_to_main_urls, copy_apps
 from sdc_manager.management.commands.init_add.utils import makedirs_if_not_exist, copy, copy_and_prepare, \
     prepare_as_string
 
@@ -40,10 +40,12 @@ class Command(BaseCommand):
             print(options.CMD_COLORS.as_error("SimpleDomControl has initialized already!"))
             exit(2)
 
+
         sdc_settings.update_settings(prepare_as_string(os.path.join(options.SCRIPT_ROOT, "templates", "settings_extension.py"), options.REPLACEMENTS))
 
         makedirs_if_not_exist(main_static)
         makedirs_if_not_exist(main_templates)
+        copy_apps()
         copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "simpleDomControl"), sdc_dir)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", ".bowerrc"),

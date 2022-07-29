@@ -5,7 +5,7 @@ import shutil
 
 from sdc_manager.management.commands.init_add import options
 
-def copy_user_and_tools():
+def copy_apps():
     for tool in ['sdc_user', 'sdc_examples']:
         src = os.path.join(options.SCRIPT_ROOT, "templates", 'apps', tool)
         dest = os.path.join(options.PROJECT_ROOT, tool)
