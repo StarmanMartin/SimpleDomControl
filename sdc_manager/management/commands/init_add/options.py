@@ -14,6 +14,8 @@ def setPROJECT(project):
     PROJECT = project
     REPLACEMENTS['<!--§PROJECT§-->'] = project
     REPLACEMENTS['§PROJECT§'] = project
+    REPLACEMENTS['<!--§MAIN_APP§-->'] = project
+    REPLACEMENTS['§MAIN_APP§'] = project
 
 class CMD_COLORS:
     HEADER = '\033[95m'
