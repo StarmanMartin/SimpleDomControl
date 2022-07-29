@@ -147,7 +147,7 @@ class AddControllerManager:
                                      "%s.organizer.js" % self.app_name)
 
         if not os.path.exists(org_file_path):
-            org_file_path_root = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "static",
+            org_file_path_root = os.path.join(options.PROJECT_ROOT, options.PROJECT, "static",
                                          "main.organizer.js")
             line = 'import {} from "./%s/js/%s.organizer.js"\n' % (self.app_name, self.app_name)
 

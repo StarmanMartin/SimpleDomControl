@@ -40,6 +40,7 @@ class Command(BaseCommand):
             print(options.CMD_COLORS.as_error("simpleDomControl only works if TEMPLATES -> APP_DIRS is ture"))
             exit(1)
 
+        sdc_settings.find_and_set_project_name()
         all_apps = sdc_settings.get_apps()
 
         text = "Enter number to select an django App:"

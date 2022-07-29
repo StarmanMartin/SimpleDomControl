@@ -1,6 +1,6 @@
 import os
 
-MAIN_APP_NAME = "sdc_core"
+MAIN_APP_NAME = "Undefined"
 SEP = '    '
 PROJECT = 'Undefined'
 PROJECT_ROOT = os.getcwd()
@@ -9,7 +9,8 @@ REPLACEMENTS = {"<!--§MAIN_APP§-->": MAIN_APP_NAME,"§MAIN_APP§": MAIN_APP_NA
                 "<!--§PROJECT§-->": PROJECT,"§PROJECT§": PROJECT}
 
 def setPROJECT(project):
-    global PROJECT
+    global PROJECT, MAIN_APP_NAME
+    MAIN_APP_NAME = PROJECT
     PROJECT = project
     REPLACEMENTS['<!--§PROJECT§-->'] = project
     REPLACEMENTS['§PROJECT§'] = project
