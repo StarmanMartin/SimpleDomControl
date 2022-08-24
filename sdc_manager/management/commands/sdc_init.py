@@ -24,15 +24,11 @@ class Command(BaseCommand):
             print(options.CMD_COLORS.as_error("simpleDomControl only works if TEMPLATES -> TEMPLATES.APP_DIRS is ture"))
             exit(1)
 
-        if 'templates' not in sdc_settings.get_setting_vals().TEMPLATES[0]['DIRS']:
-            print(options.CMD_COLORS.as_error("simpleDomControl only works if 'templates' is in TEMPLATES.DIRSe"))
-            exit(1)
-
         sdc_settings.find_and_set_whitespace_sep()
         sdc_settings.find_and_set_project_name()
 
         project_app_root = os.path.join(options.PROJECT_ROOT, options.PROJECT)
-        main_static = os.path.join(project_app_root, "static")
+        main_static = os.path.join(options.PROJECT_ROOT, "static")
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         sdc_dir = os.path.join(main_static, "simpleDomControl")
@@ -47,17 +43,16 @@ class Command(BaseCommand):
         makedirs_if_not_exist(main_templates)
         copy_apps()
         copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "simpleDomControl"), sdc_dir)
+        copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "sdc_user"), os.path.join(main_static, "sdc_user"))
+        copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "sdc_tools"), os.path.join(main_static, "sdc_tools"))
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", ".bowerrc"),
-                         os.path.join(options.PROJECT_ROOT, ".bowerrc"),
-                         options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", ".jshintrc"),
                          os.path.join(options.PROJECT_ROOT, ".jshintrc"),
                          options.REPLACEMENTS)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "bower.json"),
-                         os.path.join(options.PROJECT_ROOT, "bower.json"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "package.json"),
+                         os.path.join(options.PROJECT_ROOT, "package.json"),
                          options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "requirements.txt"),

@@ -16,8 +16,7 @@
 
 <style>
     input[type="checkbox"] {
-        width: auto !important;
-        margin: -7px 9px 3px 0;
+        height: 30px;
     }
 
     .label-container {
@@ -43,14 +42,12 @@
         }
     }
 </style>
-<div class="container-fluid">
+<div class="container">
     <div class="row align-items-end">
         {% for field in form.visible_fields %}
             <div class="col-md form-group{% if field.errors %} has-error{% endif %} {{ field.auto_id }}"
                  data-auto-id="{{ field.auto_id }}">
                 <div class="label-container">
-
-
                     <label for="{{ field.auto_id }}" class="control-label">{{ field.label|safe }}</label>
 
                     {% if field.help_text %}
@@ -60,7 +57,7 @@
                 </div>
                 <div class="form-input-container">
 
-                    {{ field | addclass:"form-control timer-change" }}
+                    {{ field | addformclass }}
 
 
                     {% if field.errors %}

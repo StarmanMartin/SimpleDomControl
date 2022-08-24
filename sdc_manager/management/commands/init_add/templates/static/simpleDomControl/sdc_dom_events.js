@@ -20,7 +20,9 @@ function switchedDomSelectorAndEvent(domSelector, eventType) {
  */
 function generateEventHandler(controller, handler) {
     return function (ev) {
-        handler.call(controller, this, ev);
+        const args = Array.from(arguments);
+        args.unshift(this);
+        handler.apply(controller, args);
     }
 }
 

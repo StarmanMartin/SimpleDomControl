@@ -1,7 +1,9 @@
 
-STATIC_ROOT = './static/'
+#DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
-STATICFILES_DIRS = ["./§PROJECT§/static"]
+STATIC_ROOT =  BASE_DIR /  'www/'
+
+STATICFILES_DIRS = [ BASE_DIR /  "static",  BASE_DIR / 'node_modules']
 
 ASGI_APPLICATION = '§PROJECT§.asgi.application'
 
@@ -22,7 +24,7 @@ else:
     }
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = './media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 #EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 #EMAIL_HOST =''

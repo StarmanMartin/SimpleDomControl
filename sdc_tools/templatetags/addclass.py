@@ -9,6 +9,12 @@ register = template.Library()
 def addclass(field, css):
     return field.as_widget(attrs={"class":css})
 
+@register.filter(name='addformclass')
+def addformclass(field):
+    if field.widget_type == 'checkbox':
+        return field.as_widget(attrs={"class":'form-control form-check-input timer-change'})
+    return field.as_widget(attrs={"class":'form-control timer-change'})
+
 @register.simple_tag(name='random_tag')
 def random_tag(a):
     now = datetime.datetime.now()

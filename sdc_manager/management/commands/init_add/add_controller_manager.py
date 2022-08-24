@@ -122,13 +122,13 @@ class AddControllerManager:
 
     def prepare_files(self):
         main_static = os.path.join(
-            options.PROJECT_ROOT, self.app_name, "static")
+            options.PROJECT_ROOT, "static", self.app_name)
         main_templates = os.path.join(options.PROJECT_ROOT, self.app_name, "templates", self.app_name)
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "controller", "template_controller.js.txt"),
-                         os.path.join(main_static, self.app_name, "js", "sdc",
+                         os.path.join(main_static, "js", "sdc",
                                       self.controller_name_sc + ".js"),
                          self.reps)
 
@@ -138,16 +138,16 @@ class AddControllerManager:
                          self.reps)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "controller", "template_css.css"),
-                         os.path.join(main_static, self.app_name, "css", "sdc",
+                         os.path.join(main_static, "css", "sdc",
                                       self.controller_name_sc + ".css"),
                          self.reps)
 
     def add_to_organizer(self):
-        org_file_path = os.path.join(options.PROJECT_ROOT, self.app_name, "static", self.app_name, "js",
+        org_file_path = os.path.join(options.PROJECT_ROOT, "static", self.app_name, "js",
                                      "%s.organizer.js" % self.app_name)
 
         if not os.path.exists(org_file_path):
-            org_file_path_root = os.path.join(options.PROJECT_ROOT, options.PROJECT, "static",
+            org_file_path_root = os.path.join(options.PROJECT_ROOT, "static",
                                          "main.organizer.js")
             line = 'import {} from "./%s/js/%s.organizer.js"\n' % (self.app_name, self.app_name)
 

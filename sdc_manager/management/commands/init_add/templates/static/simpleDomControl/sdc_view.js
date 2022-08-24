@@ -118,8 +118,8 @@ function loadHTMLFile(path, args, tag, hardReload) {
 
         return data;
     }).catch(function (err) {
-        console.error(err);
-        return false;
+        console.log(err);
+        return err.responseText;
     });
 }
 
@@ -241,6 +241,7 @@ export function loadFilesFromController(controller) {
 
         return null;
     }).catch(function (err) {
+        console.log(9999);
         console.error("loadFiles-catch", err);
     });
 }

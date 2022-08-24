@@ -7,3 +7,13 @@ body::before {
     font-size: larger;
     color: red;
 }
+
+.navbar-dummy {
+    height: 70px;
+}
+
+
+.collapse:not(.show) .user-manager-main {
+    position: absolute;
+    right: 5px;
+}

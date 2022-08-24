@@ -39,7 +39,7 @@ class Command(BaseCommand):
         settings = settings_manager.SettingsManager(manage_py_file_path)
         all_apps = settings.get_apps()
         for app_name in all_apps[1:]:
-            sdc_js_dir = os.path.join(options.PROJECT_ROOT, app_name, "static", app_name, "js", "sdc")
+            sdc_js_dir = os.path.join(options.PROJECT_ROOT, "static", app_name, "js", "sdc")
             if os.path.exists(sdc_js_dir):
                 for file in os.listdir(sdc_js_dir):
                     if file.endswith(".js"):

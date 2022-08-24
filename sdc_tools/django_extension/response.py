@@ -12,7 +12,10 @@ NEXT = 'next_controller'
 
 def sdc_link_factory(controler: str = None, link_data: dict = None):
     idx_url = reverse('sdc_index')
-    url = '{0}~{1}'.format(idx_url, controler)
+    if not idx_url in controler:
+        url = '{0}~{1}'.format(idx_url, controler)
+    else:
+        url = controler
     if link_data is not None and len(link_data) > 0:
         link_data_test = ''
         for elem in link_data:
@@ -28,7 +31,7 @@ def sdc_link_obj_factory(url):
 def send_redirect(controller: str = None, link_data: dict = None, url: str = None, **kwargs):
     kwargs['status'] = 'redirect'
     if url is not None:
-        kwargs['url-link'] = sdc_link_obj_factory(url)
+        url = sdc_link_factory(url, link_data)
         kwargs['url'] = url
     elif controller is not None:
         url = sdc_link_factory(controller, link_data)

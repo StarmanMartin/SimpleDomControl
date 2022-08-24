@@ -20,19 +20,23 @@ class CustomUserManager(BaseUserManager):
     for authentication instead of usernames.
     """
 
-    def create_user(self, email, password, **extra_fields):
+    def create_user(self, email, username, password, **extra_fields):
         """
         Create and save a User with the given email and password.
         """
         if not email:
             raise ValueError(_('A user needs an unique e-mail'))
+
+        if not username:
+            raise ValueError(_('Username/Abbreviation must be 3 characters long'))
+
         email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
+        user = self.model(email=email, username=username, **extra_fields)
         user.set_password(password)
         user.save()
         return user
 
-    def create_superuser(self, email, password, **extra_fields):
+    def create_superuser(self, email, username, password, **extra_fields):
         """
         Create and save a SuperUser with the given email and password.
         """
@@ -44,7 +48,7 @@ class CustomUserManager(BaseUserManager):
             raise ValueError(_('Superuser must have is_staff=True.'))
         if extra_fields.get('is_superuser') is not True:
             raise ValueError(_('Superuser must have is_superuser=True.'))
-        return self.create_user(email, password, **extra_fields)
+        return self.create_user(email, username, password, **extra_fields)
 
 
 def getUUID():
@@ -53,29 +57,21 @@ def getUUID():
 NATIONS = (('D', _('Germany')), ('G', _('Greek')))
 
 class CustomUser(AbstractUser):
-    username = None
-    email = models.EmailField(_('E-mail'), unique=True)
+    email = models.EmailField(_('E-mail'), unique=True, null=True)
+    username = models.CharField(_('Abbreviation'), max_length=255, unique=True, blank=False,null=False)
     #phone = PhoneField(_('Contact phone number'), help_text=_('Phone number, only for emergency'), null=True, blank=False)
 
-    birth_date = models.DateField(_('Birthday'), null=True, blank=False)
+    # birth_date = models.DateField(_('Birthday'), null=True, blank=False)
 
     is_email_confirmed = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
-
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
+    USERNAME_FIELD = 'username'
 
     objects = CustomUserManager()
 
     agb = models.BooleanField(blank=False, default=False,null=False)
 
-    #land = models.CharField(_('Country'), blank=False, max_length=255, choices=NATIONS)
-    #street = models.CharField(_('Street and house number'), blank=False, max_length=255, default='')
-    #zip = models.CharField(_('ZIP CODE'), blank=False, max_length=50, default='')
-    #city = models.CharField(_('City'), blank=False, max_length=255, default='')
-
-    #longitude = models.FloatField(default=21.9877132, blank=True)
-    #latitude = models.FloatField(default=38.9953683, blank=True)
 
     def send_confirm_email(self, request):
         link = EmailLink.objects.create(email_confirm_link=getUUID(),

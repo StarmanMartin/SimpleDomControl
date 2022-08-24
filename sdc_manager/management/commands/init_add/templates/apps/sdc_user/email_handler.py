@@ -1,7 +1,7 @@
 import datetime
 
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from sdc_tools.django_extension.import_manager import import_functions
 
 if hasattr(settings, 'EMAIL_RES_HANDLER'):

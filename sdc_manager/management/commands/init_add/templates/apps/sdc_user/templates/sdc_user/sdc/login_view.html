@@ -8,7 +8,7 @@
             <input type="hidden" name="next" value="{{ next }}">
         {% endif %}
         <button class="btn-success btn">{% trans 'Login' %}</button>
-        <a class="navigation-links" href="{% url 'sdc_index' %}~user-manager~user-register">{% trans 'Register' %}</a>
-        <a href="{% url 'sdc_index' %}~user-manager~user-password-forgotten" class="navigation-links">{% trans 'Password forgotten' %}</a>
+        <!--a class="navigation-links" href="{% url 'sdc_index' %}~user-register">{% trans 'Register' %}</a-->
+        <a href="{% url 'sdc_index' %}~user-password-forgotten" class="navigation-links">{% trans 'Password forgotten' %}</a>
     </form>
 </div>

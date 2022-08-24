@@ -16,17 +16,16 @@
 
 <style>
     input[type="checkbox"] {
-        width: auto !important;
-        margin: -7px 9px 3px 0;
+        height: 30px;
     }
 
     .label-container {
         text-align: right;
     }
 
-    .label-container .help{
+    .form-group .help{
         text-align: left;
-        padding-left: 5px;
+        padding: 3px 5px;
     }
 
     .label-container ul {
@@ -36,6 +35,15 @@
     .control-label:after {
         content: ':';
     }
+
+     .picker__select--year {
+         min-width: 59px;
+     }
+    .picker__select--month, .picker__select--year {
+        min-height: 42px!important;
+        padding: 0;
+    }
+
     @media only screen and (max-width: 600px) {
         .label-container {
             text-align: center;
@@ -52,21 +60,24 @@
 
         <label for="{{ field.auto_id }}" class="control-label">{{ field.label|safe }}</label>
 
-        {% if field.help_text %}
-        <p class="help help_for_{{ field.auto_id }}">{{ field.help_text|safe }}</p>
-        {% endif %}
-
     </div>
-    <div class="col-md-7 form-input-container">
+    <div class="col-md-8 form-input-container">
 
-        {{ field | addclass:"form-control timer-change"}}
+        {{ field | addformclass}}
 
 
         {% if field.errors %}
-        <div class="alert alert-danger">
+        <div class="alert alert-danger error-msg">
             {{ field.errors }}
         </div>
         {% endif %}
     </div>
+    {% if field.help_text %}
+    <div class="col-md-2 label-container">
+    </div>
+    <div class="col-md-9 label-container">
+        <p class="help help_for_{{ field.auto_id }}">{{ field.help_text|safe }}</p>
+    </div>
+    {% endif %}
 </div>
 {% endfor %}

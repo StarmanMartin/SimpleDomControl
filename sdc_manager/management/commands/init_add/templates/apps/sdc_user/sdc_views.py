@@ -1,5 +1,5 @@
 from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
-from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm, PasswordChangeForm
+from django.contrib.auth.forms import SetPasswordForm, PasswordChangeForm
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
 
@@ -11,7 +11,7 @@ from django.utils.translation import gettext as _f
 from django.utils.translation import gettext_lazy as _
 
 from sdc_user.email_handler import run_email_task
-from sdc_user.form import CustomUserCreationForm, PasswordResetForm, CustomEditForm
+from sdc_user.form import CustomUserCreationForm, PasswordResetForm, CustomEditForm, LoginForm
 from sdc_user.models import EmailLink
 
 
@@ -39,11 +39,11 @@ def get_next(request, default=None, next_next_default:str=None):
 class LoginView(SDCView):
     template_name='sdc_user/sdc/login_view.html'
 
-    form = AuthenticationForm
+    form = LoginForm
 
     def post(self, request, *args, **kwargs):
         form = self.form(request=request, data=request.POST)
-        context = get_next(request)
+        context = get_next(request, 'main-view')
         context['form'] = form
         if form.is_valid():
             username = form.cleaned_data.get('username')
@@ -82,7 +82,8 @@ class UserManager(SDCView):
         return render(request, self.template_name)
 
 
-class UserRegister(SDCView):
+class UserRegister(LoginRequiredMixin, SDCView):
+    raise_exception = True
     template_name = 'sdc_user/sdc/user_register.html'
 
     def prepare_form(self, ses_opt: dict, form: CustomUserCreationForm):
@@ -179,7 +180,7 @@ class UserLogout(SDCView):
     def post(self, request, *args, **kwargs):
         uname = request.user.email
         logout(request)
-        next = get_next(request)
+        next = get_next(request, 'start-view')
         if next['is_next']:
             return send_redirect(url=next['next'], header=_f('Logout success'),
                              msg="%s: %s" % (_f('You are successfully logout:'), uname))
@@ -287,7 +288,7 @@ class UserEdit(LoginRequiredMixin, SDCView):
                 if context['is_next']:
                     return send_redirect(url=context['next'],
                                          header=_f('Successfully saved'),
-                                         msg=_f('msg'))
+                                         msg=_f(msg))
 
 
             return send_success(request=request, context=context,

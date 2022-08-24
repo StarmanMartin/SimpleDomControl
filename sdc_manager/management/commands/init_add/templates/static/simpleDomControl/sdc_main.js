@@ -134,7 +134,11 @@ export const app = {
                 .then((a, b, c) => {
                     resolve(a, b, c);
                     if (a.status === 'redirect') {
-                        trigger('onNavLink', a['url-link']);
+                        if(a['url-link']) {
+                            trigger('onNavLink', a['url-link']);
+                        } else {
+                            window.location.href = a['url'];
+                        }
                     } else {
                         p.then(() => {
                             app.refresh(controller.$container);
