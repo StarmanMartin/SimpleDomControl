@@ -1,6 +1,5 @@
 from django.db.models import Q
 
-
 def generate_q_key_value_request(key, val):
     map_val = {key + '__icontains': val}
     return Q(**map_val)
@@ -14,7 +13,7 @@ def handle_search_form(query_set, search_form, filter_dict=None, range=0):
 
     key_word = data.get('search', None)
     does_order = len(search_form.CHOICES) > 0
-    order_by = ''
+    order_by = None
     if(does_order):
         order_by = data.get('order_by', search_form.DEFAULT_CHOICES)
 
