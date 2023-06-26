@@ -27,14 +27,32 @@ class SdcListViewController extends AbstractSDC {
     // - onRemove                                      //
     //-------------------------------------------------//
 
-    onInit(model) {
+    onInit(model, filter, onUpdate ) {
         this.model = this.newModel(model);
+        this.on_update = onUpdate;
+        if(typeof filter === 'function') {
+            filter = filter();
+        }
+        if(typeof filter === 'object') {
+            this.model.filter(filter);
+        }
+
+        if(this.on_update) {
+            this.model.load().then(()=> {
+                this.on_update(this.model.values_list);
+            });
+        }
     }
 
     onLoad($html) {
         $html.filter('.list-container').append(this.model.listView(this.search_values));
-        this.model.on_update = this.model.on_create = ()=> {
-            this._updateView()
+        this.model.on_update = this.model.on_create = (a) => {
+            if(this.on_update) {
+                this.model.load().then(()=> {
+                    this.on_update(this.model.values_list);
+                });
+            }
+            this._updateView();
         };
         return super.onLoad($html);
     }

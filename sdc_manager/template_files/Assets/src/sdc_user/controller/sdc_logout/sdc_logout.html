@@ -1,0 +1,8 @@
+<div class="container-fluid">
+    <form class="ajax-form" method="post" action="{% url 'scd_view_sdc_logout' %}">
+        {% csrf_token %}
+        <input type="hidden" name="_method" value="api">
+        {% include "elements/form.html" with form=form %}
+        <button class="btn btn-danger">Logout</button>
+    </form>
+</div>

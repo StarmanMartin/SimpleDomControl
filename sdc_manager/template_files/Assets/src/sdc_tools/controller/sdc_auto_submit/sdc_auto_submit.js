@@ -16,8 +16,9 @@ class SdcAutoSubmitController extends AbstractSDC {
          */
         this.events.unshift({
             'submit': {
-                '.ajax-form': function (form, ev) {
+                '.ajax-form': function ($form, ev) {
                     ev.preventDefault();
+                    const form = $form[0];
                     this.submitForm(form).then((res) => {
                         if (res.msg || res.header) {
                             app.Global.sdcAlertMessenger.pushMsg(res.header || '', res.msg || '');
@@ -28,7 +29,7 @@ class SdcAutoSubmitController extends AbstractSDC {
                         let data = res.responseJSON;
                         if (data) {
                             if (data.html) {
-                                setErrorsInForm($(form), $(data.html));
+                                setErrorsInForm($form, $(data.html));
                             }
                             if (data.msg || data.header) {
                                 app.Global.sdcAlertMessenger.pushErrorMsg(data.header || '', data.msg || '');

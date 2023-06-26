@@ -1,19 +1,20 @@
 import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
+import {trigger} from "../../../simpleDomControl/sdc_events";
 
 
-class UserManagerController extends AbstractSDC {
+class SdcLoginController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/user_manager"; //<user-manager></user-manager>
-        this._cssUrls.push('/static/sdc_user/css/sdc/user_manager.css');
+        this.contentUrl = "/sdc_view/sdc_user/sdc_login"; //<sdc-login></sdc-login>
 
-        this.contentReload = true;
-
-        this.events.unshift({
-
-        });
+        /**
+         * Events is an array of dom events.
+         * The pattern is {'event': {'dom_selector': handler}}
+         * Uncommend the following line to add events;
+         */
+        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
     }
 
     //-------------------------------------------------//
@@ -21,9 +22,7 @@ class UserManagerController extends AbstractSDC {
     // - onInit (tag parameter)                        //
     // - onLoad (DOM not set)                          //
     // - willShow  (DOM set)                           //
-    // - afterShow  (recalled on reload)               //
-    //-------------------------------------------------//
-    // - onRefresh                                     //
+    // - onRefresh  (recalled on reload)              //
     //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
@@ -39,16 +38,14 @@ class UserManagerController extends AbstractSDC {
         return super.willShow();
     }
 
-    afterShow() {
-        this.find('.navigation-links').addClass('dropdown-item');
-        return super.afterShow();
+    onRefresh() {
+        return super.onRefresh();
     }
 
-    onRefresh() {
-        this.find('.navigation-links').addClass('dropdown-item');
-        return super.onRefresh();
+    onSubmit() {
+        trigger('login');
     }
 
 }
 
-app.register(UserManagerController);
+app.register(SdcLoginController).addMixin('sdc-auto-submit');

@@ -1,21 +1,20 @@
 import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
-import {trigger} from "../../../simpleDomControl/sdc_events.js";
+import {trigger} from "../../../simpleDomControl/sdc_events";
 
 
-class LoginViewController extends AbstractSDC {
+class SdcLogoutController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/login_view"; //<login-view></login-view>
-        this._cssUrls.push('/static/sdc_user/css/sdc/login_view.css');
+        this.contentUrl = "/sdc_view/sdc_user/sdc_logout"; //<sdc-logout></sdc-logout>
 
-        this.contentReload = true;
-        this.isAutoChange = false;
-
-        this.events.unshift({
-
-        });
+        /**
+         * Events is an array of dom events.
+         * The pattern is {'event': {'dom_selector': handler}}
+         * Uncommend the following line to add events;
+         */
+        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
     }
 
     //-------------------------------------------------//
@@ -23,9 +22,7 @@ class LoginViewController extends AbstractSDC {
     // - onInit (tag parameter)                        //
     // - onLoad (DOM not set)                          //
     // - willShow  (DOM set)                           //
-    // - afterShow  (recalled on reload)               //
-    //-------------------------------------------------//
-    // - onRefresh                                     //
+    // - onRefresh  (recalled on reload)              //
     //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
@@ -41,18 +38,14 @@ class LoginViewController extends AbstractSDC {
         return super.willShow();
     }
 
-    afterShow() {
-        return super.afterShow();
-    }
-
     onRefresh() {
         return super.onRefresh();
     }
 
-    onSubmit(res) {
-        trigger('login', res.pk)
+    onSubmit() {
+        trigger('logout');
     }
 
 }
 
-app.register(LoginViewController).addMixin('change-sync-mixin', 'auto-submit-mixin');
+app.register(SdcLogoutController).addMixin('sdc-auto-submit');

@@ -6,7 +6,7 @@ class SdcErrorController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_tools/sdc_error"; //<sdc-error></sdc-error>
+        this.contentUrl = "/sdc_view/sdc_tools/sdc_error/%(code)s"; //<sdc-error data-code=""></sdc-error>
 
         /**
          * Events is an array of dom events.

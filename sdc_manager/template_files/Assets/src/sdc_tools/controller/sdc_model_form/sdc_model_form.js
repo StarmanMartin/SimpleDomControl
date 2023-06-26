@@ -1,5 +1,6 @@
 import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
+import {trigger} from "../../../simpleDomControl/sdc_events";
 
 
 class SdcModelFormController extends AbstractSDC {
@@ -26,7 +27,15 @@ class SdcModelFormController extends AbstractSDC {
     //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
-    onInit(model, pk,  next) {
+    onInit(model, pk, next, filter, on_update ) {
+        this.on_update = on_update;
+        if(typeof filter === 'function') {
+            filter = filter();
+        }
+
+        if (this.model_name) {
+            model = this.model_name;
+        }
         this.next = next;
         if (typeof (pk) !== "undefined") {
             this.pk = pk;
@@ -38,17 +47,20 @@ class SdcModelFormController extends AbstractSDC {
             this.model = this.newModel(model);
             this.form_generator = this.model.createForm.bind(this.model);
         }
+        if(typeof filter === 'object') {
+            this.model.filter(filter);
+        }
     }
 
     onLoad($html) {
-        this.model.on_update = this.model.on_create = () => {
+        this.model.on_update = () => {
             if (this.next) {
                 trigger('onNavigateToController', this.next);
             }
         }
         const from = this.form_generator()
         $html.find('.form-container').append(from);
-        $html.find(`.not-${this.type}`).remove();
+        // $html.find(`.not-${this.type}`).remove();
         return super.onLoad($html);
     }
 
@@ -58,6 +70,17 @@ class SdcModelFormController extends AbstractSDC {
 
     onRefresh() {
         return super.onRefresh();
+    }
+
+    submitModelForm($form, e) {
+        return super.submitModelForm($form, e).then(function (res) {
+            if (res && res.type === 'create') {
+                $form[0].reset();
+            }
+
+            this.on_update && this.on_update(res);
+        }).catch(() => {
+        });
     }
 
 }
