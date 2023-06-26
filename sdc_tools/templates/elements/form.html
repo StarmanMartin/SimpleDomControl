@@ -1,5 +1,5 @@
 {% load i18n %}
-{% load addclass %}
+{% load sdc_filter %}
 {{ form.media }}
 
 <div class="hidden-form-fields">
@@ -15,6 +15,21 @@
 {% endif %}
 
 <style>
+    .non-field-errors {
+        margin: 10px 5px;
+    }
+
+    .non-field-errors ul {
+        margin: 0;
+    }
+    .error-msg {
+        padding: 3px;
+    }
+
+    .error-msg .errorlist {
+        margin: 0;
+    }
+
     input[type="checkbox"] {
         height: 30px;
     }
@@ -23,7 +38,7 @@
         text-align: right;
     }
 
-    .form-group .help{
+    .form-group .help {
         text-align: left;
         padding: 3px 5px;
     }
@@ -36,11 +51,12 @@
         content: ':';
     }
 
-     .picker__select--year {
-         min-width: 59px;
-     }
+    .picker__select--year {
+        min-width: 59px;
+    }
+
     .picker__select--month, .picker__select--year {
-        min-height: 42px!important;
+        min-height: 42px !important;
         padding: 0;
     }
 

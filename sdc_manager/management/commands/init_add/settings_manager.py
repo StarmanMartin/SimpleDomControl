@@ -30,33 +30,58 @@ class SettingsManager:
     def get_setting_vals(self):
         return settings
 
+    def check_settings(self):
+        if not self.get_setting_vals().TEMPLATES[0]['APP_DIRS']:
+            print(options.CMD_COLORS.as_error("SDC only works if TEMPLATES -> APP_DIRS is ture"))
+            exit(1)
+        temp_dir = self.get_setting_vals().BASE_DIR / 'templates'
+        if not temp_dir in self.get_setting_vals().TEMPLATES[0]['DIRS']:
+            print(options.CMD_COLORS.as_error("SDC only works if '%s' is in  TEMPLATES -> DIRS" % temp_dir))
+            exit(1)
+
     def update_settings(self, settings_extension):
 
         apps = self.get_setting_vals().INSTALLED_APPS
         apps = [a for a in apps if a != 'sdc_manager']
-
+        apps.insert(0, 'daphne')
         apps.append('channels')
         apps.append('sdc_tools')
 
-        new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s'%s',\n%s#'sdc_user'\n]" % (options.SEP, ("',\n%s'" % options.SEP).join(
-            apps),options.SEP)
-
-        new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n%s'192.168.1.23',\n)\n" % (options.SEP, options.SEP)
+        new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s'%s',\n%s#'sdc_user'\n]" % (
+        options.SEP, ("',\n%s'" % options.SEP).join(
+            apps), options.SEP)
+        sep = str(options.SEP)
+        pre_add = '\n'.join(["if not DEBUG:",
+               sep + "ALLOWED_HOSTS = os.environ.get('ALLOWED_HOST').split(',')",
+               sep + "PORT = os.environ.get('PORT') or ''",
+               sep + "PORT = PORT.strip(':')",
+               sep + "if PORT == '80':",
+               (sep * 2) + "PORT = ''",
+               sep + "else:",
+               (sep * 2) + "PORT = ':%s' % PORT",
+               sep + "CSRF_TRUSTED_ORIGINS = ['http://%s%s' % (x, PORT) for x in os.environ.get('ALLOWED_HOST').split(',')] + ['https://%s%s' % (x, PORT) for x in os.environ.get('ALLOWED_HOST').split(',')]",
+               "else:",
+               sep + "ALLOWED_HOSTS = ['*']"])
+        new_val =  "%s\n\n%s\n\nif DEBUG:\n%sINSTALLED_APPS += ['sdc_manager']" % (pre_add, new_val, sep)
+        new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n)\n" % (options.SEP)
         new_val += "\n\n# AUTH_USER_MODEL = 'sdc_user.CustomUser'"
 
         fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')
 
         data = fin.read()
         fin.close()
-        new_data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
+        data = re.sub(r'(from[^\n]*)', '\g<1>\nimport os', data)
+        data = re.sub(r'(ALLOWED_HOSTS[^\n]*)', '# \g<1>', data)
+        data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
 
-        new_data += settings_extension
+        data += settings_extension
 
         fout = open(self.get_settings_file_path(), "wt", encoding='utf-8')
-        fout.write(new_data)
+        fout.write(data)
         fout.close()
 
     def get_apps(self):
+        self.find_and_set_project_name()
         app_list = [options.MAIN_APP_NAME]
         for app_name in self.get_setting_vals().INSTALLED_APPS:
             if os.path.exists(os.path.join(options.PROJECT_ROOT, app_name)) and app_name not in app_list:

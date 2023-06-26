@@ -1,0 +1,4 @@
+<h1 class="header-error">Uppss! We have an error: {{ code }}</h1>
+{% if code == 403 %}
+<sdc-login data-next="."></sdc-login>
+{% endif %}

@@ -38,15 +38,22 @@ def prepare_as_string(src, map_val):
     fin.close()
     return fout
 
-def copy(src, dest):
-    try:
-        shutil.copytree(src, dest)
-    except OSError as e:
-        # If the error was caused because the source wasn't a directory
-        if e.errno == errno.ENOTDIR:
-            shutil.copy(src, dest)
-        else:
-            print('Directory not copied. Error: %s' % e)
+
+def copy(src, dest, map_val):
+    if os.path.isdir(src):
+        for root, dirs, files in os.walk(src):
+            if '__pycache__' in dirs:
+                dirs.remove('__pycache__')
+            rel_path = os.path.relpath(root, src)
+            for file in files:
+                copy_and_prepare(os.path.join(root, file),
+                                 os.path.join(dest, rel_path, file),
+                                 map_val)
+
+    elif os.path.exists(src):
+        copy_and_prepare(src, dest,
+                         map_val)
+    print('Directory not copied.')
 
 
 def convert_to_snake_case(name):
@@ -66,6 +73,7 @@ def convert_to_title_camel_case(name):
     snake_str = re.sub(' ', r'', name).lower()
     components = snake_str.split('_')
     return ''.join(x.title() for x in components)
+
 
 def convert_to_tag_name(name):
     s1 = re.sub(' ', r'', name)

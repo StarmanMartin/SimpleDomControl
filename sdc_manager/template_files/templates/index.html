@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Title{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'index.organizer.js' %}"></script>
+<link rel="stylesheet" type="text/css" href="{% static 'index.style.css' %}"/>
+{% endblock %}
+
+{% block content %}
+
+
+<main-view>
+    <h1>{% trans 'Loading' %}...</h1>
+</main-view>
+
+
+{% endblock %}
+

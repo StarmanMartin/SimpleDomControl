@@ -1,0 +1,38 @@
+1) Uncomend sdc_user in "project_app"/settings.py INSTALLED_APPS: (replace project_app by the app name of your project)
+...
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'sdc_core',
+    'sdc_tools',
+    'sdc_user' # <--
+]
+
+2) Uncomend AUTH_USER_MODEL in "project_app"/settings.py INSTALLED_APPS: (replace project_app by the app name of your project)
+...
+AUTH_USER_MODEL = 'sdc_user.CustomUser'
+...
+
+3) Uncomend the import in sdc_core/consumer.py :
+...
+from sdc_user import sdc_views as sdc_user # <--
+...
+
+4) Uncomend the import in "project_app"/url.py: (replace project_app by the app name of your project)
+...
+urlpatterns = [
+    path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),
+    path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')), # <--
+    # scd view below
+...
+
+5)  Uncomend the import in sdc_core/static/index.organizerl.js:
+...
+import {} from "./sdc_tools/js/sdc_tools.organizer.js"
+import {} from "./sdc_user/js/test_app_two.organizer.js" // <--
+import {app} from './simpleDomControl/sdc_main.js';
+...

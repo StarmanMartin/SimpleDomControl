@@ -1,0 +1,18 @@
+@import "../node_modules/bootstrap/scss/bootstrap";
+@import "./test_app_one/test_app_one.style.scss";
+// @import "./sdc_user/sdc_user.style";
+@import "./sdc_tools/sdc_tools.style";
+
+body {
+    background-color: cornflowerblue;
+
+    ::before {
+        content: "SDC Works";
+        font-size: larger;
+        color: red;
+    }
+
+    .navbar-dummy {
+        height: 70px;
+    }
+}

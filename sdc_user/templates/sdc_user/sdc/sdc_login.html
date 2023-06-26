@@ -1,0 +1,9 @@
+<div class="container-fluid">
+    <form class="ajax-form" method="post" action="{% url 'scd_view_sdc_login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="_method" value="api">
+        <input type="hidden" name="{{ redirect_field_name }}" value="{{ next_page }}">
+        {% include "elements/form.html" with form=form %}
+        <button class="btn">Login</button>
+    </form>
+</div>

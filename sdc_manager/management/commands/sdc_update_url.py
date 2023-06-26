@@ -35,14 +35,15 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **ops):
-        manage_py_file_path = sys.argv[1] if len(sys.argv) > 2 else 'manage.py'
+        manage_py_file_path = sys.argv[0] if len(sys.argv) > 0 else 'manage.py'
         settings = settings_manager.SettingsManager(manage_py_file_path)
         all_apps = settings.get_apps()
         for app_name in all_apps[1:]:
-            sdc_js_dir = os.path.join(options.PROJECT_ROOT, "static", app_name, "js", "sdc")
+            sdc_js_dir = os.path.join(options.PROJECT_ROOT, "Assets/src", app_name, "controller")
             if os.path.exists(sdc_js_dir):
                 for file in os.listdir(sdc_js_dir):
-                    if file.endswith(".js"):
-                        controller_file = os.path.join(sdc_js_dir, file)
-                        controller_name_sc = file.replace(".js", "")
-                        change_content_url(controller_file, app_name, controller_name_sc)
+                    sdc_c_dir = os.path.join(sdc_js_dir, file)
+                    sdc_c_js = os.path.join(str(sdc_c_dir), "%s.js" % file)
+                    if os.path.isdir(sdc_c_dir) and os.path.isfile(sdc_c_js):
+                        controller_name_sc = file
+                        change_content_url(sdc_c_js, app_name, controller_name_sc)

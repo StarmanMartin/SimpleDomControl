@@ -13,6 +13,8 @@ def addclass(field, css):
 def addformclass(field):
     if field.widget_type == 'checkbox':
         return field.as_widget(attrs={"class":'form-control form-check-input timer-change'})
+    if field.widget_type == 'select':
+        return field.as_widget(attrs={"class":'form-control form-select timer-change'})
     return field.as_widget(attrs={"class":'form-control timer-change'})
 
 @register.simple_tag(name='random_tag')

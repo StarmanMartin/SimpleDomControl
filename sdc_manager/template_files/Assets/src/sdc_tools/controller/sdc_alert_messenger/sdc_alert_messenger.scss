@@ -1,0 +1,70 @@
+[sdc-alert-messenger] {
+  .alert_msg_container {
+    position: fixed;
+    left: 30vw;
+    top: -100px;
+    background: transparent;
+    min-height: 50px;
+    z-index: 5000;
+    width: 30%;
+    transition: top .5s ease-in-out, height .5s ease-in-out;
+  }
+
+  .alert_msg_container.active {
+    top: 0;
+  }
+
+  .dummy_row {
+    display: none;
+  }
+
+  .alert_box {
+    background: transparent;
+    margin: auto;
+    width: 100%;
+    border-radius: 13px;
+    overflow: hidden;
+  }
+
+  .alert_box_msg {
+    margin: 7px;
+    margin-top: 0;
+    position: relative;
+    width: auto;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid #17a2b8;
+    border-top: none;
+  }
+
+  .alert_box_msg.error_box {
+    border: 3px solid #dc3545;
+  }
+
+  .msg_header {
+    margin: 0 3px;
+    font-size: 1.3em;
+    border-bottom: 1px solid #dad9d4;
+  }
+
+  .alert_box_msg.error_box .msg_header {
+    border-bottom: 1px solid #dc3545;
+  }
+
+  .msg_date {
+    margin: 0;
+    font-size: 0.8em;
+    color: #959190;
+    position: absolute;
+    right: 5px;
+    top: 5px;
+  }
+
+  @media only screen and (max-width: 811px) {
+    .alert_msg_container {
+      left: 10vw;
+      width: 90%;
+    }
+  }
+}

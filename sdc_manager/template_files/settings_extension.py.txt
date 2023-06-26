@@ -1,0 +1,35 @@
+
+#DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+STATIC_ROOT =  BASE_DIR /  'www/'
+
+STATICFILES_DIRS = [ BASE_DIR /  "static" ]
+
+ASGI_APPLICATION = '§PROJECT§.asgi.application'
+
+if DEBUG:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [('redis', 6379)],
+            },
+        },
+    }
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+#EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
+#EMAIL_HOST =''
+#EMAIL_PORT = 587
+#EMAIL_HOST_USER = ''
+#DEFAULT_FROM_EMAIL = ''
+#EMAIL_HOST_PASSWORD = ''
+#EMAIL_USE_TLS = True

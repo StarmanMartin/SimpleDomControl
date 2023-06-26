@@ -1,9 +1,12 @@
+/sdc.iml
 
 __pycache__/
 
 \.idea/
 /sdctest/db.sqlite3
-/sdc.iml
 /lib/
 /node_modules/
 /coverage/
+
+/.pytest_cache/
+sdc.zip

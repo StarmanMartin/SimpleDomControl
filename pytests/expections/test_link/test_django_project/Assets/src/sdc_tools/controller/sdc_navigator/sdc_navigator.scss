@@ -1,0 +1,60 @@
+[sdc-navigator] {
+  .main-page-frame {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .nav-menu-set:not(.active) {
+    display: none!important;
+  }
+
+  .sdc_sub_detail_container {
+    transition: opacity 1s ease, height 1s ease;
+    opacity: 0;
+
+  }
+  .sdc_sub_detail_container.active {
+    flex: 1 0 auto;
+    position: relative;
+    opacity: 1;
+  }
+
+  .sdc_sub_detail_container:not(.active) {
+    height: 0;
+    overflow: hidden;
+  }
+
+  .sdc_sub_detail_container:not(.active):not(.loading) {
+    display: none;
+  }
+
+  .sdc_sub_detail_container.active.loading {
+    opacity: 0.5;
+  }
+
+  .header-loading {
+    position: fixed;
+    top: -50px;
+    width: 70vw;
+    text-align: center;
+    transition: top 500ms ease;
+    z-index: 200;
+  }
+
+  .header-loading.active {
+    top: 100px;
+  }
+
+  .main-nav-import-container {
+    flex: 0 0 auto;
+  }
+
+  @media (min-width: 575px) {
+    .navbar-expand-sm .navbar-nav {
+      flex: 1 1 auto;
+      justify-content: right;
+    }
+  }
+}

@@ -54,21 +54,21 @@ class AddControllerManager:
         cmd = 'python manage.py get_url_of_a_sdc %s' % self.controller_name_sc
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
         out = str(p.communicate()[0], encoding="utf-8")
-        out = re.sub(r'\\r?\\n', r'', out)
-        out = re.sub(r'\r?\n', r'', out)
-        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
+        out = re.sub(r'\\r?\\n.*$', r'', out)
+        out = re.sub(r'\r?\n.*$', r'', out)
+        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\g<1>', out)
         return self._template_url
 
     def get_template_url_sync(self):
         if self._template_url is not None:
             return self._template_url
         out = self.get_url(self.controller_name_sc)
-        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\1', out)
+        self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\g<1>', out)
         return self._template_url
 
     def get_url_params(self):
         url = self.get_template_url()
-        return re.findall(r'%\(([^)]+)\)\w', url)
+        return re.findall('%\(([^)]+)\)\w', url)
 
     def get_params_as_string(self):
         params_list = self.get_url_params()
@@ -76,27 +76,22 @@ class AddControllerManager:
             return ', ' + ', '.join(params_list)
         return ''
 
-    def add_url_to_url_pattern(self, main_urls_path, consumers_path):
+    def add_url_to_url_pattern(self, main_urls_path):
         urls_path = os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_urls.py")
 
         if not os.path.exists(urls_path):
-            copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "sdc_urls.py"),
+            copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "sdc_urls.py.txt"),
                              os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_urls.py"),
                              self.reps)
 
-            copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "sdc_views.py"),
+            copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "sdc_views.py.txt"),
                              os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"),
                              self.reps)
 
             self._add_new_sdc_to_main_urls(main_urls_path)
-            self._add_new_sdc_to_routing(consumers_path)
 
         self._add_sdc_views_to_main_urls(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_urls.py"))
 
-    def _add_new_sdc_to_routing(self, consumers_path):
-        new_line = "from {0} import sdc_views as {0}".format(self.app_name)
-        with open(consumers_path, 'r', encoding='utf-8') as original: data = original.read()
-        with open(consumers_path, 'w', encoding='utf-8') as modified: modified.write("%s\n%s" % (new_line, data))
 
     def _add_new_sdc_to_main_urls(self, main_urls_path):
         return self._add_to_urls(main_urls_path, "sdc_view/%s/" % self.app_name,
@@ -122,39 +117,51 @@ class AddControllerManager:
 
     def prepare_files(self):
         main_static = os.path.join(
-            options.PROJECT_ROOT, "static", self.app_name)
+            options.PROJECT_ROOT, "Assets/src", self.app_name, 'controller', self.controller_name_sc)
         main_templates = os.path.join(options.PROJECT_ROOT, self.app_name, "templates", self.app_name)
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
+        self.reps['§TAG§'] = convert_to_tag_name(self.controller_name_cc)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "controller", "template_controller.js.txt"),
-                         os.path.join(main_static, "js", "sdc",
-                                      self.controller_name_sc + ".js"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_controller.js.txt"),
+                         os.path.join(main_static, self.controller_name_sc + ".js"),
                          self.reps)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "controller", "templade_view.html"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_css.scss"),
+                         os.path.join(main_static,
+                                      self.controller_name_sc + ".scss"),
+                         self.reps)
+
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "templade_view.html"),
                          os.path.join(main_templates, "sdc",
                                       self.controller_name_sc + ".html"),
                          self.reps)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "controller", "template_css.css"),
-                         os.path.join(main_static, "css", "sdc",
-                                      self.controller_name_sc + ".css"),
-                         self.reps)
-
-    def add_to_organizer(self):
-        org_file_path = os.path.join(options.PROJECT_ROOT, "static", self.app_name, "js",
+    def add_to_organizer(self, add_css=True):
+        org_js_file_path = os.path.join(options.PROJECT_ROOT, "Assets/src", self.app_name,
                                      "%s.organizer.js" % self.app_name)
+        org_style_file_path = os.path.join(options.PROJECT_ROOT, "Assets/src", self.app_name,
+                                     "%s.style.scss" % self.app_name)
 
-        if not os.path.exists(org_file_path):
-            org_file_path_root = os.path.join(options.PROJECT_ROOT, "static",
-                                         "main.organizer.js")
-            line = 'import {} from "./%s/js/%s.organizer.js"\n' % (self.app_name, self.app_name)
+        if not os.path.exists(org_js_file_path):
+            org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
+                                         "index.organizer.js")
+            line = 'import {} from "./%s/%s.organizer.js";\n' % (self.app_name, self.app_name)
 
             self._add_js_to_src(org_file_path_root, line)
 
-        line = 'import {} from "./sdc/%s.js"\n' % (self.controller_name_sc)
-        return self._add_js_to_src(org_file_path, line)
+        if add_css:
+            if not os.path.exists(org_style_file_path):
+                org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
+                                             "index.style.scss")
+                line = '@import "./%s/%s.style.scss";\n' % (self.app_name, self.app_name)
+
+                self._add_scss_to_src(org_file_path_root, line)
+
+            line = '@import "./controller/%s/%s.scss";\n' % (self.controller_name_sc, self.controller_name_sc)
+            self._add_scss_to_src(org_style_file_path, line)
+        line = 'import {} from "./controller/%s/%s.js";\n' % (self.controller_name_sc, self.controller_name_sc)
+        self._add_js_to_src(org_js_file_path, line)
 
     @staticmethod
     def _add_js_to_src(org_file_path, new_line):
@@ -165,6 +172,28 @@ class AddControllerManager:
             fin = open(org_file_path, 'r', encoding='utf-8')
 
             for line in fin:
+                text += line
+
+        fin.close()
+
+        fout = open(org_file_path, "w+", encoding='utf-8')
+        fout.write(text)
+        fout.close()
+
+    @staticmethod
+    def _add_scss_to_src(org_file_path, new_line):
+
+        if not os.path.exists(org_file_path):
+            fin = open(org_file_path, 'x', encoding='utf-8')
+            text = new_line
+        else:
+            fin = open(org_file_path, 'r', encoding='utf-8')
+            text = ''
+            added = False
+            for line in fin:
+                if not line.startswith('@import') and not added:
+                    text += "%s" % new_line
+                    added = True
                 text += line
 
         fin.close()

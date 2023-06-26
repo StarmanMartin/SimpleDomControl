@@ -16,79 +16,50 @@ class Command(BaseCommand):
         pass
 
     def handle(self, *args, **ops):
-        manage_py_file_path = sys.argv[1] if len(sys.argv) > 2 else 'manage.py'
+        manage_py_file_path = sys.argv[0] if len(sys.argv) > 0 else 'manage.py'
 
         sdc_settings = settings_manager.SettingsManager(manage_py_file_path)
+        sdc_settings.check_settings()
 
-        if not sdc_settings.get_setting_vals().TEMPLATES[0]['APP_DIRS']:
-            print(options.CMD_COLORS.as_error("simpleDomControl only works if TEMPLATES -> TEMPLATES.APP_DIRS is ture"))
-            exit(1)
-
-        sdc_settings.find_and_set_whitespace_sep()
         sdc_settings.find_and_set_project_name()
+        sdc_settings.find_and_set_whitespace_sep()
 
         project_app_root = os.path.join(options.PROJECT_ROOT, options.PROJECT)
-        main_static = os.path.join(options.PROJECT_ROOT, "static")
+        main_static = os.path.join(options.PROJECT_ROOT, "Assets")
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
-        sdc_dir = os.path.join(main_static, "simpleDomControl")
         if 'sdc_tools' in sdc_settings.get_setting_vals().INSTALLED_APPS:
             print(options.CMD_COLORS.as_error("SimpleDomControl has initialized already!"))
             exit(2)
 
 
-        sdc_settings.update_settings(prepare_as_string(os.path.join(options.SCRIPT_ROOT, "templates", "settings_extension.py"), options.REPLACEMENTS))
+        sdc_settings.update_settings(prepare_as_string(os.path.join(options.SCRIPT_ROOT, "template_files", "settings_extension.py.txt"), options.REPLACEMENTS))
 
-        makedirs_if_not_exist(main_static)
         makedirs_if_not_exist(main_templates)
         copy_apps()
-        copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "simpleDomControl"), sdc_dir)
-        copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "sdc_user"), os.path.join(main_static, "sdc_user"))
-        copy(os.path.join(options.SCRIPT_ROOT, "templates", "static", "sdc_tools"), os.path.join(main_static, "sdc_tools"))
+        copy(os.path.join(options.SCRIPT_ROOT, "template_files", "Assets"), main_static, options.REPLACEMENTS)
+        copy(os.path.join(options.SCRIPT_ROOT, "template_files", "templates"), main_templates, options.REPLACEMENTS)
+        # copy(os.path.join(options.SCRIPT_ROOT, "template_files", "sdc_extentions"), os.path.join(project_app_root, "sdc_extentions"), options.REPLACEMENTS)
 
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", ".jshintrc"),
-                         os.path.join(options.PROJECT_ROOT, ".jshintrc"),
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "package.json"),
-                         os.path.join(options.PROJECT_ROOT, "package.json"),
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "requirements.txt"),
-                         os.path.join(options.PROJECT_ROOT, "requirements.txt"),
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "static", "main.organizer.js"),
-                         os.path.join(main_static, "main.organizer.js"),
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "static", "style.css"),
-                         os.path.join(main_static, "style.css"),
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "templates", "base.html"),
-                         os.path.join(main_templates, "base.html"),
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "consumers.py"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "consumers.py.txt"),
                          os.path.join(project_app_root, "consumers.py"),
                          options.REPLACEMENTS)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "routing.py"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "routing.py.txt"),
                          os.path.join(project_app_root, "routing.py"),
+                         options.REPLACEMENTS)
+
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "requirements.txt"),
+                         os.path.join(options.PROJECT_ROOT, "requirements.txt"),
                          options.REPLACEMENTS)
 
         asgi_file = os.path.join(project_app_root, "asgi.py")
         if os.path.exists(asgi_file):
             os.remove(asgi_file)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "asgi.py.txt"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "asgi.py.txt"),
                          asgi_file,
-                         options.REPLACEMENTS)
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "templates", "templates", "index.html"),
-                         os.path.join(main_templates, options.MAIN_APP_NAME, "index.html"),
                          options.REPLACEMENTS)
 
         add_sdc_to_main_urls(sdc_settings.get_main_url_path())

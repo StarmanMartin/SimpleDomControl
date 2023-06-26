@@ -6,8 +6,8 @@ import shutil
 from sdc_manager.management.commands.init_add import options
 
 def copy_apps():
-    for tool in ['sdc_user', 'sdc_examples']:
-        src = os.path.join(options.SCRIPT_ROOT, "templates", 'apps', tool)
+    for tool in ['sdc_user', 'sdc_tools', 'sdc_examples']:
+        src = os.path.join(options.SCRIPT_ROOT, "template_files", 'apps', tool)
         dest = os.path.join(options.PROJECT_ROOT, tool)
         try:
             shutil.copytree(src, dest)
@@ -33,7 +33,7 @@ def add_sdc_to_main_urls(main_urls_path):
             is_done = True
         text += line
 
-    f_urls = open(os.path.join(options.SCRIPT_ROOT, "templates", "urls.py.txt"), "rt", encoding='utf-8')
+    f_urls = open(os.path.join(options.SCRIPT_ROOT, "template_files", "urls.py.txt"), "rt", encoding='utf-8')
     for line in f_urls:
         for key in options.REPLACEMENTS:
             line = line.replace(key, options.REPLACEMENTS[key])

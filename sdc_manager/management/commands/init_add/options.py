@@ -4,7 +4,7 @@ MAIN_APP_NAME = "Undefined"
 SEP = '    '
 PROJECT = 'Undefined'
 PROJECT_ROOT = os.getcwd()
-SCRIPT_ROOT = os.path.dirname(os.path.realpath(__file__))
+SCRIPT_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '../../../'))
 REPLACEMENTS = {"<!--§MAIN_APP§-->": MAIN_APP_NAME,"§MAIN_APP§": MAIN_APP_NAME,
                 "<!--§PROJECT§-->": PROJECT,"§PROJECT§": PROJECT}
 

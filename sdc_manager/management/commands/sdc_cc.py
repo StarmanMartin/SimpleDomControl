@@ -6,14 +6,22 @@ from django.core.management.base import BaseCommand
 
 from sdc_manager.management.commands.init_add import options, settings_manager
 from sdc_manager.management.commands.init_add.add_controller_manager import AddControllerManager
+from sdc_manager.management.commands.sdc_link_html import make_link
 
 
 class Command(BaseCommand):
     help = 'This function creates a new sdc controller and adds the django url parts'
 
+    def __init__(self, *args, **kwargs):
+        super(Command, self).__init__(*args, **kwargs)
+        manage_py_file_path = sys.argv[0] if len(sys.argv) > 0 else 'manage.py'
+        self.sdc_settings = settings_manager.SettingsManager(manage_py_file_path)
 
     def add_arguments(self, parser):
-        pass
+        all_apps = self.sdc_settings.get_apps()
+        parser.add_argument('-c', '--controller_name', type=str, help='The name of the new controller as snake_case')
+        parser.add_argument('-a', '--app_name', type=str, help='The name of the django app: [%s]' % ', '.join(all_apps))
+
 
     def check_snake_name(self, name):
         x = re.search("[A-Z]", name)
@@ -32,33 +40,30 @@ class Command(BaseCommand):
         return True
 
     def handle(self, *args, **ops):
-        manage_py_file_path = sys.argv[1] if len(sys.argv) > 2 else 'manage.py'
 
-        sdc_settings = settings_manager.SettingsManager(manage_py_file_path)
+        self.sdc_settings.check_settings()
 
-        if not sdc_settings.get_setting_vals().TEMPLATES[0]['APP_DIRS']:
-            print(options.CMD_COLORS.as_error("simpleDomControl only works if TEMPLATES -> APP_DIRS is ture"))
-            exit(1)
-
-        sdc_settings.find_and_set_project_name()
-        all_apps = sdc_settings.get_apps()
+        self.sdc_settings.find_and_set_project_name()
+        all_apps = self.sdc_settings.get_apps()
 
         text = "Enter number to select an django App:"
         for idx in range(1, len(all_apps)):
             text += "\n%d -> %s" % (idx, all_apps[idx])
+        app_name = ops.get('app_name')
+        if app_name is None or not app_name in all_apps:
+            idx = 1
+            try:
+                idx = int(input(text + "\nEnter number: [%d]" % (len(all_apps) - 1)) or (len(all_apps) - 1))
+            except Exception as ex:
+                print(ex)
+                print(options.CMD_COLORS.as_error("Input has to be a number between 1 and %d" % (len(all_apps) - 1)))
+                exit(1)
 
-        idx = 1
-        try:
-            idx = int(input(text + "\nEnter number: [%d]" % (len(all_apps) - 1)) or (len(all_apps) - 1))
-        except Exception as ex:
-            print(ex)
-            print(options.CMD_COLORS.as_error("Input has to be a number between 1 and %d" % (len(all_apps) - 1)))
-            exit(1)
-
-        app_name = all_apps[idx]
-
-        text = "Enter the name of the new controller (use snake_case):"
-        controller_name = str(input(text))
+            app_name = all_apps[idx]
+        controller_name = ops.get('controller_name')
+        if controller_name is None:
+            text = "Enter the name of the new controller (use snake_case):"
+            controller_name = str(input(text))
 
         if not self.check_snake_name(controller_name):
             exit(1)
@@ -72,8 +77,8 @@ class Command(BaseCommand):
             exit(1)
 
 
-        consumers_path = os.path.join(options.PROJECT_ROOT, options.MAIN_APP_NAME, "consumers.py")
-        add_sdc_manager.add_url_to_url_pattern(sdc_settings.get_main_url_path(), consumers_path)
+        add_sdc_manager.add_url_to_url_pattern(self.sdc_settings.get_main_url_path())
         add_sdc_manager.add_view_class_to_sdc_views()
         add_sdc_manager.prepare_files()
         add_sdc_manager.add_to_organizer()
+        make_link(app_name, controller_name)

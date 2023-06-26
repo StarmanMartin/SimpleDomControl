@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% load addclass %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}Title{% endblock %}
+
+{% block scripts %}
+    <script type="module" src="{% static 'index.organizer.js' %}?{% random_tag 5 %}"></script>
+{% endblock %}
+
+{% block content %}
+    <g-alert-msg></g-alert-msg>
+    <global-dom-events></global-dom-events>
+
+    <!-- nav view controller ind sdc_tools -->
+    <!-- data-default-controller sets the default view -->
+    <nav-view data-default-controller="second-view">
+        <!-- .header-loading element will have an addition class .active while loading -->
+        <div class="header-loading">
+            <h1>{% trans 'loading...' %}</h1>
+        </div>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="navbar-brand navigation-links"
+               href="{% url 'sdc_index' %}~first-view">{% trans 'First' %}</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavAltMarkup" aria-controls="navbarNavAltMarkup" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
+                <div class="navbar-nav nav-menu-set menu-1 active">
+                    <!-- .navigation-links is automatically handled by the nav-view controller-->
+                    <a class="nav-item nav-link navigation-links"
+                       href="{% url 'sdc_index' %}~second-view~&pk=-1">{% trans 'Second' %}</a>
+                    <a class="nav-item nav-link navigation-links"
+                       href="{% url 'sdc_index' %}~third-view">{% trans 'Third' %}</a>
+                </div>
+                <!-- Alternative menu. It changes Navbar for each controller which have this.menu_id = 2; -->
+                <!-- this.menu_id = 0; keeps current menu bar -->
+                <div class="navbar-nav nav-menu-set menu-2">
+                    <a class="nav-item nav-link navigation-links"
+                       href="{% url 'sdc_index' %}~third-view~fifth-view">{% trans 'Fifth' %}</a>
+                    <a class="nav-item nav-link navigation-links"
+                       href="{% url 'sdc_index' %}~third-view~fourth-view">{% trans 'Fourth' %}</a>
+                </div>
+            </div>
+        </nav>
+    </nav-view>
+{% endblock %}
+
