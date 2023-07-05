@@ -9,6 +9,7 @@ class SdcModelFormController extends AbstractSDC {
         super();
         this.pk = null;
         this.contentUrl = "/sdc_view/sdc_tools/sdc_model_form"; //<sdc-model-form></sdc-model-form>
+        this.model_name = null;
 
         /**
          * Events is an array of dom events.
@@ -28,7 +29,8 @@ class SdcModelFormController extends AbstractSDC {
     // - onRemove                                      //
     //-------------------------------------------------//
     onInit(model, pk, next, filter, on_update ) {
-        this.on_update = on_update;
+        !this.on_update && (this.on_update = on_update);
+        !this.next && (this.next = next);
         if(typeof filter === 'function') {
             filter = filter();
         }
@@ -36,13 +38,13 @@ class SdcModelFormController extends AbstractSDC {
         if (this.model_name) {
             model = this.model_name;
         }
-        this.next = next;
         if (typeof (pk) !== "undefined") {
             this.pk = pk;
             this.type = 'edit';
             this.model = this.newModel(model, {pk: pk});
             this.form_generator = this.model.editForm.bind(this.model);
         } else {
+            this.isAutoChange = false;
             this.type = 'create';
             this.model = this.newModel(model);
             this.form_generator = this.model.createForm.bind(this.model);
@@ -58,10 +60,14 @@ class SdcModelFormController extends AbstractSDC {
                 trigger('onNavigateToController', this.next);
             }
         }
-        const from = this.form_generator()
-        $html.find('.form-container').append(from);
+        this.from = this.form_generator()
+        $html.find('.form-container').append(this.from);
         // $html.find(`.not-${this.type}`).remove();
         return super.onLoad($html);
+    }
+
+    onChange() {
+        this.from.submit()
     }
 
     willShow() {
@@ -73,16 +79,17 @@ class SdcModelFormController extends AbstractSDC {
     }
 
     submitModelForm($form, e) {
-        return super.submitModelForm($form, e).then(function (res) {
+        let self = this;
+        return super._submitModelForm($form, e).then(function (res) {
             if (res && res.type === 'create') {
                 $form[0].reset();
             }
 
-            this.on_update && this.on_update(res);
+            self.on_update && self.on_update(res);
         }).catch(() => {
         });
     }
 
 }
 
-app.register(SdcModelFormController);
+app.register(SdcModelFormController).addMixin('sdc-update-on-change');

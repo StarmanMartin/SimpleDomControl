@@ -1,4 +1,3 @@
-import {getBody} from './sdc_utils.js'
 import {controllerFactory, runControlFlowFunctions} from "./sdc_controller.js";
 import {getUrlParam} from "./sdc_params.js";
 import {app} from "./sdc_main.js";
@@ -99,7 +98,6 @@ function loadHTMLFile(path, args, tag, hardReload) {
     args.VERSION = app.VERSION;
     args._method = 'content';
 
-
     return $.get(path, args).then(function (data) {
         if(data.status === "redirect") {
             trigger('onNavLink', data['url-link']);
@@ -113,52 +111,6 @@ function loadHTMLFile(path, args, tag, hardReload) {
     }).catch(function (err) {
         console.error(err);
         return err.responseText;
-    });
-}
-
-/**
- * loadCSSFile loads the CSS files from the server via ajax request.
- *  Manipulates the CSS rules by adding a tag name-related prefix.
- *  Adds a style tag to the HTML body.
- *
- * If the CSS file is loaded already the function takes no action.
- *
- * @param {Array<string>|string} pathList - a list of CSS files from the controller.
- * @param {string} tag - a normalized tag-name as string.
- * @returns {Promise<Boolean>} - waits for the files to be loaded.
- */
-function loadCSSFile(pathList, tag) {
-    if (!pathList || pathList.length === 0) {
-        return Promise.resolve(false);
-    } else if (cssFilesLoaded[tag]) {
-        return Promise.resolve(cssFilesLoaded[tag])
-    }
-
-    cssFilesLoaded[tag] = true;
-
-    if (typeof pathList === "string") {
-        pathList = [pathList]
-    }
-
-    let cssFileLoadPromises = [];
-
-    for (let i = 0; i < pathList.length; i++) {
-        if (pathList[i].indexOf('?') === -1) {
-            pathList[i] += '?' + app.VERSION;
-        }
-        cssFileLoadPromises.push($.get(pathList[i]));
-    }
-
-    return Promise.all(cssFileLoadPromises).then(function (files) {
-        for (let i = 0; i < files.length; i++) {
-            addCssFile(files[i], tag)
-        }
-
-        return true;
-    }).catch(function (err) {
-        cssFilesLoaded[tag] = false;
-        console.error(err);
-        return false
     });
 }
 

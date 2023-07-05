@@ -224,7 +224,7 @@ export class AbstractSDC {
      * Model Form Events
      */
 
-    submitModelForm($form, e) {
+    _submitModelForm($form, e) {
         let p_list = []
         if (!this._isMixin) {
             e.stopPropagation();

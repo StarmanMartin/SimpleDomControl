@@ -1,8 +1,8 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.views import RedirectURLMixin
 
-from SdcSample.sdc_extentions.views import SDCView
-from SdcSample.sdc_extentions.response import send_redirect, send_error
+from sdc_tools.sdc_extentions.views import SDCView
+from sdc_tools.sdc_extentions.response import send_redirect, send_error
 from django.shortcuts import render
 from django.contrib.auth.forms import AuthenticationForm
 from django.conf import settings
@@ -46,7 +46,7 @@ class SdcLogout(SDCView):
 
     def post_api(self, request):
         logout(request)
-        return send_redirect(controller=settings.LOGIN_CONTROLLER)
+        return send_redirect(url=f'.~{settings.LOGIN_CONTROLLER}')
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)

@@ -27,7 +27,7 @@ def add_sdc_to_main_urls(main_urls_path):
 
         if "urlpatterns = [" in line:
             new_apps = "%sre_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),\n" % options.SEP
-            new_apps += "%s# re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
+            new_apps += "%sre_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
             line = re.sub(r'urlpatterns = \[',
                           "urlpatterns = [\n%s%s# scd view below\n" % (new_apps,options.SEP), line)
             is_done = True

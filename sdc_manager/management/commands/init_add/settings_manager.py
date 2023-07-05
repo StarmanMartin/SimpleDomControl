@@ -46,31 +46,25 @@ class SettingsManager:
         apps.insert(0, 'daphne')
         apps.append('channels')
         apps.append('sdc_tools')
-
-        new_val = "VERSION=0.0\n\nINSTALLED_APPS = [\n%s'%s',\n%s#'sdc_user'\n]" % (
-        options.SEP, ("',\n%s'" % options.SEP).join(
-            apps), options.SEP)
+        apps.append('sdc_user')
         sep = str(options.SEP)
+
+        new_val = f"VERSION=0.0\n\nINSTALLED_APPS = [\n{sep}'%s'\n]" % (("',\n%s'" % sep).join(apps))
         pre_add = '\n'.join(["if not DEBUG:",
-               sep + "ALLOWED_HOSTS = os.environ.get('ALLOWED_HOST').split(',')",
-               sep + "PORT = os.environ.get('PORT') or ''",
-               sep + "PORT = PORT.strip(':')",
-               sep + "if PORT == '80':",
-               (sep * 2) + "PORT = ''",
-               sep + "else:",
-               (sep * 2) + "PORT = ':%s' % PORT",
-               sep + "CSRF_TRUSTED_ORIGINS = ['http://%s%s' % (x, PORT) for x in os.environ.get('ALLOWED_HOST').split(',')] + ['https://%s%s' % (x, PORT) for x in os.environ.get('ALLOWED_HOST').split(',')]",
-               "else:",
-               sep + "ALLOWED_HOSTS = ['*']"])
-        new_val =  "%s\n\n%s\n\nif DEBUG:\n%sINSTALLED_APPS += ['sdc_manager']" % (pre_add, new_val, sep)
+                             sep + "hosts = [urlparse(x)  for x in os.environ.get('ALLOWED_HOST').split(',')]",
+                             sep + "ALLOWED_HOSTS = [host.hostname for host in hosts]",
+                             sep + "CSRF_TRUSTED_ORIGINS = [urlunparse(x) for x in hosts]",
+                             "else:",
+                             sep + "ALLOWED_HOSTS = ['*']"])
+
+        new_val = "%s\n\n%s\n\nif DEBUG:\n%sINSTALLED_APPS += ['sdc_manager']" % (pre_add, new_val, sep)
         new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n)\n" % (options.SEP)
-        new_val += "\n\n# AUTH_USER_MODEL = 'sdc_user.CustomUser'"
 
         fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')
 
         data = fin.read()
         fin.close()
-        data = re.sub(r'(from[^\n]*)', '\g<1>\nimport os', data)
+        data = re.sub(r'(from[^\n]*)', '\g<1>\nimport os\nfrom urllib.parse import urlparse, urlunparse', data)
         data = re.sub(r'(ALLOWED_HOSTS[^\n]*)', '# \g<1>', data)
         data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
 

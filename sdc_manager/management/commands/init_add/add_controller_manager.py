@@ -160,6 +160,7 @@ class AddControllerManager:
 
             line = '@import "./controller/%s/%s.scss";\n' % (self.controller_name_sc, self.controller_name_sc)
             self._add_scss_to_src(org_style_file_path, line)
+
         line = 'import {} from "./controller/%s/%s.js";\n' % (self.controller_name_sc, self.controller_name_sc)
         self._add_js_to_src(org_js_file_path, line)
 
@@ -195,6 +196,8 @@ class AddControllerManager:
                     text += "%s" % new_line
                     added = True
                 text += line
+            if not added:
+                text += "%s" % new_line
 
         fin.close()
 

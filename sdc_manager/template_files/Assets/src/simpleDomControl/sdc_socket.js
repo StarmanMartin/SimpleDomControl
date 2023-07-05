@@ -2,7 +2,7 @@ import {app} from './sdc_main.js';
 import {trigger} from "./sdc_events.js";
 import {uuidv4} from "./sdc_utils";
 
-let IS_CONNECTED = true;
+let IS_CONNECTED = false;
 let SDC_SOCKET = null
 const MAX_FILE_UPLOAD = 25000;
 let OPEN_REQUESTS = [];
@@ -185,7 +185,7 @@ export class Model {
         });
     }
 
-    listView(filter = {}) {
+    listView(filter = {}, cb = null) {
         let $div_list = $('<div>');
         this.isConnected().then(() => {
             const id = uuidv4();
@@ -204,6 +204,7 @@ export class Model {
                 this.open_request[id] = [(data) => {
                     $div_list.append(data.html);
                     app.refresh($div_list);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -213,7 +214,7 @@ export class Model {
         return $div_list;
     }
 
-    detailView(pk = -1) {
+    detailView(pk = -1, cb = null) {
         let $div_list = $('<div>');
 
         let load_promise;
@@ -243,6 +244,7 @@ export class Model {
                 this.open_request[id] = [(data) => {
                     $div_list.append(data.html);
                     app.refresh($div_list);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -324,7 +326,7 @@ export class Model {
 
     }
 
-    createForm() {
+    createForm(cb = null) {
         let $div_form = $('<div>');
         this.isConnected().then(() => {
             const id = uuidv4();
@@ -347,6 +349,7 @@ export class Model {
                     }
 
                     app.refresh($div_form);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -356,7 +359,7 @@ export class Model {
         return $div_form;
     }
 
-    editForm(pk = -1) {
+    editForm(pk = -1, cb = null) {
         let load_promise;
         if (this.values_list.length !== 0) {
             load_promise = this.isConnected();
@@ -392,6 +395,7 @@ export class Model {
                     }
 
                     app.refresh($div_form);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -427,6 +431,7 @@ export class Model {
                     this.open_request[id] = [(res) => {
                         let data = JSON.parse(res.data.instance);
                         this._parseServerRes(data);
+                        resolve(res);
                     }, reject];
                 }));
             });
