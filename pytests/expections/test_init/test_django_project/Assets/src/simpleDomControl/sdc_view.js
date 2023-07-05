@@ -1,7 +1,7 @@
-import {getBody} from './sdc_utils.js'
 import {controllerFactory, runControlFlowFunctions} from "./sdc_controller.js";
 import {getUrlParam} from "./sdc_params.js";
 import {app} from "./sdc_main.js";
+import {trigger} from "./sdc_events";
 
 /**
  * List of Booleans if the are loaded files.
@@ -18,6 +18,10 @@ let htmlFiles = {};
 export const DATA_CONTROLLER_KEY = '_controller_';
 export const CONTROLLER_CLASS = '_sdc_controller_';
 
+
+export function cleanCache() {
+    htmlFiles = {};
+}
 /**
  * findSdcTgs Finds all registered tags in a container. But it ignores
  * registered tags in registered tags. It collects all those
@@ -94,62 +98,19 @@ function loadHTMLFile(path, args, tag, hardReload) {
     args.VERSION = app.VERSION;
     args._method = 'content';
 
-
     return $.get(path, args).then(function (data) {
+        if(data.status === "redirect") {
+            trigger('onNavLink', data['url-link']);
+            return "<sdc-error data-code='403'></sdc-error>";
+        }
         if (!hardReload) {
             htmlFiles[tag] = data;
         }
 
         return data;
     }).catch(function (err) {
-        console.log(err);
-        return err.responseText;
-    });
-}
-
-/**
- * loadCSSFile loads the CSS files from the server via ajax request.
- *  Manipulates the CSS rules by adding a tag name-related prefix.
- *  Adds a style tag to the HTML body.
- *
- * If the CSS file is loaded already the function takes no action.
- *
- * @param {Array<string>|string} pathList - a list of CSS files from the controller.
- * @param {string} tag - a normalized tag-name as string.
- * @returns {Promise<Boolean>} - waits for the files to be loaded.
- */
-function loadCSSFile(pathList, tag) {
-    if (!pathList || pathList.length === 0) {
-        return Promise.resolve(false);
-    } else if (cssFilesLoaded[tag]) {
-        return Promise.resolve(cssFilesLoaded[tag])
-    }
-
-    cssFilesLoaded[tag] = true;
-
-    if (typeof pathList === "string") {
-        pathList = [pathList]
-    }
-
-    let cssFileLoadPromises = [];
-
-    for (let i = 0; i < pathList.length; i++) {
-        if (pathList[i].indexOf('?') === -1) {
-            pathList[i] += '?' + app.VERSION;
-        }
-        cssFileLoadPromises.push($.get(pathList[i]));
-    }
-
-    return Promise.all(cssFileLoadPromises).then(function (files) {
-        for (let i = 0; i < files.length; i++) {
-            addCssFile(files[i], tag)
-        }
-
-        return true;
-    }).catch(function (err) {
-        cssFilesLoaded[tag] = false;
         console.error(err);
-        return false
+        return err.responseText;
     });
 }
 

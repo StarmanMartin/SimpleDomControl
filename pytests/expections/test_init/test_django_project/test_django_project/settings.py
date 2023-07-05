@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from pathlib import Path
 import os
+from urllib.parse import urlparse, urlunparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,14 +33,9 @@ DEBUG = True
 # Application definition
 
 if not DEBUG:
-    ALLOWED_HOSTS = os.environ.get('ALLOWED_HOST').split(',')
-    PORT = os.environ.get('PORT') or ''
-    PORT = PORT.strip(':')
-    if PORT == '80':
-        PORT = ''
-    else:
-        PORT = ':%s' % PORT
-    CSRF_TRUSTED_ORIGINS = ['http://%s%s' % (x, PORT) for x in os.environ.get('ALLOWED_HOST').split(',')] + ['https://%s%s' % (x, PORT) for x in os.environ.get('ALLOWED_HOST').split(',')]
+    hosts = [urlparse(x)  for x in os.environ.get('ALLOWED_HOST').split(',')]
+    ALLOWED_HOSTS = [host.hostname for host in hosts]
+    CSRF_TRUSTED_ORIGINS = [urlunparse(x) for x in hosts]
 else:
     ALLOWED_HOSTS = ['*']
 
@@ -57,7 +53,7 @@ INSTALLED_APPS = [
     'test_app_two',
     'channels',
     'sdc_tools',
-    #'sdc_user'
+    'sdc_user'
 ]
 
 if DEBUG:
@@ -67,8 +63,6 @@ INTERNAL_IPS = (
     '127.0.0.1',
 )
 
-
-# AUTH_USER_MODEL = 'sdc_user.CustomUser'
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -157,7 +151,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STATIC_ROOT =  BASE_DIR /  'www/'
 
-STATICFILES_DIRS = [ BASE_DIR /  "static" ]
+STATICFILES_DIRS = [ BASE_DIR /  "static",  BASE_DIR / "Assets/node_modules" ]
 
 ASGI_APPLICATION = 'test_django_project.asgi.application'
 
@@ -179,6 +173,10 @@ else:
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+MODEL_FORM_TEMPLATE = "elements/form.html"
+LOGIN_CONTROLLER = 'sdc-login'
+LOGIN_SUCCESS = '/'
 
 #EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 #EMAIL_HOST =''

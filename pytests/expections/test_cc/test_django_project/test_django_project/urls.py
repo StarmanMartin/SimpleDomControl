@@ -21,17 +21,17 @@ from django.views.i18n import JavaScriptCatalog
 
 urlpatterns = [
     re_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),
-    # re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),
+    re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),
     # scd view below
     path('sdc_view/test_app_one/', include('test_app_one.sdc_urls')),
 
     path("admin/", admin.site.urls),
 ]
 def index(request):
-    return render(request, 'test_django_project/index.html', {'VERSION': settings.VERSION})
+    return render(request, 'index.html', {'VERSION': settings.VERSION})
 
 urlpatterns += [
     re_path(r'^jsi18n/$', JavaScriptCatalog.as_view(), name='javascript-catalog'),
     path('', index, name='sdc_index'),
-    re_path('.*', index, name='sdc_index_2'),
+    re_path('~.*', index, name='sdc_index_2'),
 ]

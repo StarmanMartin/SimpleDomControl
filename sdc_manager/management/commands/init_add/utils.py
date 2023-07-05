@@ -1,6 +1,5 @@
 import errno
 import os
-import shutil
 import re
 
 
@@ -53,7 +52,7 @@ def copy(src, dest, map_val):
     elif os.path.exists(src):
         copy_and_prepare(src, dest,
                          map_val)
-    print('Directory not copied.')
+
 
 
 def convert_to_snake_case(name):

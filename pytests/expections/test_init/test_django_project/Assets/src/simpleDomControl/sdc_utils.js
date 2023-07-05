@@ -115,6 +115,11 @@ export function agileAggregation(baseClass, ...mixins) {
 
 }
 
+function csrfSafeMethod(method) {
+    // these HTTP methods do not require CSRF protection
+    return (/^(GET|HEAD|OPTIONS|TRACE)$/.test(method));
+}
+
 export function uploadFileFormData(formData, url, method) {
     return $.ajax({
         url: url,  //Server script to process data
@@ -131,7 +136,12 @@ export function uploadFileFormData(formData, url, method) {
         //Options to tell jQuery not to process data or worry about content-type.
         cache: false,
         contentType: false,
-        processData: false
+        processData: false,
+        beforeSend: function(xhr, settings) {
+            if (!csrfSafeMethod(settings.type) && !this.crossDomain) {
+                xhr.setRequestHeader("X-CSRFToken", window.CSRF_TOKEN);
+            }
+        }
     });
 }
 
@@ -152,9 +162,16 @@ function progressHandlingFunction(e) {
 }
 
 
-export function checkIfParamNumberBoolOrString(paramElement) {
+export function checkIfParamNumberBoolOrString(paramElement, controller = null) {
     if (typeof paramElement !== 'string') {
         return paramElement;
+    }
+
+    if(controller && typeof controller[paramElement] !== 'undefined') {
+        if(typeof controller[paramElement] === 'function') {
+            return controller[paramElement].bind(controller);
+        }
+        return controller[paramElement];
     }
 
     let isFloatReg = /^-?\d+\.?\d+$/;
@@ -192,14 +209,15 @@ export function clearErrorsInForm($form) {
 
 export function setErrorsInForm($form, $resForm) {
     $resForm  = $('<div>').append($resForm);
-    $form.find('.has-error').removeClass('has-error').find('.alert-danger').remove();
+
+    $form.find('.has-error').removeClass('has-error').find('.alert-danger').safeRemove();
+    $form.find('.non-field-errors').safeRemove();
     let $file_container = $resForm.find('input[type=file]').parent();
     $form.find('input[type=file]').parent().each(function (index) {
         $(this).replaceWith($file_container[index]);
     });
 
-    let hasNoError = true;
-
+    let hasNoError = $resForm.find('.non-field-errors').insertAfter($form.find('.hidden-form-fields')).length === 0;
     $resForm.find('.has-error').each(function () {
         hasNoError = false;
         let $resErrorField = $(this);

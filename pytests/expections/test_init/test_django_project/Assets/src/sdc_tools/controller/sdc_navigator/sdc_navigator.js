@@ -23,6 +23,9 @@ class SdcNavigatorController extends AbstractSDC {
         this._default_controller = null;
         this._previous_args = [];
 
+        this._is_processing = false;
+        this._process_queue = [];
+
         this._non_controller_path_prefix = '/';
         this._menu_id = 0;
 
@@ -31,9 +34,14 @@ class SdcNavigatorController extends AbstractSDC {
          * The pattern is {'event': {'dom_selector': handler}}
          * Uncommend the following line to add events;
          */
-        this.events.unshift({'click': {
-            '.navigation-links': function(btn, ev) { this.onNavLink(btn, ev); }
-        }});
+        this.events.unshift({
+            'click': {
+                '.navigation-links': function (btn, ev) {
+                    ev.preventDefault();
+                    this.onNavLink(btn, ev);
+                }
+            }
+        });
     }
 
     //-------------------------------------------------//
@@ -71,8 +79,7 @@ class SdcNavigatorController extends AbstractSDC {
         });
         this._setupButton();
         let data = this._handleUrl(window.location.pathname);
-        let $button = this._updateButton(data.buttonSelector);
-        history.pushState(data.contentName, $button, data.url);
+        history.replaceState(data, '', data.url, data);
         return super.willShow();
     }
 
@@ -110,27 +117,38 @@ class SdcNavigatorController extends AbstractSDC {
             controller_path_as_array += '~&' + args
         }
         let data = this._handleUrl(controller_path_as_array);
-        const $button = this._updateButton(data.buttonSelector);
-        history.pushState(data.contentName, $button, data.url);
+        history.pushState(data, "", data.url);
     }
 
-    navigateToPage(target, args) {
+    navigateToPage(target, args, state) {
+        if (this._is_processing) {
+            this._process_queue[0] = [target, args];
+            return;
+        }
+        this.state && this._updateButton(this.state.buttonSelector);
+        this._is_processing = true;
         this._origin_target = target;
-        args = this._parseArgs(args);
         this._previous_args = args;
 
         let viewObj = this._getSubViewObj(this._origin_target);
 
-        if (viewObj.container.container.data('modal')) {
-            this._currentModal = new Modal(viewObj.container.empty_container.closest(viewObj.container.container.data('modal'))[0], {
-                keyboard: false
-            });
-            this._currentModal.show();this._currentModal.off = () => {this.addEvent('hide.bs.modal', viewObj.container.container.data('modal'), () => {});};
+        if (viewObj.container.container.data('modal')){
+            if(!this._currentModal) {
 
-            this.addEvent('hide.bs.modal', viewObj.container.container.data('modal'), () => {
-                this._currentModal.off();
-                this.onNavigateToController('..');
-            });
+                this._currentModal = new Modal(viewObj.container.empty_container.closest(viewObj.container.container.data('modal'))[0], {
+                    keyboard: false
+                });
+                this._currentModal.show();
+                this._currentModal.off = () => {
+                    this.addEvent('hide.bs.modal', viewObj.container.container.data('modal'), () => {
+                    });
+                };
+                const new_target = '/' + '~*'.repeat(viewObj.idx);
+                this.addEvent('hide.bs.modal', viewObj.container.container.data('modal'), () => {
+                    this._currentModal.off();
+                    this.onNavigateToController(new_target);
+                });
+            }
         } else if (this._currentModal) {
             this._currentModal.off();
             this._currentModal.hide();
@@ -146,6 +164,9 @@ class SdcNavigatorController extends AbstractSDC {
             if (typeof controller.onBack === 'function') {
                 controller.onBack();
             }
+            this._is_processing = false;
+            let next = this._process_queue.shift()
+            if (next) this.navigateToPage(next[0], next[1])
             return;
         }
 
@@ -155,13 +176,16 @@ class SdcNavigatorController extends AbstractSDC {
 
         let $newElement = $(`<${viewObj.target}_sdc-navigation-client></${viewObj.target}_sdc-navigation-client>`);
 
-        for (let key in args) {
-            if (args.hasOwnProperty(key)) {
-                const data_key = key.replace(
-                    /([A-Z])/g,
-                    (group) => '-' + group.toLowerCase()
-                )
-                $newElement.data(data_key, args[key]);
+        for (let [key, value] of Object.entries(args)) {
+            let controller_key = key.split('.');
+            controller_key.length > 0 && (key = controller_key.at(-1));
+            const data_key = key.replace(
+                /([A-Z])/g,
+                (group) => '-' + group.toLowerCase()
+            )
+
+            if (controller_key.length === 1 || (controller_key.length > 1 && parseInt(controller_key[0]) === viewObj.idx + 1)) {
+                $newElement.data(data_key, value);
             }
         }
         viewObj.container.empty_container.safeEmpty().append($newElement);
@@ -183,17 +207,18 @@ class SdcNavigatorController extends AbstractSDC {
         last_view_array.active_sub_container.removeClass('active loading');
         last_view_array.empty_container.addClass('active').removeClass('empty loading');
         last_view_array.deeper_sub_container.safeEmpty().removeClass('empty loading');
-
-
+        this._is_processing = false;
         $('.tooltip.fade.show').remove();
         if (this._origin_target.length !== this._history_path.length) {
             let data = this._handleUrl(window.location.pathname);
             if (data.path.length > 1) {
-                let $button = this._updateButton(data.buttonSelector);
-                history.pushState(data.contentName, $button, data.url);
+                history.pushState(data, "", data.url);
             }
         } else {
-            this._manageDefault(last_view_array.empty_container);
+            if (!this._manageDefault(last_view_array.empty_container)) {
+                let next = this._process_queue.shift()
+                if (next) this.navigateToPage(next[0], next[1])
+            }
             setTimeout(() => {
                 this.$container.find('.header-loading').removeClass('active');
             }, 100);
@@ -215,7 +240,7 @@ class SdcNavigatorController extends AbstractSDC {
         }
         let $active_container = $container.find(`> .${idx}_${SDC_SUB_DETAIL_CONTROLLER}`).eq(1);
         let $empty_container = $container.find(`> .${idx}_${SDC_SUB_DETAIL_CONTROLLER}`).first();
-        if(!$empty_container.hasClass('empty')) {
+        if (!$empty_container.hasClass('empty')) {
             [$empty_container, $active_container] = [$active_container, $empty_container];
         }
         return {
@@ -324,63 +349,74 @@ class SdcNavigatorController extends AbstractSDC {
     }
 
     _handleUrl(location_path_str) {
+        let location_path_args = location_path_str.split('~&');
+        let args = location_path_args.length >= 2 ? location_path_args[1] : '';
+        let path_array = location_path_args[0].split(/[~]/);
+        let last_path_array;
+        let kept_args = 0;
         if (location_path_str.startsWith('.')) {
-            let location_path_args = location_path_str.split('~&');
-            let args = location_path_args.length >= 2 ? location_path_args[1] : '';
-            let path_array = location_path_args[0].split(/[~/]/);
-            let last_path_array = [...this._history_path];
-
-            for (let path_elem of path_array) {
-                if (path_elem === '..') {
-                    last_path_array.pop();
-                } else if (path_elem !== '.' && path_elem !== '') {
-                    last_path_array.push(path_elem);
-                }
-            }
-            location_path_str = this._non_controller_path_prefix + "~" + last_path_array.join('~');
-            args = this._parseArgs(args);
-            let all_args = []
-
-            for (const [key, value] of Object.entries(this._previous_args)) {
-                if (!args.hasOwnProperty(key)) {
-                    args[key] = value;
-                }
-            }
-            for (const [key, value] of Object.entries(args)) {
-                all_args.push(`${key}=${value}`);
-            }
-            if (all_args.length > 0) {
-                location_path_str += '~&' + all_args.join('&');
-            }
-
+            last_path_array = [...this._history_path];
+         } else {
+            kept_args = -1;
+            this._non_controller_path_prefix = path_array.shift();
+            last_path_array = [];
         }
+
+        for (let path_elem of path_array) {
+            if (path_elem === '..') {
+                last_path_array.pop();
+            } else if (path_elem === '*') {
+                if (this._history_path.length > last_path_array.length) {
+                    last_path_array.push(this._history_path[last_path_array.length])
+                }
+            } else if (path_elem !== '.' && path_elem !== '') {
+                last_path_array.push(path_elem);
+            }
+        }
+
+        if(path_array.length !== 0 && path_array.at(-1) !== last_path_array.at(-1)) {
+            kept_args = 0;
+        }
+
+        if (last_path_array.length === 0) {
+            last_path_array = [`${this.default_controller}`];
+        }
+
+        location_path_str = this._non_controller_path_prefix + "~" + last_path_array.join('~');
+        args = this._parseArgs(args, last_path_array.length);
+        let all_args_as_str = [];
+        kept_args += last_path_array.length
+
+        for (const [key, value] of Object.entries(this._previous_args)) {
+            let key_controller = key.split('.');
+            if (!args.hasOwnProperty(key) &&
+                (key_controller.length === 1 || parseInt(key_controller[0]) <= kept_args)) {
+                args[key] = value;
+            }
+        }
+        for (const [key, value] of Object.entries(args)) {
+            all_args_as_str.push(`${key}=${value}`);
+        }
+        if (all_args_as_str.length > 0) {
+            location_path_str += '~&' + all_args_as_str.join('&');
+        }
+
 
         let url = `${window.location.protocol}//${window.location.host}${location_path_str}`;
-        if (location_path_str) {
-            this._non_controller_path_prefix = location_path_str.split('~')[0];
-            location_path_str = location_path_str.replace(/^[^~]+~?|\/+$/gm, '');
-        }
 
-        if (!location_path_str || location_path_str.length === 0) {
-            location_path_str = `${this.default_controller}`;
-        }
-
-
-        let pathname = location_path_str.split('~&') || [`/~${this.default_controller}`];
-        let path = pathname[0].split('~');
-
-        let button_selector = path.map((c) => `.navigation-links.nav-family-${c}`);
+        let button_selector = last_path_array.map((c) => `.navigation-links.nav-family-${c}`);
 
         return {
-            contentName: location_path_str,
-            path: path,
+            contentName: last_path_array.at(-1),
+            args: args,
+            path: last_path_array,
             buttonSelector: button_selector,
             url: url
         }
 
     }
 
-    _parseArgs(args) {
+    _parseArgs(args, target = null) {
         if (!args || args === '') {
             return {}
         }
@@ -389,6 +425,9 @@ class SdcNavigatorController extends AbstractSDC {
         for (var i = 0; i < route_args_temp.length; i++) {
             let keyValue = route_args_temp[i].split('=');
             let key = keyValue.shift();
+            if (target && key.split('.').length < 2) {
+                key = `${target}.${key}`;
+            }
             let value = keyValue.join('=');
             if (route_args.hasOwnProperty(key)) {
                 console.error("Duplication of url params: " + key)
@@ -405,19 +444,16 @@ class SdcNavigatorController extends AbstractSDC {
         const df = $sub_container.data('default-controller');
         if (df) {
             let data = this._handleUrl(`.~${df}`);
-            const $button = this._updateButton(data.buttonSelector);
-            history.pushState(data.contentName, $button, data.url);
+            history.pushState(data, "", data.url);
+            return true;
         }
+
+        return false;
     }
 
     login(pk) {
-        for (let i in this._childController) {
-            if (this._childController.hasOwnProperty(i)) {
-                for (let cc of this._childController[i]) {
-                    app.reloadController(cc);
-                }
-            }
-        }
+        app.cleanCache();
+        this.onNavigateToController(window.location.pathname);
     }
 
     logout(pk) {
@@ -432,27 +468,13 @@ app.register(SdcNavigatorController);
 (function (history) {
     function updateStateFunc(state_function_name) {
         let state_function = history[state_function_name];
-        history[state_function_name] = function (state, $button, urlNew) {
+        history[state_function_name] = function (state, unused, urlNew) {
             let state_args = Array.apply(null, arguments);
             if (typeof history['on' + state_function_name.toLowerCase()] === "function") {
                 history['on' + state_function_name.toLowerCase()]({state: state});
             }
 
-            state = state.split('~&');
-
-            let route_args = state.length > 1 ? state[1] : "";
-
-
-            let path_array = state[0].replace(/^~/, '');
-            path_array = path_array.split('~').map((x) => `${x}`);
-
-            if ($button) {
-                state_args[1] = $button.text();
-            } else {
-                state_args[1] = "";
-            }
-
-            trigger.apply(app.events, ['navigateToPage', path_array].concat(route_args));
+            trigger.apply(app.events, ['navigateToPage', state.path, state.args, state]);
             if (typeof state_function !== 'function') {
                 return;
             }

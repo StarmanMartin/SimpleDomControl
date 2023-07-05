@@ -1,6 +1,7 @@
 import os
 import re
 import subprocess
+import sys
 
 from django.urls import get_resolver
 
@@ -51,7 +52,7 @@ class AddControllerManager:
     def get_template_url(self):
         if self._template_url is not None:
             return self._template_url
-        cmd = 'python manage.py get_url_of_a_sdc %s' % self.controller_name_sc
+        cmd = '%s manage.py get_url_of_a_sdc %s' % (sys.executable, self.controller_name_sc)
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
         out = str(p.communicate()[0], encoding="utf-8")
         out = re.sub(r'\\r?\\n.*$', r'', out)

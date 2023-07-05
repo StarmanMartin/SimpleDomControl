@@ -1,4 +1,4 @@
-from test_django_project.sdc_extentions.views import SDCView
+from sdc_tools.sdc_extentions.views import SDCView
 from django.shortcuts import render
 
 

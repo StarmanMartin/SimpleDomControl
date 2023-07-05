@@ -33,20 +33,20 @@ function getParamList(paramNameList, $element) {
     return returnList;
 }
 
-function parseParamNameList(list) {
+function parseParamNameList(list, controller = null) {
     let values = [];
 
     for (let i = 0; i < list.length; i++) {
-        let tempValue = checkIfParamNumberBoolOrString(list[i]);
+        let tempValue = checkIfParamNumberBoolOrString(list[i], controller);
         values.push(tempValue);
     }
 
     return values;
 }
 
-function getDomTagParamsWithList(paramNameList, $element) {
+function getDomTagParamsWithList(paramNameList, $element, controller=null) {
     let paramList = getParamList(paramNameList, $element);
-    return parseParamNameList(paramList);
+    return parseParamNameList(paramList, controller);
 }
 
 /**
@@ -64,7 +64,7 @@ function reg_runOnInitWithParameter(controller, $element, applyController) {
     }
 
     let paramNameList = getParamsNameOfFunction(controller.onInit);
-    let initParams = getDomTagParamsWithList(paramNameList, $element);
+    let initParams = getDomTagParamsWithList(paramNameList, $element, applyController._parentController);
     controller.onInit.apply(applyController, initParams);
     if(applyController === controller) {
         for (let mixinKey in controller._mixins) {

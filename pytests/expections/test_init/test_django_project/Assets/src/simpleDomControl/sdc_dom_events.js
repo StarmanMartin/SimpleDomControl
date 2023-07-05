@@ -5,7 +5,8 @@ export const STD_EVENT_LIST = Object.keys(window).filter(key => /^on/.test(key))
 
 export function windowEventHandler(event) {
     let ev_type = event.type;
-    if (event.hasOwnProperty('namespace')) ev_type += `.${event.namespace}`;
+    if (event.hasOwnProperty('namespace') && event.namespace && event.namespace.length) ev_type += `.${event.namespace}`;
+
     let $elm = $(event.target);
     let controller = null;
     let is_done = false;

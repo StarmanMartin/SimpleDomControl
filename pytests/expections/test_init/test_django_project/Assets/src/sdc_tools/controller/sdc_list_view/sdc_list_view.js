@@ -8,6 +8,7 @@ class SdcListViewController extends AbstractSDC {
         super();
         this.contentUrl = "/sdc_view/sdc_tools/sdc_list_view"; //<sdc-list-view></sdc-list-view>
         this.search_values = {};
+        this.model_name = null;
 
         /**
          * Events is an array of dom events.
@@ -27,14 +28,36 @@ class SdcListViewController extends AbstractSDC {
     // - onRemove                                      //
     //-------------------------------------------------//
 
-    onInit(model) {
+    onInit(model, filter, onUpdate ) {
+        if (this.model_name) {
+            model = this.model_name;
+        }
+
         this.model = this.newModel(model);
+        this.on_update = onUpdate;
+        if(typeof filter === 'function') {
+            filter = filter();
+        }
+        if(typeof filter === 'object') {
+            this.model.filter(filter);
+        }
+
+        if(this.on_update) {
+            this.model.load().then(()=> {
+                this.on_update(this.model.values_list);
+            });
+        }
     }
 
     onLoad($html) {
         $html.filter('.list-container').append(this.model.listView(this.search_values));
-        this.model.on_update = this.model.on_create = ()=> {
-            this._updateView()
+        this.model.on_update = this.model.on_create = (a) => {
+            if(this.on_update) {
+                this.model.load().then(()=> {
+                    this.on_update(this.model.values_list);
+                });
+            }
+            this._updateView();
         };
         return super.onLoad($html);
     }
@@ -44,6 +67,7 @@ class SdcListViewController extends AbstractSDC {
     }
 
     onRefresh() {
+        this.find('[data-toggle="tooltip"]').tooltip();
         return super.onRefresh();
     }
 
@@ -58,7 +82,11 @@ class SdcListViewController extends AbstractSDC {
     }
 
     _updateView() {
-        this.find('.list-container').safeEmpty().append(this.model.listView(this.search_values));
+        this.find('.list-container').safeEmpty().append(this.model.listView(this.search_values, ()=> {
+            const elems = $('.tooltip.fade.show');
+            elems.remove();
+        }));
+
     }
 }
 

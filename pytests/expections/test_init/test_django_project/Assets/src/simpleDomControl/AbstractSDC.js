@@ -115,7 +115,7 @@ export class AbstractSDC {
     }
 
     remove() {
-        for(const model of this._models) {
+        for (const model of this._models) {
             model.close();
         }
         let _childController = this._childController;
@@ -224,44 +224,35 @@ export class AbstractSDC {
      * Model Form Events
      */
 
-    submitEditForm($form, e) {
-        if(!this._isMixin) {
+    _submitModelForm($form, e) {
+        let p_list = []
+        if (!this._isMixin) {
             e.stopPropagation();
             e.preventDefault();
-            let fd = new FormData($form[0])
             let model = $form.data('model');
-            let pk = $form.data('model_pk');
-            let instance = model.byPk(pk);
-            for (const [key, value] of fd) {
-                instance[key] = value;
+            const values = model.syncForm($form);
+            for (let instance_value of values) {
+                p_list.push(new Promise((resolve, reject) => {
+                    let prom;
+                    if(instance_value.pk !== null) {
+                        prom = model.save(instance_value.pk);
+                    } else {
+                        prom = model.create(instance_value);
+                    }
+
+                    prom.then((res) => {
+                        clearErrorsInForm($form);
+                        resolve(res);
+                    }).catch((data) => {
+                        setErrorsInForm($form, $(data.html))
+                        reject(data);
+                    });
+                }));
             }
-
-            model.save(pk).then(() => {
-                clearErrorsInForm($form);
-            }).catch((data)=> {
-                setErrorsInForm($form, $(data.html))
-            });
         }
-    }
 
-
-    submitCreateForm($form, e) {
-        if(!this._isMixin) {
-            e.stopPropagation();
-            e.preventDefault();
-            let fd = new FormData($form[0])
-            let model = $form.data('model');
-            let values = {};
-            for (const [key, value] of fd) {
-                values[key] = value;
-            }
-
-            model.create(values).then(() => {
-                clearErrorsInForm($form);
-                $form[0].reset();
-            }).catch((data)=> {
-                setErrorsInForm($form, $(data.html))
-            });
-        }
+        return Promise.all(p_list).then((res) => {
+            return Object.assign({}, ...res.flat());
+        });
     }
 }

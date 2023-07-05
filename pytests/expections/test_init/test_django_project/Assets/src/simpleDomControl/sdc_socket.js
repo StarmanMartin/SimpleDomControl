@@ -2,9 +2,9 @@ import {app} from './sdc_main.js';
 import {trigger} from "./sdc_events.js";
 import {uuidv4} from "./sdc_utils";
 
-let IS_CONNECTED = true;
+let IS_CONNECTED = false;
 let SDC_SOCKET = null
-
+const MAX_FILE_UPLOAD = 25000;
 let OPEN_REQUESTS = [];
 
 export function callServer(app, controller, funcName, args) {
@@ -127,8 +127,12 @@ export class Model {
         this._auto_reconnect = true;
         this.socket = null;
         this.open_request = {};
-        this.on_update = () => {};
-        this.on_create = () => {};
+        this.on_update = () => {
+        };
+        this.on_create = () => {
+        };
+
+        this.form_id = uuidv4();
     }
 
     [Symbol.iterator]() {
@@ -145,12 +149,21 @@ export class Model {
     }
 
     byPk(pk) {
-        let elem = this.values_list.find(elm => elm.pk === pk)
-        if (!elem) {
-            elem = {pk: pk}
-            this.values_list.push(elem);
+        if (pk !== null) {
+            let elem = this.values_list.find(elm => elm.pk === pk);
+            if (!elem) {
+                elem = {pk: pk};
+                this.values_list.push(elem);
+            }
+            return elem;
         }
-        return elem;
+        return {pk: pk};
+
+    }
+
+    filter(model_query) {
+        this.model_query = Object.assign({}, this.model_query, model_query);
+        return this;
     }
 
     load() {
@@ -172,7 +185,7 @@ export class Model {
         });
     }
 
-    listView(filter = {}) {
+    listView(filter = {}, cb = null) {
         let $div_list = $('<div>');
         this.isConnected().then(() => {
             const id = uuidv4();
@@ -191,6 +204,7 @@ export class Model {
                 this.open_request[id] = [(data) => {
                     $div_list.append(data.html);
                     app.refresh($div_list);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -200,7 +214,7 @@ export class Model {
         return $div_list;
     }
 
-    detailView(pk=-1) {
+    detailView(pk = -1, cb = null) {
         let $div_list = $('<div>');
 
         let load_promise;
@@ -211,7 +225,7 @@ export class Model {
         }
 
         load_promise.then(() => {
-            if(pk === -1) {
+            if (pk === -1) {
                 pk = this.values_list[0].pk
             }
             const id = uuidv4();
@@ -230,6 +244,7 @@ export class Model {
                 this.open_request[id] = [(data) => {
                     $div_list.append(data.html);
                     app.refresh($div_list);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -239,7 +254,79 @@ export class Model {
         return $div_list;
     }
 
-    createForm() {
+    syncFormToModel($forms) {
+        return this.syncForm($forms);
+    }
+
+    syncModelToForm($forms) {
+        if (!$forms || !$forms.hasClass(this.form_id)) {
+            $forms = $(`.${this.form_id}`);
+        }
+        document.getElementById('ö').hasAttribute()
+        let self = this;
+        $forms.each(function () {
+            if(!this.hasAttribute('data-model_pk')) {
+                return;
+            }
+            let pk = $(this).data('model_pk');
+            let instance = self.byPk(pk);
+            for (let form_item of this.elements) {
+                let name = form_item.name;
+                if (name && name !== '') {
+                    if (form_item.type === 'checkbox') {
+                        form_item.checked = instance[name];
+                    } else if (form_item.type === 'file' && instance[name] instanceof File) {
+                        let container = new DataTransfer();
+                        container.items.add(file);
+                        form_item.files = container;
+                    } else {
+                        $(form_item).val(instance[name]);
+                    }
+                }
+            }
+        });
+
+    }
+
+    syncForm($forms) {
+        if (!$forms || !$forms.hasClass(this.form_id)) {
+            $forms = $(`.${this.form_id}`);
+        }
+
+        const self = this;
+        let instances = [];
+        let p_list = [];
+
+        $forms.each(function () {
+            let $form = $(this);
+            let pk = $form.data('model_pk');
+            let instance = self.byPk(pk);
+            for (let form_item of this.elements) {
+                let name = form_item.name;
+                if (name && name !== '') {
+                    if (form_item.type === 'checkbox') {
+                        instance[name] = form_item.checked;
+                    } else if (form_item.type === 'file') {
+                        instance[name] = form_item.files[0];
+                    } else {
+                        instance[name] = $(form_item).val();
+                    }
+                }
+            }
+
+            instances.push(instance);
+            return instance;
+        });
+
+        if (this.values_list.length <= 1 && instances.length > 0) {
+            this.values = instances.at(-1);
+        }
+
+        return instances;
+
+    }
+
+    createForm(cb = null) {
         let $div_form = $('<div>');
         this.isConnected().then(() => {
             const id = uuidv4();
@@ -256,12 +343,13 @@ export class Model {
 
                 this.open_request[id] = [(data) => {
                     $div_form.append(data.html);
-                    let $form = $div_form.closest('form').addClass('sdc-model-create-form sdc-model-form').data('model', this);
+                    let $form = $div_form.closest('form').addClass(`sdc-model-create-form sdc-model-form ${this.form_id}`).data('model', this).data('model_pk', null);
                     if (!$form[0].hasAttribute('sdc_submit')) {
-                        $form.attr('sdc_submit', 'submitCreateForm')
+                        $form.attr('sdc_submit', 'submitModelForm')
                     }
 
                     app.refresh($div_form);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -271,7 +359,7 @@ export class Model {
         return $div_form;
     }
 
-    editForm(pk = -1, idx = -1) {
+    editForm(pk = -1, cb = null) {
         let load_promise;
         if (this.values_list.length !== 0) {
             load_promise = this.isConnected();
@@ -283,7 +371,7 @@ export class Model {
 
         load_promise.then(() => {
             if (pk <= -1) {
-                pk = this.values_list.at(idx).pk;
+                pk = this.values_list.at(pk).pk;
             }
 
             const id = uuidv4();
@@ -301,12 +389,13 @@ export class Model {
 
                 this.open_request[id] = [(data) => {
                     $div_form.append(data.html);
-                    let $form = $div_form.closest('form').addClass('sdc-model-edit-form sdc-model-form').data('model', this).data('model_pk', pk);
+                    let $form = $div_form.closest('form').addClass(`sdc-model-edit-form sdc-model-form ${this.form_id}`).data('model', this).data('model_pk', pk);
                     if (!$form[0].hasAttribute('sdc_submit')) {
-                        $form.attr('sdc_submit', 'submitEditForm')
+                        $form.attr('sdc_submit', 'submitModelForm')
                     }
 
                     app.refresh($div_form);
+                    cb && cb(data);
                     resolve(data);
                 }, reject];
             });
@@ -316,29 +405,38 @@ export class Model {
         return $div_form;
     }
 
-    save(pk = -1, idx = -1) {
+    save(pk = -1) {
         return this.isConnected().then(() => {
-            let elem;
+            let elem_list;
             if (pk > -1) {
-                elem = this.byPk(pk);
+                elem_list = [this.byPk(pk)];
             } else {
-                elem = this.values_list.at(idx);
+                elem_list = this.values_list;
             }
-            const id = uuidv4();
-            return new Promise((resolve, reject) => {
-                this.socket.send(JSON.stringify({
-                    event: 'model',
-                    event_type: 'save',
-                    event_id: id,
-                    args: {
-                        model_name: this.model_name,
-                        model_query: this.model_query,
-                        data: elem
-                    }
-                }));
+            let p_list = []
+            elem_list.forEach((elem) => {
+                const id = uuidv4();
+                p_list.push(new Promise((resolve, reject) => {
+                    this.socket.send(JSON.stringify({
+                        event: 'model',
+                        event_type: 'save',
+                        event_id: id,
+                        args: {
+                            model_name: this.model_name,
+                            model_query: this.model_query,
+                            data: elem
+                        }
+                    }));
 
-                this.open_request[id] = [resolve, reject];
+                    this.open_request[id] = [(res) => {
+                        let data = JSON.parse(res.data.instance);
+                        this._parseServerRes(data);
+                        resolve(res);
+                    }, reject];
+                }));
             });
+
+            return Promise.all(p_list);
         });
     }
 
@@ -346,18 +444,25 @@ export class Model {
         const id = uuidv4();
         return this.isConnected().then(() => {
             return new Promise((resolve, reject) => {
-                this.socket.send(JSON.stringify({
-                    event: 'model',
-                    event_type: 'create',
-                    event_id: id,
-                    args: {
-                        model_name: this.model_name,
-                        model_query: this.model_query,
-                        data: values
-                    }
-                }));
+                this._readFiles(values).then((files) => {
+                    this.socket.send(JSON.stringify({
+                        event: 'model',
+                        event_type: 'create',
+                        event_id: id,
+                        args: {
+                            model_name: this.model_name,
+                            model_query: this.model_query,
+                            data: values,
+                            files: files
+                        }
+                    }));
 
-                this.open_request[id] = [resolve, reject];
+                    this.open_request[id] = [(res) => {
+                        let data = JSON.parse(res.data.instance);
+                        this._parseServerRes(data);
+                        resolve(res);
+                    }, reject];
+                })
             });
         });
     }
@@ -410,6 +515,69 @@ export class Model {
         });
     }
 
+    close() {
+        if (this.socket) {
+            this._auto_reconnect = false;
+            this.socket.onclose = () => {
+            };
+            this.socket.close();
+            delete this['socket'];
+        }
+    }
+
+    _readFiles(elem) {
+        let to_solve = [];
+        let files = {}
+        for (const [key, value] of Object.entries(elem)) {
+            if (value instanceof File) {
+                to_solve.push(new Promise((resolve, reject) => {
+                    ((key, value) => {
+                        let reader = new FileReader();
+                        reader.onload = e => {
+                            const id = uuidv4();
+                            this.open_request[id] = [resolve, reject];
+
+                            let result = e.target.result;
+                            let number_of_chunks = parseInt(Math.ceil(result.length / MAX_FILE_UPLOAD));
+                            files[key] = {
+                                id: id,
+                                file_name: value.name,
+                                field_name: key,
+                                content_length: value.size,
+                            };
+                            for (let i = 0; i < number_of_chunks; ++i) {
+                                this.socket.send(JSON.stringify({
+                                    event: 'model',
+                                    event_type: 'upload',
+                                    event_id: id,
+                                    args: {
+                                        chunk: result.slice(MAX_FILE_UPLOAD * i, MAX_FILE_UPLOAD * (i + 1)),
+                                        idx: i,
+                                        number_of_chunks: number_of_chunks,
+                                        file_name: value.name,
+                                        field_name: key,
+                                        content_length: value.size,
+                                        content_type: value.type,
+                                        model_name: this.model_name,
+                                        model_query: this.model_query
+                                    }
+                                }));
+                            }
+                        }
+                        reader.onerror = e => {
+                            reject()
+                        };
+                        reader.readAsBinaryString(value);
+                    })(key, value);
+                }))
+            }
+        }
+
+        return Promise.all(to_solve).then(() => {
+            return files
+        });
+    }
+
     _onMessage(e) {
         let data = JSON.parse(e.data);
         if (data.is_error) {
@@ -436,40 +604,23 @@ export class Model {
                 this.open_request['_connecting_process'][0](data);
                 delete this.open_request['_connecting_process'];
             } else if (data.type === 'load') {
-                const json_data = JSON.parse(data.args.data);
+                const json_res = JSON.parse(data.args.data);
                 this.values_list = [];
-                for (const [k, v] of Object.entries(json_data)) {
-                    this.values_list.push(Object.assign({}, v.fields, {pk: v.pk}));
-                }
-                if (json_data.length === 1) {
-                    this.values = this.values_list.at(-1);
-                }
+                this._parseServerRes(json_res);
 
             } else if (data.type === 'on_update' || data.type === 'on_create') {
-                const json_data = JSON.parse(data.args.data);
+                const json_res = JSON.parse(data.args.data);
 
-                const pk = json_data[0].pk;
-                let obj, cb;
+                let obj = this._parseServerRes(json_res);
+                let cb;
 
                 if (data.type === 'on_create') {
-                    obj = {pk: pk};
-                    this.values_list.push(obj);
                     cb = this.on_create;
-                    if (this.values_list.length === 1) {
-                        this.values = this.values_list.at(-1);
-                    } else {
-                        this.values = {};
-                    }
                 } else {
-                    obj = this.byPk(pk);
                     cb = this.on_update;
                 }
 
-                for (const [k, v] of Object.entries(json_data[0].fields)) {
-                    obj[k] = v;
-                }
-
-                cb(json_data);
+                cb(obj);
 
             }
             if (this.open_request.hasOwnProperty(data.event_id)) {
@@ -544,13 +695,25 @@ export class Model {
         });
     }
 
-    close() {
-        if(this.socket) {
-            this._auto_reconnect = false;
-            this.socket.onclose = () => {
-            };
-            this.socket.close();
-            delete this['socket'];
+    _parseServerRes(res) {
+        let updated = []
+        for (let json_data of res) {
+            const pk = json_data.pk
+            const obj = this.byPk(pk);
+            for (const [k, v] of Object.entries(json_data.fields)) {
+                obj[k] = v;
+            }
+
+            updated.push(obj);
         }
+
+        if (this.values_list.length === 1) {
+            this.values = this.values_list.at(-1);
+        } else {
+            this.values = {};
+        }
+
+        return updated;
+
     }
 }

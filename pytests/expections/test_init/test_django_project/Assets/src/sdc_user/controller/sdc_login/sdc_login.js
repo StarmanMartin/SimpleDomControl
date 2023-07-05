@@ -1,12 +1,14 @@
 import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
+import {trigger} from "../../../simpleDomControl/sdc_events";
 
 
-class SdcErrorController extends AbstractSDC {
+class SdcLoginController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_tools/sdc_error/%(code)s"; //<sdc-error data-code=""></sdc-error>
+        this.contentUrl = "/sdc_view/sdc_user/sdc_login"; //<sdc-login></sdc-login>
+        this.contentReload = true;
 
         /**
          * Events is an array of dom events.
@@ -41,6 +43,10 @@ class SdcErrorController extends AbstractSDC {
         return super.onRefresh();
     }
 
+    onSubmit() {
+        trigger('login');
+    }
+
 }
 
-app.register(SdcErrorController);
+app.register(SdcLoginController).addMixin('sdc-auto-submit');

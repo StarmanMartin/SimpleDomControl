@@ -12,7 +12,7 @@ function scss() {
     return src('src/*.scss')
 
         .pipe(sass().on('error', sass.logError))
-        .pipe(dest('./static'));
+        .pipe(dest('../static'));
 }
 
 function javascript() {

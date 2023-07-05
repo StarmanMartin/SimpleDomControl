@@ -3,7 +3,7 @@ import {
     replaceTagElementsInContainer,
     reloadHTMLController,
     DATA_CONTROLLER_KEY,
-    CONTROLLER_CLASS, getController
+    CONTROLLER_CLASS, getController, cleanCache
 } from "./sdc_view.js";
 import {AbstractSDC} from "./AbstractSDC.js";
 import {Global, controllerList} from "./sdc_controller.js";
@@ -62,6 +62,10 @@ export let app = {
         controllerList[tagName] = [globalController, []];
         globalController._tagName = tagName;
         Global[tagNameToCamelCase(tagName)] = globalController;
+    },
+
+    cleanCache: () => {
+        cleanCache();
     },
 
     /**
@@ -226,7 +230,8 @@ export let app = {
         });
 
         $elem.find(`.${CONTROLLER_CLASS}`).each(function () {
-            $(this).data(`${DATA_CONTROLLER_KEY}`).remove();
+            const controller = $(this).data(`${DATA_CONTROLLER_KEY}`);
+            controller && controller.remove();
         });
 
         return $elem.remove();
