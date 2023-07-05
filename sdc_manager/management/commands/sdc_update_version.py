@@ -98,6 +98,7 @@ class Command(BaseCommand):
         parser.add_argument('-nd', '--not_delete_old', type=bool, help='If set the old files will not be deleted!')
 
     def handle(self, *args, **ops):
+        raise NotImplementedError()
         manage_py_file_path = sys.argv[0] if len(sys.argv) > 0 else 'manage.py'
         settings = settings_manager.SettingsManager(manage_py_file_path)
         all_apps = settings.get_apps()

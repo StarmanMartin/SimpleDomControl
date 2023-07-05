@@ -2,12 +2,13 @@
 import os
 import re
 import subprocess
+import sys
 
 from pytests.utils import are_dir_trees_equal
 
 
 def test_update_url(init_project_with_app):
-    subprocess.run(['python', 'manage.py', 'sdc_update_url'], stdout=subprocess.PIPE, cwd=init_project_with_app)
+    subprocess.run([sys.executable, 'manage.py', 'sdc_update_url'], stdout=subprocess.PIPE, cwd=init_project_with_app)
     dir1 = init_project_with_app
     dir2 = './pytests/expections/test_cc/test_django_project'
 
@@ -29,7 +30,7 @@ def test_update_url_2(init_project_with_app):
 
 
 
-    subprocess.run(['python', 'manage.py', 'sdc_update_url'], stdout=subprocess.PIPE, cwd=init_project_with_app)
+    subprocess.run([sys.executable, 'manage.py', 'sdc_update_url'], stdout=subprocess.PIPE, cwd=init_project_with_app)
     dir1 = init_project_with_app
     dir2 = './pytests/expections/test_update_url/test_django_project'
 
