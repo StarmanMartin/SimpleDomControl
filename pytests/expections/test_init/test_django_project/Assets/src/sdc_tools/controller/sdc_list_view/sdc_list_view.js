@@ -2,7 +2,7 @@ import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
 
 
-class SdcListViewController extends AbstractSDC {
+export class SdcListViewController extends AbstractSDC {
 
     constructor() {
         super();
@@ -29,12 +29,16 @@ class SdcListViewController extends AbstractSDC {
     //-------------------------------------------------//
 
     onInit(model, filter, onUpdate ) {
-        if (this.model_name) {
-            model = this.model_name;
-        }
+        if(!this.model) {
+            if (this.model_name) {
+                model = this.model_name;
+            }
 
-        this.model = this.newModel(model);
-        this.on_update = onUpdate;
+            this.model = this.newModel(model);
+        }
+        if(onUpdate) {
+            this.on_update = onUpdate;
+        }
         if(typeof filter === 'function') {
             filter = filter();
         }
@@ -51,7 +55,7 @@ class SdcListViewController extends AbstractSDC {
 
     onLoad($html) {
         $html.filter('.list-container').append(this.model.listView(this.search_values));
-        this.model.on_update = this.model.on_create = (a) => {
+        this.model.on_update = this.model.on_create = () => {
             if(this.on_update) {
                 this.model.load().then(()=> {
                     this.on_update(this.model.values_list);
@@ -71,7 +75,7 @@ class SdcListViewController extends AbstractSDC {
         return super.onRefresh();
     }
 
-    removeInstance($btn, e) {
+    removeInstance($btn) {
         this.model.delete($btn.data('instance-pk'));
     }
 

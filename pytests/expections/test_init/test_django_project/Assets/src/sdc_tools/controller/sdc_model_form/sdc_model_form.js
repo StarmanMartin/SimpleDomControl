@@ -3,7 +3,7 @@ import {app} from '../../../simpleDomControl/sdc_main.js';
 import {trigger} from "../../../simpleDomControl/sdc_events";
 
 
-class SdcModelFormController extends AbstractSDC {
+export class SdcModelFormController extends AbstractSDC {
 
     constructor() {
         super();
@@ -28,8 +28,9 @@ class SdcModelFormController extends AbstractSDC {
     //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
-    onInit(model, pk, next, filter, on_update ) {
+    onInit(model, pk, next, filter, on_update, on_error) {
         !this.on_update && (this.on_update = on_update);
+        !this.on_error && (this.on_error = on_error);
         !this.next && (this.next = next);
         if(typeof filter === 'function') {
             filter = filter();
@@ -86,8 +87,13 @@ class SdcModelFormController extends AbstractSDC {
             }
 
             self.on_update && self.on_update(res);
-        }).catch(() => {
+        }).catch((res) => {
+            self.on_error && self.on_error(res);
         });
+    }
+
+    controller_name() {
+        return `${this.type.replace(/^./g, letter => letter.toUpperCase())} ${this.model.model_name.replace(/[A-Z]/g, letter => " " + letter).replace(/^./g, letter => letter.toUpperCase())}`
     }
 
 }

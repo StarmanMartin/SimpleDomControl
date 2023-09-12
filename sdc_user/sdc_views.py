@@ -46,7 +46,7 @@ class SdcLogout(SDCView):
 
     def post_api(self, request):
         logout(request)
-        return send_redirect(url=f'.~{settings.LOGIN_CONTROLLER}')
+        return send_redirect(url=f'/~{settings.LOGIN_CONTROLLER}')
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)

@@ -83,7 +83,12 @@ export let app = {
              */
             addMixin: (...mixins) => {
                 for (let mixin of mixins) {
-                    let mixinName = camelCaseToTagName(mixin);
+                    let mixinName;
+                    if(typeof mixin === "string") {
+                        mixinName = camelCaseToTagName(mixin);
+                    } else if(mixin) {
+                        mixinName = app.controllerToTag(mixin)
+                    }
                     controllerList[tagName][1].push(mixinName);
                 }
             }
@@ -224,7 +229,7 @@ export let app = {
     safeRemove: ($elem) => {
         $elem.each(function () {
             let $this = $(this);
-            if ($this.hasClass(CONTROLLER_CLASS)) {
+            if ($this.data(`${DATA_CONTROLLER_KEY}`)) {
                 $this.data(`${DATA_CONTROLLER_KEY}`).remove();
             }
         });

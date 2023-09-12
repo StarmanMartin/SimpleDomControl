@@ -2,7 +2,7 @@ import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
 
 
-class SdcDetailViewController extends AbstractSDC {
+export class SdcDetailViewController extends AbstractSDC {
 
     constructor() {
         super();
@@ -47,6 +47,10 @@ class SdcDetailViewController extends AbstractSDC {
 
     onRefresh() {
         return super.onRefresh();
+    }
+
+    removeInstance($btn, e) {
+        this.model.delete();
     }
 
 }

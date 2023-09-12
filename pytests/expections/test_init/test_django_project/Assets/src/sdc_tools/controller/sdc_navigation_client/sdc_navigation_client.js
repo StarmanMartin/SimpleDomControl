@@ -3,7 +3,7 @@ import {app} from '../../../simpleDomControl/sdc_main.js';
 import {trigger, on} from "../../../simpleDomControl/sdc_events.js";
 
 
-class SdcNavigationClientController extends AbstractSDC {
+export class SdcNavigationClientController extends AbstractSDC {
 
     constructor() {
         super();

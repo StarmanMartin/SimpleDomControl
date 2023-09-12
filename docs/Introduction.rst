@@ -1,0 +1,3 @@
+# What is SDC
+
+*SDC* is an MVVM framework that can be used for simple and fast web development. The name  SDC is an abbreviation for *Simple DOM Control*.  Unlike other framework , SDC is tightly bound to Django (Python) as a server technology. Thanks to this design decision, the development can be supported more performantly. In combination with the latest JavaScript version, SDC provides an ideal environment to quickly program web applications.

@@ -168,10 +168,16 @@ function runControllerLoad(controller) {
  * @param controller
  */
 export function runControlFlowFunctions(controller) {
-    return runControllerLoad(controller)
+    const prom_controller = runControllerLoad(controller)
         .then(function ($html) {
             return runControllerShow(controller, $html);
         }).then(() => {
             return controller.refresh && controller.refresh();
         });
+
+    if (controller.load_async) {
+        return Promise.resolve();
+    }
+
+    return prom_controller
 }

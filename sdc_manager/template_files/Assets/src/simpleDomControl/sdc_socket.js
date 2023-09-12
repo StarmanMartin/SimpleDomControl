@@ -3,31 +3,32 @@ import {trigger} from "./sdc_events.js";
 import {uuidv4} from "./sdc_utils";
 
 let IS_CONNECTED = false;
+let IS_CONNECTING = false;
 let SDC_SOCKET = null
 const MAX_FILE_UPLOAD = 25000;
-let OPEN_REQUESTS = [];
+let OPEN_REQUESTS = {};
 
 export function callServer(app, controller, funcName, args) {
 
-    let id = OPEN_REQUESTS.length;
+    let id = uuidv4();
+    isConnected().then(() => {
+        SDC_SOCKET.send(JSON.stringify({
+            event: 'sdc_call',
+            id: id,
+            controller: controller,
+            app: app,
+            function: funcName,
+            args: args
+        }));
+    });
 
-    SDC_SOCKET.send(JSON.stringify({
-        event: 'sdc_call',
-        id: id,
-        controller: controller,
-        app: app,
-        function: funcName,
-        args: args
-    }));
-
-    return {
-        expect: (cb) => {
-            OPEN_REQUESTS[id] = cb;
-        }
-    }
+    return new Promise((resolve, reject)=> {
+        OPEN_REQUESTS[id] = [resolve, reject];
+    });
 }
 
 function _connect() {
+    IS_CONNECTING = true;
     return new Promise((resolve) => {
         if (window.location.protocol === "https:") {
             SDC_SOCKET = new WebSocket(`wss://${window.location.host}/sdc_ws/ws/`);
@@ -42,14 +43,20 @@ function _connect() {
                 if (app.Global.sdcAlertMessenger && (data.msg || data.header)) {
                     app.Global.sdcAlertMessenger.pushErrorMsg(data.header || '', data.msg || '');
                 }
+                if (OPEN_REQUESTS[data.id]) {
+                    OPEN_REQUESTS[data.id][1](data.data);
+                    delete OPEN_REQUESTS[data.id];
+                }
             } else {
                 if (app.Global.sdcAlertMessenger && (data.msg || data.header)) {
                     app.Global.sdcAlertMessenger.pushMsg(data.header || '', data.msg || '');
                 }
 
                 if (data.type && data.type === 'sdc_recall') {
-                    OPEN_REQUESTS[data.id](data.data);
-                    delete OPEN_REQUESTS[data.id];
+                    if (OPEN_REQUESTS[data.id]) {
+                        OPEN_REQUESTS[data.id][0](data.data);
+                        delete OPEN_REQUESTS[data.id];
+                    }
                 } else if (data.type && data.type === 'sdc_event') {
                     let event = data.event;
                     if (event) {
@@ -62,9 +69,14 @@ function _connect() {
             }
         };
 
-        SDC_SOCKET.onclose = function (e) {
+        SDC_SOCKET.onclose = function () {
             console.error('SDC Socket closed unexpectedly');
             IS_CONNECTED = false;
+            for (const [key, value] of Object.entries(OPEN_REQUESTS)) {
+                value[1]({});
+                delete OPEN_REQUESTS[key];
+            }
+
             setTimeout(() => {
                 _connect();
             }, 1000);
@@ -83,6 +95,7 @@ function _connect() {
 
         SDC_SOCKET.onopen = function () {
             IS_CONNECTED = true;
+            IS_CONNECTING = false;
             resolve();
         }
     })
@@ -100,11 +113,42 @@ function close() {
     }
 }
 
+function parse_hidden_inputs(value) {
+
+    let isFloatReg = /^-?\d+\.?\d+$/;
+    let isIntReg = /^-?\d+$/;
+    let isBoolReg = /^(true|false)$/;
+    let isStringReg = /^(['][^']*['])|(["][^"]*["])$/;
+
+
+
+    if (value.toLowerCase().match(isBoolReg)) {
+        return value.toLowerCase() === 'true';
+    } else if (value === 'undefined') {
+        return undefined;
+    } else if (value.toLowerCase() === 'none') {
+        return null;
+    } else if (value.match(isIntReg)) {
+        return parseInt(value);
+    } else if (value.match(isFloatReg)) {
+        return parseFloat(value);
+    } else if (value.match(isStringReg)) {
+        return value.substring(1, value.length - 1);
+    }
+    return value;
+}
+
 export function isConnected() {
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         if (IS_CONNECTED) {
             return resolve();
+        } else if (IS_CONNECTING) {
+            setTimeout(()=>{
+                isConnected().then(()=>{
+                    resolve();
+                });
+            }, 200);
         } else {
             return resolve(_connect());
         }
@@ -185,8 +229,8 @@ export class Model {
         });
     }
 
-    listView(filter = {}, cb = null) {
-        let $div_list = $('<div>');
+    listView(filter = {}, cb_resolve = null, cb_reject = null) {
+        let $div_list = $('<div class="container-fluid">');
         this.isConnected().then(() => {
             const id = uuidv4();
             new Promise((resolve, reject) => {
@@ -204,9 +248,12 @@ export class Model {
                 this.open_request[id] = [(data) => {
                     $div_list.append(data.html);
                     app.refresh($div_list);
-                    cb && cb(data);
+                    cb_resolve && cb_resolve(data);
                     resolve(data);
-                }, reject];
+                }, (res) => {
+                    cb_reject && cb_reject(res);
+                    reject(res)
+                }];
             });
 
         });
@@ -214,8 +261,8 @@ export class Model {
         return $div_list;
     }
 
-    detailView(pk = -1, cb = null) {
-        let $div_list = $('<div>');
+    detailView(pk = -1, cb_resolve = null, cb_reject = null) {
+        let $div_list = $('<div class="container-fluid">');
 
         let load_promise;
         if (this.values_list.length !== 0) {
@@ -244,9 +291,12 @@ export class Model {
                 this.open_request[id] = [(data) => {
                     $div_list.append(data.html);
                     app.refresh($div_list);
-                    cb && cb(data);
+                    cb_resolve && cb_resolve(data);
                     resolve(data);
-                }, reject];
+                }, (res) => {
+                    cb_reject && cb_reject(res);
+                    reject(res)
+                }];
             });
 
         });
@@ -262,10 +312,10 @@ export class Model {
         if (!$forms || !$forms.hasClass(this.form_id)) {
             $forms = $(`.${this.form_id}`);
         }
-        document.getElementById('ö').hasAttribute()
+
         let self = this;
         $forms.each(function () {
-            if(!this.hasAttribute('data-model_pk')) {
+            if (!this.hasAttribute('data-model_pk')) {
                 return;
             }
             let pk = $(this).data('model_pk');
@@ -295,7 +345,6 @@ export class Model {
 
         const self = this;
         let instances = [];
-        let p_list = [];
 
         $forms.each(function () {
             let $form = $(this);
@@ -304,7 +353,9 @@ export class Model {
             for (let form_item of this.elements) {
                 let name = form_item.name;
                 if (name && name !== '') {
-                    if (form_item.type === 'checkbox') {
+                    if (form_item.type === 'hidden') {
+                        instance[name] = parse_hidden_inputs($(form_item).val());
+                    } else  if (form_item.type === 'checkbox') {
                         instance[name] = form_item.checked;
                     } else if (form_item.type === 'file') {
                         instance[name] = form_item.files[0];
@@ -326,8 +377,8 @@ export class Model {
 
     }
 
-    createForm(cb = null) {
-        let $div_form = $('<div>');
+    createForm(cb_resolve = null, cb_reject = null) {
+        let $div_form = $('<div class="container-fluid">');
         this.isConnected().then(() => {
             const id = uuidv4();
             new Promise((resolve, reject) => {
@@ -349,9 +400,12 @@ export class Model {
                     }
 
                     app.refresh($div_form);
-                    cb && cb(data);
+                    cb_resolve && cb_resolve(data);
                     resolve(data);
-                }, reject];
+                }, (res) => {
+                    cb_reject && cb_reject(res);
+                    reject(res)
+                }];
             });
 
         });
@@ -359,7 +413,7 @@ export class Model {
         return $div_form;
     }
 
-    editForm(pk = -1, cb = null) {
+    editForm(pk = -1, cb_resolve = null, cb_reject = null) {
         let load_promise;
         if (this.values_list.length !== 0) {
             load_promise = this.isConnected();
@@ -367,7 +421,7 @@ export class Model {
             load_promise = this.load();
         }
 
-        let $div_form = $('<div>');
+        let $div_form = $('<div  class="container-fluid">');
 
         load_promise.then(() => {
             if (pk <= -1) {
@@ -395,14 +449,26 @@ export class Model {
                     }
 
                     app.refresh($div_form);
-                    cb && cb(data);
+                    cb_resolve && cb_resolve(data);
                     resolve(data);
-                }, reject];
+                }, (res) => {
+                    cb_reject && cb_reject(res);
+                    reject(res)
+                }];
             });
 
         });
 
         return $div_form;
+    }
+
+    new() {
+        return new Promise((resolve, reject) => {
+            const $form = $('<form>').append(this.createForm(() => {
+                this.syncFormToModel($form);
+                resolve();
+            }, reject));
+        })
     }
 
     save(pk = -1) {
@@ -440,7 +506,7 @@ export class Model {
         });
     }
 
-    create(values) {
+    create(values = this.values) {
         const id = uuidv4();
         return this.isConnected().then(() => {
             return new Promise((resolve, reject) => {
@@ -467,7 +533,8 @@ export class Model {
         });
     }
 
-    delete(pk) {
+    delete(pk= -1) {
+        if (pk === -1) pk = this.values?.pk
         const id = uuidv4();
         return this.isConnected().then(() => {
             return new Promise((resolve, reject) => {
@@ -564,7 +631,7 @@ export class Model {
                                 }));
                             }
                         }
-                        reader.onerror = e => {
+                        reader.onerror = () => {
                             reject()
                         };
                         reader.readAsBinaryString(value);
@@ -701,7 +768,11 @@ export class Model {
             const pk = json_data.pk
             const obj = this.byPk(pk);
             for (const [k, v] of Object.entries(json_data.fields)) {
-                obj[k] = v;
+                //if(v && typeof v === 'object' && v['__is_sdc_model__']) {
+                //    obj[k] = new Model(v['model'], {'pk': v['pk']})
+                //} else {
+                    obj[k] = v;
+                //}
             }
 
             updated.push(obj);

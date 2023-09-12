@@ -4,7 +4,8 @@ import {app} from './simpleDomControl/sdc_main.js';
 
 import('jquery').then(({default: $})=> {
     window['jQuery'] = window['$'] = $;
-    Promise.all([import('bootstrap/dist/js/bootstrap.bundle')]).then(()=> {
+    Promise.all([import('bootstrap/dist/js/bootstrap.bundle')]).then((res)=> {
+        window['Modal'] = res[0].Modal;
         app.init_sdc().then(()=> {});
     });
 });

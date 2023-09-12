@@ -2,7 +2,7 @@ import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
 
 
-class SdcAlertMessengerController extends AbstractSDC {
+export class SdcAlertMessengerController extends AbstractSDC {
 
     constructor() {
         super();

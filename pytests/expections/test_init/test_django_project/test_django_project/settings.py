@@ -53,11 +53,9 @@ INSTALLED_APPS = [
     'test_app_two',
     'channels',
     'sdc_tools',
-    'sdc_user'
+    'sdc_user',
+    'sdc_manager'
 ]
-
-if DEBUG:
-    INSTALLED_APPS += ['sdc_manager']
 
 INTERNAL_IPS = (
     '127.0.0.1',

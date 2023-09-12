@@ -41,11 +41,6 @@ class Command(BaseCommand):
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "templates"), main_templates, options.REPLACEMENTS)
         # copy(os.path.join(options.SCRIPT_ROOT, "template_files", "sdc_extentions"), os.path.join(project_app_root, "sdc_extentions"), options.REPLACEMENTS)
 
-
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "consumers.py.txt"),
-                         os.path.join(project_app_root, "consumers.py"),
-                         options.REPLACEMENTS)
-
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "routing.py.txt"),
                          os.path.join(project_app_root, "routing.py"),
                          options.REPLACEMENTS)

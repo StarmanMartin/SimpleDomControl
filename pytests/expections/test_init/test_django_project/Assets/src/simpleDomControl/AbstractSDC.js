@@ -1,7 +1,7 @@
 import {allOff} from "./sdc_events.js";
 import {app} from "./sdc_main.js";
 import {callServer, Model} from "./sdc_socket.js";
-import {uuidv4, setErrorsInForm, clearErrorsInForm} from "./sdc_utils.js";
+import {uuidv4, setErrorsInForm, clearErrorsInForm, tagNameToCamelCase, tagNameToReadableName} from "./sdc_utils.js";
 
 export class AbstractSDC {
     constructor() {
@@ -10,6 +10,7 @@ export class AbstractSDC {
         this.contentReload = false;
         this.hasSubnavView = false;
         this.events = [];
+        this.load_async = false;
         this.isEventsSet = false;
         this._allEvents = null;
 
@@ -131,9 +132,10 @@ export class AbstractSDC {
 
         if (!this.onRemove || this.onRemove()) {
             allOff(this);
-            if (this._parentController._childController[this._tagName]) {
-                let arr = this._parentController._childController[this._tagName];
-                for (var i = 0; i < arr.length; i++) {
+            const c_name = tagNameToCamelCase(this._tagName);
+            if (this._parentController._childController[c_name]) {
+                let arr = this._parentController._childController[c_name];
+                for (let i = 0; i < arr.length; i++) {
                     if (arr[i] === this) {
                         arr.splice(i, 1);
                     }
@@ -146,6 +148,10 @@ export class AbstractSDC {
         }
 
         return false;
+    }
+
+    controller_name() {
+        return tagNameToReadableName(this._tagName);
     }
 
     addEvent(event, selector, handler) {

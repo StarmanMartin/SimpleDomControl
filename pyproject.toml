@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "SimpleDomControl"
-version = "0.1.4"
+version = "0.2.1"
 authors = [ "Martin Starman <private@martin-starman.com>", ]
 description = "Simple DOM control -> a django MC framework"
 readme = "README.md"

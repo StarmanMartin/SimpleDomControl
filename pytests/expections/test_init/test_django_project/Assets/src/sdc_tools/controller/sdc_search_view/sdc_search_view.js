@@ -2,7 +2,7 @@ import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
 
 
-class SdcSearchViewController extends AbstractSDC {
+export class SdcSearchViewController extends AbstractSDC {
 
     constructor() {
         super();

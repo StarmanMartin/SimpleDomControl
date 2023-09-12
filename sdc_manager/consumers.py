@@ -1,4 +1,5 @@
 import os
+import types
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
@@ -64,7 +65,21 @@ class MsgManager:
 
 
 class ConsumerSerializer(Serializer):
+
+    def handle_m2m_field(self, obj, field):
+        super().handle_m2m_field(obj, field)
+        #self._current[field.name] = {
+        #    'pk': self._current[field.name],
+        #    'model': field.related_model.__name__,
+        #    '__is_sdc_model__': True
+        #}
+
     def _value_from_field(self, obj, field):
+
+        #if hasattr(field, 'foreign_related_fields') and ALL_MODELS.get(
+        #        field.related_model.__name__) == field.related_model:
+        #    return {'pk': super()._value_from_field(obj, field), 'model': field.related_model.__name__,
+        #            '__is_sdc_model__': True}
         if issubclass(field.__class__, FileField):
             return field.value_from_object(obj).url
         return super()._value_from_field(obj, field)
@@ -108,9 +123,10 @@ class SDCConsumer(WebsocketConsumer):
             'is_error': False
         }))
 
-    def state_error(self, event):
+    def state_error(self, event, id=None):
         self.send(text_data=json.dumps({
             'type': 'error',
+            'id': id,
             'is_error': True,
             'msg': event.get('msg', ''),
             'header': event.get('header', ''),
@@ -124,20 +140,26 @@ class SDCConsumer(WebsocketConsumer):
         return ''.join(x.title() for x in components)
 
     def receive(self, text_data=None, bytes_data=None):
+        json_data = {}
         try:
             json_data = json.loads(text_data)
             if json_data['event'] == 'sdc_call':
                 controller_name = self.to_camel_case(json_data['controller'])
                 controller = import_function("%s.sdc_views.%s" % (json_data['app'], controller_name))
                 method = getattr(controller(), json_data['function'])
-                return_vals = method(channel=self, **json_data['args'])
-                if return_vals is not None:
-                    self.send(text_data=json.dumps({
-                        'id': json_data['id'],
-                        'type': 'sdc_recall',
-                        'data': return_vals,
-                        'is_error': False
-                    }))
+                return_vals = method(channel=self, **json_data.get('args', {}))
+                return_vals_generator = []
+                if isinstance(return_vals, types.GeneratorType):
+                    return_vals_generator = return_vals
+                    return_vals = next(return_vals, None)
+
+                self.send(text_data=json.dumps({
+                    'id': json_data['id'],
+                    'type': 'sdc_recall',
+                    'data': return_vals,
+                    'is_error': False
+                }))
+                for x in return_vals_generator: pass
             elif json_data['event'] == 'sdc_add_group':
                 if json_data['group'] not in self.group_list:
                     self.group_list.append(json_data['group'])
@@ -157,13 +179,13 @@ class SDCConsumer(WebsocketConsumer):
             self.state_error({
                 'msg': _f('403 Not allowed!'),
                 'header': _f('Upps!!')
-            })
+            }, json_data.get('id'))
 
-        except:
+        except Exception as e:
             self.state_error({
                 'msg': _f('Something went wrong'),
                 'header': _f('Upps!!')
-            })
+            }, json_data.get('id'))
 
 
 class SDCModelConsumer(WebsocketConsumer):
@@ -218,6 +240,7 @@ class SDCModelConsumer(WebsocketConsumer):
             json_data = json.loads(text_data)
             self.scope['request'] = json_data
             type = json_data.get('event_type', type)
+            self.scope['event_type'] = type
             event_type = "%s_%s" % (json_data['event'], json_data['event_type'])
             self.queryset = json_data['args']['model_query']
             if not self.model.is_authorised(self.scope['user'], type, self.queryset):
@@ -274,7 +297,7 @@ class SDCModelConsumer(WebsocketConsumer):
         )
 
     def _load_model(self):
-        queryset = self.model.get_queryset(self.scope['user'], 'connect', self.queryset)
+        queryset = self.model.get_queryset(self.scope['user'], self.scope['event_type'], self.queryset)
 
         data_load_result = self.model.data_load(self.scope['user'], queryset, self.queryset)
         if data_load_result is not None:
@@ -305,6 +328,8 @@ class SDCModelConsumer(WebsocketConsumer):
         return self._load_form(json_data, self.model.edit_form, instance)
 
     def _load_form(self, json_data, form_attr, instance=None):
+        if callable(form_attr):
+            form_attr = form_attr({})
         if form_attr is None:
             raise NotImplemented()
         elif isinstance(form_attr, str):

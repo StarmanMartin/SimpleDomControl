@@ -47,6 +47,7 @@ class SettingsManager:
         apps.append('channels')
         apps.append('sdc_tools')
         apps.append('sdc_user')
+        apps.append('sdc_manager')
         sep = str(options.SEP)
 
         new_val = f"VERSION=0.0\n\nINSTALLED_APPS = [\n{sep}'%s'\n]" % (("',\n%s'" % sep).join(apps))
@@ -57,7 +58,7 @@ class SettingsManager:
                              "else:",
                              sep + "ALLOWED_HOSTS = ['*']"])
 
-        new_val = "%s\n\n%s\n\nif DEBUG:\n%sINSTALLED_APPS += ['sdc_manager']" % (pre_add, new_val, sep)
+        new_val = f"{pre_add}\n\n{new_val}"
         new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n)\n" % (options.SEP)
 
         fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')

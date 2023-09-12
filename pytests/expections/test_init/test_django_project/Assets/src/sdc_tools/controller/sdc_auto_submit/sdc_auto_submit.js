@@ -3,7 +3,7 @@ import {app} from '../../../simpleDomControl/sdc_main.js';
 import {clearErrorsInForm, setErrorsInForm} from "../../../simpleDomControl/sdc_utils";
 
 
-class SdcAutoSubmitController extends AbstractSDC {
+export class SdcAutoSubmitController extends AbstractSDC {
 
     constructor() {
         super();

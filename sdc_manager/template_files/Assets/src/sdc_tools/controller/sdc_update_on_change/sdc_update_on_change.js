@@ -2,13 +2,14 @@ import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
 import {app} from '../../../simpleDomControl/sdc_main.js';
 
 
-class SdcUpdateOnChangeController extends AbstractSDC {
+export class SdcUpdateOnChangeController extends AbstractSDC {
 
     constructor() {
         super();
 
         this._timer = null;
         this.isAutoChange = true;
+        this._isNotReady = true;
         this._isChanged = false;
         this._lastTimeChanged = '';
 
@@ -45,6 +46,10 @@ class SdcUpdateOnChangeController extends AbstractSDC {
     }
 
     onRefresh() {
+        this._isNotReady = true;
+        setTimeout(()=> {
+            this._isNotReady = false;
+        }, 500);
         return super.onRefresh();
     }
 
@@ -62,7 +67,7 @@ class SdcUpdateOnChangeController extends AbstractSDC {
     };*/
 
     change(elem) {
-        if (!this.isAutoChange) {
+        if (!this.isAutoChange || this._isNotReady) {
             return;
         }
 
@@ -79,7 +84,7 @@ class SdcUpdateOnChangeController extends AbstractSDC {
     }
 
     startTimer(elem) {
-        if (!this.isAutoChange) {
+        if (!this.isAutoChange || this._isNotReady) {
             return;
         }
 

@@ -56,6 +56,10 @@ export function tagNameToCamelCase(str) {
     str = str.replace(/-./g, letter => `${letter[1].toUpperCase()}`);
     return str;
 }
+export function tagNameToReadableName(str) {
+    str = str.replace(/-./g, letter => ` ${letter[1].toUpperCase()}`).replace(/^./g, letter => `${letter.toUpperCase()}`);
+    return str;
+}
 
 const copyProps = (targetClass, sourceClass) => {
     let source = sourceClass;
@@ -205,6 +209,7 @@ export function uuidv4() {
 
 export function clearErrorsInForm($form) {
     $form.find('.has-error').removeClass('has-error').find('.alert-danger').remove();
+    $form.find('.non-field-errors').remove();
 }
 
 export function setErrorsInForm($form, $resForm) {

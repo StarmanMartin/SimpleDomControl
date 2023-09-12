@@ -9,14 +9,15 @@ const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
 
 
-class SdcNavigatorController extends AbstractSDC {
-
+export class SdcNavigatorController extends AbstractSDC {
 
     constructor() {
         super();
         this.contentUrl = "/sdc_view/sdc_tools/sdc_navigator"; //<sdc-navigator></sdc-navigator>
 
         this._history_path = [];
+        this._history_path = [];
+        this._breadcrumb = [];
         this._history_idx = 0;
         this._origin_target = [];
         this._$detail_view_container = [];
@@ -132,8 +133,8 @@ class SdcNavigatorController extends AbstractSDC {
 
         let viewObj = this._getSubViewObj(this._origin_target);
 
-        if (viewObj.container.container.data('modal')){
-            if(!this._currentModal) {
+        if (viewObj.container.container.data('modal')) {
+            if (!this._currentModal) {
 
                 this._currentModal = new Modal(viewObj.container.empty_container.closest(viewObj.container.container.data('modal'))[0], {
                     keyboard: false
@@ -165,8 +166,10 @@ class SdcNavigatorController extends AbstractSDC {
                 controller.onBack();
             }
             this._is_processing = false;
-            let next = this._process_queue.shift()
-            if (next) this.navigateToPage(next[0], next[1])
+            this._updateBreadcrumb();
+            let next = this._process_queue.shift();
+            if (next) this.navigateToPage(next[0], next[1]);
+            this.refresh();
             return;
         }
 
@@ -200,21 +203,24 @@ class SdcNavigatorController extends AbstractSDC {
     }
 
 
-    navLoaded() {
+    navLoaded(controller) {
         let idx = this._history_path.length - 1;
         let last_view_array = this._preparedLastViewContainer(idx);
         last_view_array.active_container.removeClass('active loading').addClass('empty');
         last_view_array.active_sub_container.removeClass('active loading');
         last_view_array.empty_container.addClass('active').removeClass('empty loading');
         last_view_array.deeper_sub_container.safeEmpty().removeClass('empty loading');
+        this._breadcrumb.splice(idx);
         this._is_processing = false;
         $('.tooltip.fade.show').remove();
+        this._breadcrumb[idx] = controller.controller_name();
         if (this._origin_target.length !== this._history_path.length) {
             let data = this._handleUrl(window.location.pathname);
             if (data.path.length > 1) {
                 history.pushState(data, "", data.url);
             }
         } else {
+            this._updateBreadcrumb();
             if (!this._manageDefault(last_view_array.empty_container)) {
                 let next = this._process_queue.shift()
                 if (next) this.navigateToPage(next[0], next[1])
@@ -223,6 +229,18 @@ class SdcNavigatorController extends AbstractSDC {
                 this.$container.find('.header-loading').removeClass('active');
             }, 100);
         }
+    }
+
+    _updateBreadcrumb() {
+        this._breadcrumb.splice(this._history_path.length);
+        const href = Array(this._breadcrumb.length - 1).fill('..');
+        this.find('.breadcrumb').safeEmpty();
+        for (let i = 0; i < this._breadcrumb.length-1; ++i) {
+            this.find('.breadcrumb').append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${this._breadcrumb[i]}</a></li>`);
+            href.pop();
+        }
+
+        this.find('.breadcrumb').append(`<li class="breadcrumb-item active">${this._breadcrumb.at(-1)}</li>`);
     }
 
     /** Private functions **/
@@ -356,7 +374,7 @@ class SdcNavigatorController extends AbstractSDC {
         let kept_args = 0;
         if (location_path_str.startsWith('.')) {
             last_path_array = [...this._history_path];
-         } else {
+        } else {
             kept_args = -1;
             this._non_controller_path_prefix = path_array.shift();
             last_path_array = [];
@@ -374,7 +392,7 @@ class SdcNavigatorController extends AbstractSDC {
             }
         }
 
-        if(path_array.length !== 0 && path_array.at(-1) !== last_path_array.at(-1)) {
+        if (path_array.length !== 0 && path_array.at(-1) !== last_path_array.at(-1)) {
             kept_args = 0;
         }
 
