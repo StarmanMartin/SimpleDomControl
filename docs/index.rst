@@ -6,14 +6,13 @@
 Welcome to ChemotionAPI's documentation!
 ========================================
 
-.. py:function:: enumerate(sequence[, start=0])
-
 .. toctree::
    :maxdepth: 2
 
- Introduction
- Install
- Start a new project
+   Introduction
+   Install
+   getting_started
+   basics
 
 
 Indices and tables

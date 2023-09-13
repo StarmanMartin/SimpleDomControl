@@ -1,11 +1,9 @@
 const path = require('path');
-const webpack = require("webpack");
 const outputDir = path.resolve(__dirname, '../build');
 
 module.exports = {
-    mode: 'production',
     entry: {
-        'index.organizer': path.resolve(__dirname, '../src/index.organizer.js'),
+        'index.organizer': path.resolve(__dirname, '../_build/index.organizer.js'),
     },
     output: {
         path: outputDir,
@@ -32,11 +30,6 @@ module.exports = {
                 }, {
                     loader: 'sass-loader' // compiles Sass to CSS
                 }]
-            },
-            {
-                test: /\.js$/,
-                exclude: /node_modules/,
-                use: ['babel-loader']
             }]
     }
 };

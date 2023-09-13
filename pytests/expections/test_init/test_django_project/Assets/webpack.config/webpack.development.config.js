@@ -11,4 +11,10 @@ let dev_conf = {
     ]
 };
 
+default_conf.module.rules.push({
+    test: /\.js$/,
+    exclude: /node_modules/,
+    use: ['babel-loader']
+});
+
 module.exports = _.merge(default_conf, dev_conf);

@@ -62,8 +62,14 @@ function reg_runOnInitWithParameter(controller, $element, applyController) {
     } else if (typeof controller.onInit !== 'function') {
         return false
     }
+    let paramNameList;
+    if(typeof controller._on_init_params === 'function') {
+        paramNameList = controller._on_init_params();
+    } else {
+        paramNameList = getParamsNameOfFunction(controller.onInit);
+    }
 
-    let paramNameList = getParamsNameOfFunction(controller.onInit);
+
     let initParams = getDomTagParamsWithList(paramNameList, $element, applyController._parentController);
     controller.onInit.apply(applyController, initParams);
     if(applyController === controller) {

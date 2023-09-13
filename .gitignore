@@ -11,3 +11,4 @@ __pycache__/
 /.pytest_cache/
 sdc.zip
 /docs/_build/
+/.tool-versions
