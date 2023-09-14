@@ -5,6 +5,7 @@ const sass = require('gulp-sass')(require('sass'));
 const webpack = require('webpack-stream');
 const through = require('through2');
 const gclean = require('gulp-clean');
+const fs = require('fs');
 
 
 const sdc_controller = through.obj(function (obj, enc, next) {
@@ -40,25 +41,35 @@ function scss() {
         .pipe(dest('../static'));
 }
 
-function javascript() {
+function pre_compile_javascript() {
     const webpack_config = (process.env.NODE_ENV === 'development' ? './webpack.config/webpack.development.config' : './webpack.config/webpack.production.config.js');
 
     return src('src/**/*.js')
         .pipe(sdc_controller)
-        .pipe(dest('./_build'))
+        .pipe(dest('./_build'));
+}
+function javascript() {
+    const webpack_config = (process.env.NODE_ENV === 'development' ? './webpack.config/webpack.development.config' : './webpack.config/webpack.production.config.js');
+
+    return src('_build/**/*.js')
         .pipe(webpack(require(webpack_config)))
         .pipe(dest('../static'));
 }
 
-function clean() {
-    return src('./_build/**').pipe(gclean());
+function clean(done) {
+    if (fs.existsSync('./_build')) {
+        return src('./_build').pipe(gclean());
+    } else {
+        done()
+    }
 }
 
 
-exports.webpack = series(clean, javascript);
+const webpack_series = series(clean, pre_compile_javascript, javascript, clean);
+exports.webpack = webpack_series;
 exports.scss = scss;
 exports.clean = clean;
-const defaultBuild = parallel(scss, javascript);
+const defaultBuild = parallel(scss, webpack_series);
 exports.default = defaultBuild;
 
 exports.develop = series(function (done) {
