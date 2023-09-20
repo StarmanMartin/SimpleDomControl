@@ -90,7 +90,7 @@ export class SdcNavigatorController extends AbstractSDC {
 
     get default_controller() {
         if (!this._default_controller) {
-            console.error(`Set data-default-controller in the < ${this.tagName}> (tag name of the default controller)`);
+            console.error(`Set the property data-default-controller in < ${this.tagName}> (tag name of the default controller)`);
             return '';
         }
 
@@ -99,12 +99,17 @@ export class SdcNavigatorController extends AbstractSDC {
 
 
     /** Event Handler **/
-    onNavLink(btn, ev) {
+    onNavLink($btn, ev) {
         if (ev) {
             ev.preventDefault();
         }
 
-        this.onNavigateToController($(btn).attr('href'))
+        const c_list = $btn.attr('href').split('~');
+        if(c_list.length === 1) c_list.unshift('')
+
+        const link = c_list[0] + '~' + c_list.slice(1).join('~').split('/').join('~').split('~~').join('~');
+
+        this.onNavigateToController(link)
     }
 
     onNavigateToController(controller_path_as_array, args = null) {
@@ -367,9 +372,16 @@ export class SdcNavigatorController extends AbstractSDC {
     }
 
     _handleUrl(location_path_str) {
-        let location_path_args = location_path_str.split('~&');
-        let args = location_path_args.length >= 2 ? location_path_args[1] : '';
-        let path_array = location_path_args[0].split(/[~]/);
+        let args_idx = location_path_str.match(/[&?]/);
+        let args, path_array;
+        if (args_idx) {
+            args = location_path_str.substring(args_idx.index+1);
+            path_array = location_path_str.substring(0, args_idx.index).split(/[~]/);
+        } else {
+            path_array = location_path_str.split(/[~]/);
+            args = '';
+        }
+
         let last_path_array;
         let kept_args = 0;
         if (location_path_str.startsWith('.')) {
@@ -377,6 +389,7 @@ export class SdcNavigatorController extends AbstractSDC {
         } else {
             kept_args = -1;
             this._non_controller_path_prefix = path_array.shift();
+            if(this._non_controller_path_prefix === '') this._non_controller_path_prefix = '/'
             last_path_array = [];
         }
 
@@ -396,8 +409,8 @@ export class SdcNavigatorController extends AbstractSDC {
             kept_args = 0;
         }
 
-        if (last_path_array.length === 0) {
-            last_path_array = [`${this.default_controller}`];
+        if (last_path_array.length === 0 && this.default_controller !== '') {
+            return this._handleUrl(`~${this.default_controller}`);
         }
 
         location_path_str = this._non_controller_path_prefix + "~" + last_path_array.join('~');
@@ -477,7 +490,6 @@ export class SdcNavigatorController extends AbstractSDC {
     logout(pk) {
         this.login(pk);
     }
-
 }
 
 app.register(SdcNavigatorController);

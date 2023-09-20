@@ -13,6 +13,7 @@ Welcome to ChemotionAPI's documentation!
    Install
    getting_started
    basics
+   client
 
 
 Indices and tables

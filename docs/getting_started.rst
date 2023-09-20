@@ -3,6 +3,28 @@ Getting Started
 
 In the following steps, we provide a brief introduction on how to initiate a new project. Throughout this introduction, we will refer to the project as *'mysite'*.
 
+
+Quick and dirty
+***************
+
+Navigate to your project container directory and run the following chell commands:
+
+.. code-block:: sh
+
+    $ PROJECT_NAME = <project_name>
+    $ django-admin startproject $PROJECT_NAME
+    $ cd ./$PROJECT_NAME
+    $ virtualenv venv
+    $ source venv/bin/activate
+    $ pip install django
+    $ pip install https://github.com/StarmanMartin/SimpleDomControl/releases/download/0.2.2/simpledomcontrol-0.2.2.tar.gz
+    $ sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_manager',/g" ./$PROJECT_NAME/settings.py
+    $ sed -i "s/'DIRS'\: \[\]/'DIRS'\: \[BASE_DIR \/ 'templates'\]/g" ./$PROJECT_NAME/settings.py
+    $ python manage.py sdc_init
+    $ cd ./Assets
+    $ npm install
+
+
 Start new Django project
 ************************
 
@@ -265,7 +287,7 @@ It only contains a few examples to facilitate the development.
 The SDC client
 **************
 
-The whole client is organized in the *Assert* directory
+The whole client is organized in the *Assets* directory
 
 ::
 
@@ -322,5 +344,7 @@ Please run the following to initialize the client.
 
 .. code-block:: sh
 
-    $ cd Assert
+    $ cd Assets
     $ npm install
+
+And you are done!!
