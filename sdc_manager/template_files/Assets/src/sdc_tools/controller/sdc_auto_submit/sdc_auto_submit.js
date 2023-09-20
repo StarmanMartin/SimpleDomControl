@@ -1,6 +1,4 @@
-import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
-import {app} from '../../../simpleDomControl/sdc_main.js';
-import {clearErrorsInForm, setErrorsInForm} from "../../../simpleDomControl/sdc_utils";
+import {AbstractSDC, clearErrorsInForm, setErrorsInForm, app} from 'sdc';
 
 
 export class SdcAutoSubmitController extends AbstractSDC {

@@ -1,7 +1,4 @@
-import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
-import {app} from '../../../simpleDomControl/sdc_main.js';
-import {trigger, on} from "../../../simpleDomControl/sdc_events.js";
-
+import {AbstractSDC, app, trigger, on} from 'sdc';
 
 export class SdcNavigationClientController extends AbstractSDC {
 

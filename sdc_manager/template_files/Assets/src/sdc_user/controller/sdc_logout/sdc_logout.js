@@ -1,7 +1,4 @@
-import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
-import {app} from '../../../simpleDomControl/sdc_main.js';
-import {trigger} from "../../../simpleDomControl/sdc_events";
-
+import {AbstractSDC, app, trigger} from 'sdc';
 
 class SdcLogoutController extends AbstractSDC {
 
