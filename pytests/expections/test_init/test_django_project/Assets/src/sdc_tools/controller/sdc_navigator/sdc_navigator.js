@@ -1,9 +1,6 @@
-import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
-import {app} from '../../../simpleDomControl/sdc_main.js';
-import {on, trigger} from "../../../simpleDomControl/sdc_events";
-import {checkIfParamNumberBoolOrString} from "../../../simpleDomControl/sdc_utils";
+import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from "sdc";
 
-import {Modal} from 'bootstrap'
+
 
 const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
@@ -68,7 +65,6 @@ export class SdcNavigatorController extends AbstractSDC {
         on('login', this);
         on('logout', this);
 
-        let temp = this.$container.html();
         $html.find('.main-nav-import-container').append(this.$container.html());
         return super.onLoad($html);
     }
@@ -126,7 +122,7 @@ export class SdcNavigatorController extends AbstractSDC {
         history.pushState(data, "", data.url);
     }
 
-    navigateToPage(target, args, state) {
+    navigateToPage(target, args, _state) {
         if (this._is_processing) {
             this._process_queue[0] = [target, args];
             return;
@@ -490,6 +486,7 @@ export class SdcNavigatorController extends AbstractSDC {
     logout(pk) {
         this.login(pk);
     }
+
 }
 
 app.register(SdcNavigatorController);

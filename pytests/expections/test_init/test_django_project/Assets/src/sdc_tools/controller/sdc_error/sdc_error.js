@@ -1,5 +1,4 @@
-import {AbstractSDC} from '../../../simpleDomControl/AbstractSDC.js';
-import {app} from '../../../simpleDomControl/sdc_main.js';
+import {AbstractSDC, app} from 'sdc';
 
 
 export class SdcErrorController extends AbstractSDC {
