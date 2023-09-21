@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from sdc_tools.sdc_extentions.views import SDCView
+from sdc_core.sdc_extentions.views import SDCView
 
 
 

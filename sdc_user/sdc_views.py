@@ -1,8 +1,8 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.views import RedirectURLMixin
 
-from sdc_tools.sdc_extentions.views import SDCView
-from sdc_tools.sdc_extentions.response import send_redirect, send_error
+from sdc_core.sdc_extentions.views import SDCView
+from sdc_core.sdc_extentions.response import send_redirect, send_error
 from django.shortcuts import render
 from django.contrib.auth.forms import AuthenticationForm
 from django.conf import settings

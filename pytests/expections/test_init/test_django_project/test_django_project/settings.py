@@ -54,7 +54,7 @@ INSTALLED_APPS = [
     'channels',
     'sdc_tools',
     'sdc_user',
-    'sdc_manager'
+    'sdc_core'
 ]
 
 INTERNAL_IPS = (

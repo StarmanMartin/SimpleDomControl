@@ -1,7 +1,7 @@
-from sdc_tools.sdc_extentions.models import SdcModel
-from sdc_tools.sdc_extentions.forms import AbstractSearchForm
+from sdc_core.sdc_extentions.models import SdcModel
+from sdc_core.sdc_extentions.forms import AbstractSearchForm
 from django.template.loader import render_to_string
-from sdc_tools.sdc_extentions.search import handle_search_form
+from sdc_core.sdc_extentions.search import handle_search_form
 from django.db import models
 
 # Create your models here.

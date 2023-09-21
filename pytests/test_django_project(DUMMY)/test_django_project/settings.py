@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "sdc_manager",
+    "sdc_core",
     "test_app_one",
     "test_app_two",
 ]

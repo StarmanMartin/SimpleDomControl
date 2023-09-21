@@ -4,8 +4,8 @@ import subprocess
 import sys
 
 from pytests.utils import are_dir_trees_equal
-from sdc_manager.management.commands.init_add import options
-from sdc_manager.management.commands.init_add.utils import prepare_as_string ,copy
+from sdc_core.management.commands.init_add import options
+from sdc_core.management.commands.init_add.utils import prepare_as_string ,copy
 
 
 
@@ -14,7 +14,7 @@ def test_copy():
         os.makedirs('./pytests/test_res')
     except:
         pass
-    copy('./sdc_manager/template_files/Assets', './pytests/test_res/', options.REPLACEMENTS)
+    copy('./sdc_core/template_files/Assets', './pytests/test_res/', options.REPLACEMENTS)
     assert os.path.exists('./pytests/test_res/src')
     assert os.path.exists('./pytests/test_res/src/index.style.scss')
     assert os.path.exists('./pytests/test_res/src/index.organizer.js')

@@ -18,7 +18,7 @@ Navigate to your project container directory and run the following chell command
     $ source venv/bin/activate
     $ pip install django
     $ pip install https://github.com/StarmanMartin/SimpleDomControl/releases/download/0.2.2/simpledomcontrol-0.2.2.tar.gz
-    $ sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_manager',/g" ./$PROJECT_NAME/settings.py
+    $ sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_core',/g" ./$PROJECT_NAME/settings.py
     $ sed -i "s/'DIRS'\: \[\]/'DIRS'\: \[BASE_DIR \/ 'templates'\]/g" ./$PROJECT_NAME/settings.py
     $ python manage.py sdc_init
     $ cd ./Assets
@@ -82,7 +82,7 @@ included in the template settings, as illustrated below:
         'django.contrib.sessions',
         'django.contrib.messages',
         'django.contrib.staticfiles',
-        'sdc_manager',
+        'sdc_core',
     ]
 
     ...
@@ -161,7 +161,7 @@ The following files are also altered in this process:
 
    + from django.urls import re_path
 
-   + from sdc_manager import consumers
+   + from sdc_core import consumers
 
    + websocket_urlpatterns = [
    +     re_path(r'sdc_ws/ws/$', consumers.SDCConsumer.as_asgi()),
@@ -203,7 +203,7 @@ The following files are also altered in this process:
     +    'channels',
     +    'sdc_tools',
     +    'sdc_user',
-         'sdc_manager'
+         'sdc_core'
     ]
 
     + INTERNAL_IPS = (
