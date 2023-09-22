@@ -31,6 +31,10 @@ is optional, and you have the flexibility to choose whether or not to utilize th
              ├─ webpack.development.config.js
              ├─ webpack.production.config.js
              └─ webpack.default.config.js
+          ├─ tests/
+             ├─ utils/
+                └─ test_utils.js
+             └─ ...
           ├─ .babelrc
           ├─ gulpfile.js
           └─ package.json

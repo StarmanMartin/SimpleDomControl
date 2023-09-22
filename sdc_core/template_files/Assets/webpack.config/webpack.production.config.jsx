@@ -1,6 +1,6 @@
 const path = require('path');
 const TerserPlugin = require("terser-webpack-plugin");
-let default_conf = require('./webpack.default.config');
+let default_conf = require('./webpack.default.config.jsx');
 const _ = require("lodash");
 
 

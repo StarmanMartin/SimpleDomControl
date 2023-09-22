@@ -17,7 +17,7 @@ Navigate to your project container directory and run the following chell command
     $ virtualenv venv
     $ source venv/bin/activate
     $ pip install django
-    $ pip install https://github.com/StarmanMartin/SimpleDomControl/releases/download/0.2.2/simpledomcontrol-0.2.2.tar.gz
+    $ pip install git+https://github.com/StarmanMartin/SimpleDomControl@0.3.2
     $ sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_core',/g" ./$PROJECT_NAME/settings.py
     $ sed -i "s/'DIRS'\: \[\]/'DIRS'\: \[BASE_DIR \/ 'templates'\]/g" ./$PROJECT_NAME/settings.py
     $ python manage.py sdc_init

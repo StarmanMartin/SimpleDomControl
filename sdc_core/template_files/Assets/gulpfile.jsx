@@ -45,7 +45,7 @@ function pre_compile_javascript() {
 }
 
 function javascript() {
-    const webpack_config = (process.env.NODE_ENV === 'development' ? './webpack.config/webpack.development.config' : './webpack.config/webpack.production.config.js');
+    const webpack_config = (process.env.NODE_ENV === 'development' ? './webpack.config/webpack.development.config.jsx' : './webpack.config/webpack.production.config.jsx');
 
     return src('./_build/index.organizer.js')
         .pipe(webpack(require(webpack_config)))

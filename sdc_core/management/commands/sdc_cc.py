@@ -81,4 +81,5 @@ class Command(BaseCommand):
         add_sdc_core.add_view_class_to_sdc_views()
         add_sdc_core.prepare_files()
         add_sdc_core.add_to_organizer()
+        add_sdc_core.add_js_test()
         make_link(app_name, controller_name)

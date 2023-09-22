@@ -8,7 +8,7 @@ from django.urls import get_resolver
 from sdc_core.management.commands.init_add import options
 from sdc_core.management.commands.init_add.utils import convert_to_snake_case, copy_and_prepare, \
     convert_to_camel_case, \
-    convert_to_title_camel_case, convert_to_tag_name
+    convert_to_title_camel_case, convert_to_tag_name, prepare_as_string
 
 
 class AddControllerManager:
@@ -89,6 +89,10 @@ class AddControllerManager:
                              os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"),
                              self.reps)
 
+            copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "js_test.js.txt"),
+                             os.path.join(options.PROJECT_ROOT, 'Assets/tests', f"{self.app_name}.test.js"),
+                             self.reps)
+
             self._add_new_sdc_to_main_urls(main_urls_path)
 
         self._add_sdc_views_to_main_urls(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_urls.py"))
@@ -164,6 +168,13 @@ class AddControllerManager:
 
         line = 'import {} from "./controller/%s/%s.js";\n' % (self.controller_name_sc, self.controller_name_sc)
         self._add_js_to_src(org_js_file_path, line)
+
+    def add_js_test(self):
+        text = prepare_as_string(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_test.js.text"), self.reps)
+        fp = os.path.join(options.PROJECT_ROOT, 'Assets/tests', f"{self.app_name}.test.js")
+        fout = open(fp, "a", encoding='utf-8')
+        fout.write(text)
+        fout.close()
 
     @staticmethod
     def _add_js_to_src(org_file_path, new_line):

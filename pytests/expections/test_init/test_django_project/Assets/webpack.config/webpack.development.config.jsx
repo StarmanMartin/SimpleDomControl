@@ -1,6 +1,6 @@
 let _ = require('lodash');
 const webpack = require("webpack");
-let default_conf = require('./webpack.default.config');
+let default_conf = require('./webpack.default.config.jsx');
 
 
 let dev_conf = {

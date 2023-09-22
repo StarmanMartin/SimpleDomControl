@@ -1,0 +1,13 @@
+[sdc-model-form] {
+    .sdc-model-create-form {
+      .not-create {
+        display: none;
+      }
+    }
+
+  .sdc-model-edit-form {
+    .not-edit {
+      display: none;
+    }
+  }
+}

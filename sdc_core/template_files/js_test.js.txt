@@ -1,0 +1,5 @@
+/**
+ * @jest-environment jsdom
+ */
+
+import {get_controller} from "./utils/test_utils.js";
