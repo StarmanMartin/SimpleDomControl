@@ -5,7 +5,7 @@ import {app} from 'sdc';
 
 import('jquery').then(({default: $})=> {
     window['jQuery'] = window['$'] = $;
-    Promise.all([import('bootstrap/dist/js/bootstrap.bundle')]).then((res)=> {
+    Promise.all([import('bootstrap/dist/js/bootstrap.bundle.js')]).then((res)=> {
         window['Modal'] = res[0].Modal;
         app.init_sdc().then(()=> {});
     });
