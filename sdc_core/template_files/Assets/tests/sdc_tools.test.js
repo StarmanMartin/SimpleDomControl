@@ -21,7 +21,7 @@ describe('SdcNavigator', () => {
 
     test('Load Content', async () => {
         const $div = controller.$container.find('div');
-        expect($div.length).toBe(1);
+        expect($div.length).toBe(4);
     });
 
 });

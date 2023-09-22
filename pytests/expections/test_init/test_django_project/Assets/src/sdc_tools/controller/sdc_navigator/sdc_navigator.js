@@ -1,7 +1,6 @@
 import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from "sdc";
 
 
-
 const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
 
@@ -76,7 +75,7 @@ export class SdcNavigatorController extends AbstractSDC {
         });
         this._setupButton();
         let data = this._handleUrl(window.location.pathname);
-        history.replaceState(data, '', data.url, data);
+        if (data) history.replaceState(data, '', data.url, data);
         return super.willShow();
     }
 
@@ -100,8 +99,8 @@ export class SdcNavigatorController extends AbstractSDC {
             ev.preventDefault();
         }
 
-        const c_list = $btn.attr('href').split('~');
-        if(c_list.length === 1) c_list.unshift('')
+        const c_list = $($btn).attr('href').split('~');
+        if (c_list.length === 1) c_list.unshift('')
 
         const link = c_list[0] + '~' + c_list.slice(1).join('~').split('/').join('~').split('~~').join('~');
 
@@ -119,7 +118,7 @@ export class SdcNavigatorController extends AbstractSDC {
             controller_path_as_array += '~&' + args
         }
         let data = this._handleUrl(controller_path_as_array);
-        history.pushState(data, "", data.url);
+        if (data) history.pushState(data, "", data.url);
     }
 
     navigateToPage(target, args, _state) {
@@ -217,7 +216,7 @@ export class SdcNavigatorController extends AbstractSDC {
         this._breadcrumb[idx] = controller.controller_name();
         if (this._origin_target.length !== this._history_path.length) {
             let data = this._handleUrl(window.location.pathname);
-            if (data.path.length > 1) {
+            if (data) {
                 history.pushState(data, "", data.url);
             }
         } else {
@@ -236,7 +235,7 @@ export class SdcNavigatorController extends AbstractSDC {
         this._breadcrumb.splice(this._history_path.length);
         const href = Array(this._breadcrumb.length - 1).fill('..');
         this.find('.breadcrumb').safeEmpty();
-        for (let i = 0; i < this._breadcrumb.length-1; ++i) {
+        for (let i = 0; i < this._breadcrumb.length - 1; ++i) {
             this.find('.breadcrumb').append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${this._breadcrumb[i]}</a></li>`);
             href.pop();
         }
@@ -346,7 +345,7 @@ export class SdcNavigatorController extends AbstractSDC {
             }
 
             let data = self._handleUrl($button.attr('href'));
-            $button.addClass(`nav-family-${data.path.at(-1)}`);
+            if (data) $button.addClass(`nav-family-${data.path.at(-1)}`);
         });
     }
 
@@ -371,7 +370,7 @@ export class SdcNavigatorController extends AbstractSDC {
         let args_idx = location_path_str.match(/[&?]/);
         let args, path_array;
         if (args_idx) {
-            args = location_path_str.substring(args_idx.index+1);
+            args = location_path_str.substring(args_idx.index + 1);
             path_array = location_path_str.substring(0, args_idx.index).split(/[~]/);
         } else {
             path_array = location_path_str.split(/[~]/);
@@ -385,7 +384,7 @@ export class SdcNavigatorController extends AbstractSDC {
         } else {
             kept_args = -1;
             this._non_controller_path_prefix = path_array.shift();
-            if(this._non_controller_path_prefix === '') this._non_controller_path_prefix = '/'
+            if (this._non_controller_path_prefix === '') this._non_controller_path_prefix = '/'
             last_path_array = [];
         }
 
@@ -432,7 +431,7 @@ export class SdcNavigatorController extends AbstractSDC {
         let url = `${window.location.protocol}//${window.location.host}${location_path_str}`;
 
         let button_selector = last_path_array.map((c) => `.navigation-links.nav-family-${c}`);
-
+        if (last_path_array.length === 0) return null;
         return {
             contentName: last_path_array.at(-1),
             args: args,
@@ -471,7 +470,7 @@ export class SdcNavigatorController extends AbstractSDC {
         const df = $sub_container.data('default-controller');
         if (df) {
             let data = this._handleUrl(`.~${df}`);
-            history.pushState(data, "", data.url);
+            if (data) history.pushState(data, "", data.url);
             return true;
         }
 

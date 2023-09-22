@@ -100,7 +100,7 @@ export class SdcNavigatorController extends AbstractSDC {
             ev.preventDefault();
         }
 
-        const c_list = $btn.attr('href').split('~');
+        const c_list = $($btn).attr('href').split('~');
         if(c_list.length === 1) c_list.unshift('')
 
         const link = c_list[0] + '~' + c_list.slice(1).join('~').split('/').join('~').split('~~').join('~');
