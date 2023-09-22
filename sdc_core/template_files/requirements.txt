@@ -1,1 +1,1 @@
-simpledomcontrol: git+https://github.com/StarmanMartin/SimpleDomControl@0.3.2
+simpledomcontrol: git+https://github.com/StarmanMartin/SimpleDomControl@0.3.3
