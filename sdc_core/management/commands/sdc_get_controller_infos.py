@@ -43,7 +43,7 @@ class Command(BaseCommand):
         view_class_name = convert_to_camel_case(controller_name)
 
         info =  {
-            'name': app_name,
+            'name': controller_name,
             'controller_asset_dir': controller_asset_dir,
             'sdc_view_file': app_path,
             'sdc_view_file_number': self._get_class_line_number(app_path, view_class_name),
