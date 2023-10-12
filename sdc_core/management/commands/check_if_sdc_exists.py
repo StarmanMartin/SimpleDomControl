@@ -13,6 +13,6 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         c_name_sc = options['controller_name']
         if AddControllerManager.check_controller_name(c_name_sc):
-            self.stdout.write(self.style.ERROR("TRUE"))
+            self.stdout.write("TRUE")
         else:
-            self.stdout.write(self.style.SUCCESS("FALSE"))
+            self.stdout.write("FALSE")

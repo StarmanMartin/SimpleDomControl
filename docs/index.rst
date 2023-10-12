@@ -12,7 +12,9 @@ Welcome to ChemotionAPI's documentation!
    Introduction
    Install
    getting_started
-   basics
+   core
+   sdc_controller
+   sdc_model
    client
 
 

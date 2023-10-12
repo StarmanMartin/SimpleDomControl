@@ -18,7 +18,7 @@ class SdcModel():
     create_form = None
     html_list_template = None
     html_detail_template = None
-    html_form_template = getattr(settings, 'MODEL_FORM_TEMPLATE', "elements/form.html"),
+    html_form_template = getattr(settings, 'MODEL_FORM_TEMPLATE', "elements/form.html")
     apply_filter = None
     _scope = None
 
