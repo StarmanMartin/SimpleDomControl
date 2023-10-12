@@ -77,4 +77,4 @@ class Command(BaseCommand):
 
 
 
-        self.stdout.write(json.dumps('{}', indent=1))
+        self.stdout.write(json.dumps(controller_results, indent=1))
