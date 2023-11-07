@@ -3,6 +3,7 @@ import os
 
 from django.core.management.base import BaseCommand
 from django.apps import apps
+from django.template.loader import get_template
 
 from sdc_core.management.commands.init_add import options
 
@@ -43,9 +44,9 @@ class Command(BaseCommand):
             'model_file': os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'),
             'model_file_line': self._get_class_line_number(
                 os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'), model.__name__),
-            'html_form_template': os.path.join(options.PROJECT_ROOT, model.html_form_template),
-            'html_list_template': os.path.join(options.PROJECT_ROOT, model.html_list_template),
-            'html_detail_template': os.path.join(options.PROJECT_ROOT, model.html_list_template),
+            'html_form_template': get_template(model.html_form_template).origin.name,
+            'html_list_template': get_template(model.html_list_template).origin.name,
+            'html_detail_template': get_template(model.html_list_template).origin.name,
             'create_form': self._separate_file_class(model.create_form),
             'edit_form': self._separate_file_class(model.edit_form)
 
