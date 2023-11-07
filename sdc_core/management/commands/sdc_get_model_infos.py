@@ -38,19 +38,37 @@ class Command(BaseCommand):
         }
 
     def _parse_model_to_info_json(self, model):
-        return {
+        mi = {
             'name': model.__name__,
             'app': model.__module__.split('.')[0],
             'model_file': os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'),
             'model_file_line': self._get_class_line_number(
                 os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'), model.__name__),
-            'html_form_template': get_template(model.html_form_template).origin.name,
-            'html_list_template': get_template(model.html_list_template).origin.name,
-            'html_detail_template': get_template(model.html_list_template).origin.name,
             'create_form': self._separate_file_class(model.create_form),
             'edit_form': self._separate_file_class(model.edit_form)
 
         }
+
+        if model.html_detail_template:
+            try:
+                mi['html_detail_template'] = get_template(model.html_detail_template).origin.name
+            except:
+                pass
+
+        if model.html_list_template:
+            try:
+                mi['html_list_template'] = get_template(model.html_list_template).origin.name
+            except:
+                pass
+
+        if model.html_form_template:
+            try:
+                mi['html_form_template'] = get_template(model.html_form_template).origin.name
+            except:
+                pass
+
+
+        return mi
 
     def handle(self, *args, **ops):
         all_models = {'sdc_models': [self._parse_model_to_info_json(model) for model in apps.get_models() if
