@@ -100,12 +100,12 @@ export class SdcNavigatorController extends AbstractSDC {
             ev.preventDefault();
         }
 
-        const c_list = $($btn).attr('href').split('~');
-        if(c_list.length === 1) c_list.unshift('')
+        let c_list = $($btn).attr('href').split('~').map((x) => x.split('/')).flat().filter((x, i) => i < 1 || x.length > 0);
+        if (c_list.length === 1 && !c_list[0].startsWith('.')) c_list.unshift('');
 
-        const link = c_list[0] + '~' + c_list.slice(1).join('~').split('/').join('~').split('~~').join('~');
+        const link = c_list.join('~').split('~~').join('~');
 
-        this.onNavigateToController(link)
+        this.onNavigateToController(link);
     }
 
     onNavigateToController(controller_path_as_array, args = null) {
@@ -235,13 +235,20 @@ export class SdcNavigatorController extends AbstractSDC {
     _updateBreadcrumb() {
         this._breadcrumb.splice(this._history_path.length);
         const href = Array(this._breadcrumb.length - 1).fill('..');
-        this.find('.breadcrumb').safeEmpty();
-        for (let i = 0; i < this._breadcrumb.length-1; ++i) {
-            this.find('.breadcrumb').append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${this._breadcrumb[i]}</a></li>`);
-            href.pop();
-        }
+        const $breadcrumps = this.find('.breadcrumb');
+        const self = this;
+        $breadcrumps.each(function () {
+            const $breadcrump = $(this);
+            $breadcrump.safeEmpty();
+            let idx = $breadcrump.data('offset');
+            idx = idx ? parseInt(idx) : 0;
+            for (let i = idx; i < self._breadcrumb.length-1; ++i) {
+                $breadcrump.append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${self._breadcrumb[i]}</a></li>`);
+                href.pop();
+            }
 
-        this.find('.breadcrumb').append(`<li class="breadcrumb-item active">${this._breadcrumb.at(-1)}</li>`);
+            self.find('.breadcrumb').append(`<li class="breadcrumb-item active">${self._breadcrumb.at(-1)}</li>`);
+        });
     }
 
     /** Private functions **/

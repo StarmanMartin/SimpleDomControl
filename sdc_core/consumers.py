@@ -28,13 +28,13 @@ importlist = []
 
 class MsgManager:
     _messages = None
-    _msg_filepath = os.path.abspath(os.path.join(__file__, '../sdc_strings.json'))
+    _msg_filepath = os.path.abspath(settings.BASE_DIR /  'templates/sdc_strings.json')
 
     @property
     def messages(self):
         if self._messages is None:
             self._messages = {}
-            if os.path.exists('msg_filepath'):
+            if os.path.exists(self._msg_filepath):
                 with open(self._msg_filepath, 'r') as f:
                     self._messages = json.loads(f.read())
             else:

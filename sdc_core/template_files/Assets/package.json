@@ -36,6 +36,6 @@
     "bootstrap": "^5.2.3",
     "jquery": "^3.6.3",
     "lodash": "^4.17.21",
-    "sdc": "https://github.com/StarmanMartin/SimpleDomControlClient/archive/refs/tags/0.3.3.tar.gz"
+    "sdc": "https://github.com/StarmanMartin/SimpleDomControlClient/archive/refs/tags/0.3.4.tar.gz"
   }
 }
