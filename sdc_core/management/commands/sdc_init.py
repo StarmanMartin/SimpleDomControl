@@ -7,7 +7,7 @@ from sdc_core.management.commands.init_add import options, settings_manager
 from sdc_core.management.commands.init_add.sdc_core_manager import add_sdc_to_main_urls, copy_apps
 from sdc_core.management.commands.init_add.utils import makedirs_if_not_exist, copy, copy_and_prepare, \
     prepare_as_string
-from sdc_core.management.commands.sdc_link_html import make_app_links
+from sdc_core.management.commands.sdc_update_links import make_app_links
 
 
 class Command(BaseCommand):

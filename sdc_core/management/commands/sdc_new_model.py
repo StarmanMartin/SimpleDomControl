@@ -5,7 +5,7 @@ from django.apps import apps
 from sdc_core.management.commands.init_add.add_model_manager import AddModelManager
 
 from sdc_core.management.commands.init_add import options, settings_manager
-from sdc_core.management.commands.sdc_link_html import make_model_link
+from sdc_core.management.commands.sdc_update_links import make_model_link
 
 
 class Command(BaseCommand):

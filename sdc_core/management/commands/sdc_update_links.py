@@ -5,7 +5,6 @@ import sys
 from django.core.management.base import BaseCommand, CommandError
 
 from sdc_core.management.commands.init_add import options, settings_manager
-from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
 from django.apps import apps
 
 
@@ -83,7 +82,7 @@ class Command(BaseCommand):
         settings = settings_manager.SettingsManager(manage_py_file_path)
         all_apps = settings.get_apps()
         for app_name in all_apps[1:]:
-            sdc_controller_list_dir = os.path.join(options.PROJECT_ROOT, "Assets/src", app_name, "controller")
+            sdc_controller_list_dir = os.path.join(get_app_path(app_name), "Assets/src", app_name, "controller")
             if os.path.exists(sdc_controller_list_dir):
                 for file in os.listdir(sdc_controller_list_dir):
                     make_link(app_name, file)

@@ -1,12 +1,11 @@
-import os
 import sys
 import re
 
 from django.core.management.base import BaseCommand, CommandError
 
-from sdc_core.management.commands.init_add import options, settings_manager
+from sdc_core.management.commands.init_add import settings_manager
 from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
-from sdc_core.management.commands.sdc_link_html import make_link
+from sdc_core.management.commands.sdc_update_links import make_link
 
 
 class Command(BaseCommand):
