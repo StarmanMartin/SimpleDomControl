@@ -1,28 +1,13 @@
+import logging
 import os
 import shutil
 import subprocess
 import sys
 
+from pytest_check import check
+
 from pytests.utils import are_dir_trees_equal
-from sdc_core.management.commands.init_add import options
-from sdc_core.management.commands.init_add.utils import prepare_as_string ,copy
 
-
-
-def test_copy():
-    try:
-        os.makedirs('./pytests/test_res')
-    except:
-        pass
-    copy('./sdc_core/template_files/Assets', './pytests/test_res/', options.REPLACEMENTS)
-    assert os.path.exists('./pytests/test_res/src')
-    assert os.path.exists('./pytests/test_res/src/index.style.scss')
-    assert os.path.exists('./pytests/test_res/src/index.organizer.js')
-
-    try:
-        shutil.rmtree('./pytests/test_res')
-    except:
-        pass
 
 def test_init():
     try:
@@ -33,6 +18,7 @@ def test_init():
 
 
         assert are_dir_trees_equal(dir1, dir2) == []
+
     except:
         assert False
         pass

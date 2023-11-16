@@ -28,6 +28,7 @@ def init_project_with_app():
         shutil.copytree('./pytests/test_django_project(DUMMY)', project_dir)
         subprocess.run([sys.executable, 'manage.py', 'sdc_init'], cwd=project_dir)
         subprocess.run([sys.executable, 'manage.py', 'sdc_cc', '-a', 'test_app_one', '-c', 'test_sdc_one'], stdout=subprocess.PIPE, cwd=(project_dir))
+        subprocess.run([sys.executable, 'manage.py', 'sdc_cc', '-a', 'test_app_one', '-c', 'test_sdc_two'], stdout=subprocess.PIPE, cwd=(project_dir))
         yield project_dir
     finally:
         # Will be executed after the last test

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import {get_controller} from "./utils/test_utils.js";
+import {test_utils} from "sdc";
 
 
 describe('SdcNavigator', () => {
@@ -10,7 +10,7 @@ describe('SdcNavigator', () => {
 
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
-        const a = await get_controller('sdc_tools',
+        const a = await test_utils.get_controller('sdc_tools',
             'sdc-navigator',
             '<div><div class="main-nav-import-container"></div><div class="sdc_detail_view">Loading</div></div>',
             '<div>Loading</div>');

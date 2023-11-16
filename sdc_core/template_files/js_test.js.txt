@@ -2,4 +2,4 @@
  * @jest-environment jsdom
  */
 
-import {get_controller} from "./utils/test_utils.js";
+import {test_utils} from "sdc";

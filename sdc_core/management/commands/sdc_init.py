@@ -1,12 +1,13 @@
 import os
 import sys
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from sdc_core.management.commands.init_add import options, settings_manager
 from sdc_core.management.commands.init_add.sdc_core_manager import add_sdc_to_main_urls, copy_apps
 from sdc_core.management.commands.init_add.utils import makedirs_if_not_exist, copy, copy_and_prepare, \
     prepare_as_string
+from sdc_core.management.commands.sdc_link_html import make_app_links
 
 
 class Command(BaseCommand):
@@ -29,8 +30,7 @@ class Command(BaseCommand):
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         if 'sdc_tools' in sdc_settings.get_setting_vals().INSTALLED_APPS:
-            print(options.CMD_COLORS.as_error("SimpleDomControl has initialized already!"))
-            exit(2)
+            raise CommandError("SimpleDomControl has initialized already!", 2)
 
 
         sdc_settings.update_settings(prepare_as_string(os.path.join(options.SCRIPT_ROOT, "template_files", "settings_extension.py.txt"), options.REPLACEMENTS))
@@ -39,7 +39,6 @@ class Command(BaseCommand):
         copy_apps()
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "Assets"), main_static, options.REPLACEMENTS)
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "templates"), main_templates, options.REPLACEMENTS)
-        # copy(os.path.join(options.SCRIPT_ROOT, "template_files", "sdc_extentions"), os.path.join(project_app_root, "sdc_extentions"), options.REPLACEMENTS)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "routing.py.txt"),
                          os.path.join(project_app_root, "routing.py"),
@@ -58,3 +57,5 @@ class Command(BaseCommand):
                          options.REPLACEMENTS)
 
         add_sdc_to_main_urls(sdc_settings.get_main_url_path())
+        make_app_links('sdc_tools')
+        make_app_links('sdc_user')

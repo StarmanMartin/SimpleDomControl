@@ -52,7 +52,7 @@ class AddControllerManager:
     def get_template_url(self):
         if self._template_url is not None:
             return self._template_url
-        cmd = '%s manage.py get_url_of_a_sdc %s' % (sys.executable, self.controller_name_sc)
+        cmd = '%s manage.py sdc_get_controller_url %s' % (sys.executable, self.controller_name_sc)
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
         out = str(p.communicate()[0], encoding="utf-8")
         out = re.sub(r'\\r?\\n.*$', r'', out)
@@ -90,7 +90,7 @@ class AddControllerManager:
                              self.reps)
 
             copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "js_test.js.txt"),
-                             os.path.join(options.PROJECT_ROOT, 'Assets/tests', f"{self.app_name}.test.js"),
+                             os.path.join(options.PROJECT_ROOT, self.app_name, 'Assets/tests', f"{self.app_name}.test.js"),
                              self.reps)
 
             self._add_new_sdc_to_main_urls(main_urls_path)
@@ -122,7 +122,7 @@ class AddControllerManager:
 
     def prepare_files(self):
         main_static = os.path.join(
-            options.PROJECT_ROOT, "Assets/src", self.app_name, 'controller', self.controller_name_sc)
+            options.PROJECT_ROOT, self.app_name, "Assets/src", self.app_name, 'controller', self.controller_name_sc)
         main_templates = os.path.join(options.PROJECT_ROOT, self.app_name, "templates", self.app_name)
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
@@ -143,9 +143,9 @@ class AddControllerManager:
                          self.reps)
 
     def add_to_organizer(self, add_css=True):
-        org_js_file_path = os.path.join(options.PROJECT_ROOT, "Assets/src", self.app_name,
+        org_js_file_path = os.path.join(options.PROJECT_ROOT, self.app_name, "Assets/src", self.app_name,
                                      "%s.organizer.js" % self.app_name)
-        org_style_file_path = os.path.join(options.PROJECT_ROOT, "Assets/src", self.app_name,
+        org_style_file_path = os.path.join(options.PROJECT_ROOT, self.app_name, "Assets/src", self.app_name,
                                      "%s.style.scss" % self.app_name)
 
         if not os.path.exists(org_js_file_path):
@@ -171,7 +171,7 @@ class AddControllerManager:
 
     def add_js_test(self):
         text = prepare_as_string(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_test.js.text"), self.reps)
-        fp = os.path.join(options.PROJECT_ROOT, 'Assets/tests', f"{self.app_name}.test.js")
+        fp = os.path.join(options.PROJECT_ROOT, self.app_name, 'Assets/tests', f"{self.app_name}.test.js")
         fout = open(fp, "a", encoding='utf-8')
         fout.write(text)
         fout.close()

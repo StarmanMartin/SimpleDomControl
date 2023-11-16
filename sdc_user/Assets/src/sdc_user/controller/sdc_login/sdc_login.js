@@ -1,4 +1,4 @@
-import {AbstractSDC, app, trigger} from 'sdc';
+import {AbstractSDC, app, trigger, socketReconnect} from 'sdc';
 
 class SdcLoginController extends AbstractSDC {
 
@@ -41,6 +41,7 @@ class SdcLoginController extends AbstractSDC {
     }
 
     onSubmit() {
+        socketReconnect();
         trigger('login');
     }
 

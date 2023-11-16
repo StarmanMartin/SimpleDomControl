@@ -5,7 +5,7 @@ describe('§CONTROLLERNAMETITLE§', () => {
 
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
-        const a = await get_controller('§APPNAME§',
+        const a = await test_utils.get_controller('§APPNAME§',
                                        '§TAG§',
                                        '<div><h1>Controller Loaded</h1></div>',
                                        '<div class="">Loading</div>');

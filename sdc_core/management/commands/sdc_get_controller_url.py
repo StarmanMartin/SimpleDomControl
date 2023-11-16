@@ -3,7 +3,7 @@ from .init_add.add_controller_manager import AddControllerManager
 
 
 class Command(BaseCommand):
-    help = 'Checks if a SDC controller exists'
+    help = 'Get the django url path of a SDC controller if it exists'
 
     def add_arguments(self, parser):
         parser.add_argument('controller_name', type=str, help='The name of the controller as snake_case')
@@ -12,7 +12,4 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         c_name_sc = options['controller_name']
-        if AddControllerManager.check_controller_name(c_name_sc):
-            self.stdout.write("TRUE")
-        else:
-            self.stdout.write("FALSE")
+        return AddControllerManager.get_url(c_name_sc)

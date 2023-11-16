@@ -1,10 +1,11 @@
-import {AbstractSDC, app, trigger} from 'sdc';
+import {AbstractSDC, app} from 'sdc';
 
-class SdcLogoutController extends AbstractSDC {
+
+class TestSdcTwoController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/sdc_logout"; //<sdc-logout></sdc-logout>
+        this.contentUrl = "/sdc_view/test_app_one/test_sdc_two"; //<test-sdc-two></test-sdc-two>
 
         /**
          * Events is an array of dom events.
@@ -39,10 +40,6 @@ class SdcLogoutController extends AbstractSDC {
         return super.onRefresh();
     }
 
-    onSubmit() {
-        trigger('logout');
-    }
-
 }
 
-app.register(SdcLogoutController).addMixin('sdc-auto-submit');
+app.register(TestSdcTwoController);

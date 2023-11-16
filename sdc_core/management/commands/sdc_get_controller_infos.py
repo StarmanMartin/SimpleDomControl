@@ -38,21 +38,29 @@ class Command(BaseCommand):
     def _parse_controller_to_info_json(self, app_name, controller_name):
         controller_asset_dir = os.path.join(self.src_path, app_name, 'controller', controller_name)
         app = importlib.import_module(app_name)
-        app_path = os.path.join(os.path.dirname(app.__file__), 'sdc_views.py')
+        app_path = os.path.dirname(app.__file__)
+        app_view_path = os.path.join(app_path, 'sdc_views.py')
+        app_asset_path = os.path.join(app_path, 'Assets/src', app_name, 'controller')
+        app_template_path = os.path.join(app_path, 'templates', app_name, 'sdc')
 
         view_class_name = convert_to_camel_case(controller_name)
 
         info =  {
             'name': controller_name,
-            'controller_asset_dir': controller_asset_dir,
-            'sdc_view_file': app_path,
-            'sdc_view_file_number': self._get_class_line_number(app_path, view_class_name),
+            'controller_asset_dir': app_asset_path,
+            'sdc_view_file': app_view_path,
+            'sdc_view_file_number': self._get_class_line_number(app_view_path, view_class_name),
             'url': AddControllerManager.get_url(controller_name),
         }
-        for extention in ['js', 'scss', 'html']:
-            file = os.path.join(controller_asset_dir, controller_name + '.' + extention)
+
+        for extention in ['js', 'scss']:
+            file = os.path.join(app_asset_path, controller_name, controller_name + '.' + extention)
             if os.path.isfile(file):
                 info[extention] = file
+
+        file = os.path.join(app_template_path, controller_name + '.html')
+        if os.path.isfile(file):
+            info['html'] = file
 
         return info
 
