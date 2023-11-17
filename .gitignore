@@ -12,3 +12,5 @@ __pycache__/
 sdc.zip
 /docs/_build/
 /.tool-versions
+/sdc_tools/Assets/src/**/*.html
+/sdc_user/Assets/src/**/*.html

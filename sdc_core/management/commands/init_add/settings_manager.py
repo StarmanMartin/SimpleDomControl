@@ -1,7 +1,18 @@
+import importlib
 import re
 import os
+
+from django.core.management import CommandError
+
 from sdc_core.management.commands.init_add import options
 from django.conf import settings
+
+def get_app_path(app_name):
+    try:
+        app_module = importlib.import_module(app_name)
+        return os.path.dirname(app_module.__file__)
+    except:
+        raise CommandError(f"{app_name} is not an installed app")
 
 
 class SettingsManager:
@@ -83,6 +94,19 @@ class SettingsManager:
                 app_list.append(app_name)
 
         return app_list
+
+    def get_sdc_apps(self):
+        self.find_and_set_project_name()
+        app_list = []
+        for app_name in self.get_setting_vals().INSTALLED_APPS:
+            if os.path.exists(os.path.join(get_app_path(app_name), 'sdc_views.py')):
+                app_list.append(app_name)
+
+        return app_list
+
+
+
+
 
     def get_main_url_path(self):
         return os.path.join(options.PROJECT_ROOT, self.get_setting_vals().ROOT_URLCONF.replace(".", "/") + ".py")

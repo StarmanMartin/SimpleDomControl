@@ -1,10 +1,7 @@
-import logging
 import os
 import shutil
 import subprocess
 import sys
-
-from pytest_check import check
 
 from pytests.utils import are_dir_trees_equal
 
