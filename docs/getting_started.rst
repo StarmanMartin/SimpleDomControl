@@ -18,7 +18,7 @@ Navigate to your project container directory and run the following chell command
     $ virtualenv venv
     $ source venv/bin/activate
     $ pip install django
-    $ pip install git+https://github.com/StarmanMartin/SimpleDomControl@0.3.2
+    $ pip install simpledomcontrol
     $ sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_core',/g" ./$PROJECT_NAME/settings.py
     $ sed -i "s/'DIRS'\: \[\]/'DIRS'\: \[BASE_DIR \/ 'templates'\]/g" ./$PROJECT_NAME/settings.py
     $ python manage.py sdc_init
@@ -136,14 +136,17 @@ The following files are also altered in this process:
 .. code-block:: diff
 
     import os
+    + os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ElnAdapter.settings')
+
+    + import django
+    + django.setup()
 
     + from channels.auth import AuthMiddlewareStack
     + from channels.routing import ProtocolTypeRouter, URLRouter
+    + from . import routing
     from django.core.asgi import get_asgi_application
 
-    + from . import routing
-
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
+    - os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')
 
     - application = get_asgi_application()
 

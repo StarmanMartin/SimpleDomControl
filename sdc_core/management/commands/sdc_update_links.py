@@ -17,6 +17,7 @@ def relative_symlink(src, dst):
     dir = os.path.dirname(dst)
     Src = os.path.relpath(src, dir)
     Dst = os.path.join(dir, os.path.basename(src))
+    os.makedirs(dir, exist_ok=True)
     return os.symlink(Src, Dst)
 
 def make_app_links(app_name):

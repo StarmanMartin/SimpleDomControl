@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "SimpleDomControl"
-version = "0.4.1"
+version = "0.4.2"
 authors = [ "Martin Starman <private@martin-starman.com>", ]
 description = "Simple DOM control -> a django MVC framework"
 readme = "README.md"
@@ -19,12 +19,12 @@ homepage = "https://github.com/StarmanMartin/sdc"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-django = "^4.1.7"
-attrs = "^22.2.0"
 daphne = "^4.0.0"
-psycopg2 = "^2.9.6"
 channels = "^4.0.0"
 channels-redis = "^4.1.0"
+django = "^4.2.7"
+psycopg2-binary = "^2.9.9"
+attrs = "^23.1.0"
 
 [tool.pytest.ini_options]
 pythonpath = [

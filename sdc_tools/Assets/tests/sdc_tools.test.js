@@ -3,6 +3,7 @@
  */
 
 import {test_utils} from "sdc";
+import '../src/sdc_tools/sdc_tools.organizer.js'
 
 
 describe('SdcNavigator', () => {

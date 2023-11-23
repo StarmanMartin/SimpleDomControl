@@ -4,7 +4,7 @@ Core of SDC
 The *SDC* package, which consists of three Django apps:
 *sdc_core*, *sdc_tools*, and *sdc_user*. The *sdc_core* Django app serves as the foundation of
 *SDC*. It encompasses essential components such as management command scripts and a *consumer.py*,
-which acts as a handler for all *SDC* websocket requests. Additionally, the sdc_core app houses a
+which acts as a handler for all *SDC* websocket requests. Additionally, the *sdc_core* app houses a
 Python package named *sdc_extensions*.
 
 
@@ -55,7 +55,7 @@ name. See  for more details.
 
 .. code-block:: sh
 
-    Enter number to select an Django app:
+    Enter number to select a Django app:
     1 -> mypage
     2 -> ...
     Enter number: [2] 1
@@ -66,8 +66,8 @@ name. See  for more details.
 ******************
 
 The *sdc_update_url* updated the *contentUrl* property of the sdc controller.
-This command is only nedded if you change the auto generted path in the *sdc_urls.py*
-files manually. For example let us a numeric parameter to the content of the about me controller.
+This command is only needed if you change the auto generated path in the *sdc_urls.py*
+files manually. For example let us a numeric parameter to the url path of the about me controller.
 
 .. code-block:: diff
 
@@ -83,14 +83,13 @@ files manually. For example let us a numeric parameter to the content of the abo
 *mysite/mypage/sdc_urls.py*
 
 
-In this case the auto generated url to get the html of the controller would no longer be valide. To update  the (all) url simply run:
+In this case the auto generated url to get the html of the controller would no longer be valid. To update the url simply run:
 
 .. code-block:: sh
 
     $ python manage.py sdc_update_url
 
-
-The result in the controller is presented below:
+It automatically checks the content URL paths of each controller. If a path has changed, it updates the controller's *content_url*. The resulting changes in the controller are presented below:
 
 .. code-block:: diff
 
@@ -105,3 +104,21 @@ The result in the controller is presented below:
     ...
 
 *mysite/mypage/static/mypage/js/sdc/about_me.js*
+
+4 - sdc_update_links
+********************
+
+The *sdc_update_links* command organizes client files by rearranging them. All client files are typically organized within their respective Django apps. However, for the sake of convenience, all client-related files are also linked in a global Asset directory. This directory also contains all build scripts for the client.
+
+5 - sdc_get_model_infos
+***********************
+
+The *sdc_get_model_infos* command returns a JSON object containing all the necessary information for IDEs to connect with all files related to a certain model.
+
+6 - sdc_get_controller_infos
+***********************
+
+The *sdc_get_controller_infos* command returns a JSON object containing all the necessary information for IDEs to connect with all files related to a certain sdc-controller.
+
+SDC extensions
+--------------

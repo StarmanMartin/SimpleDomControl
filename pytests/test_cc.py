@@ -6,7 +6,6 @@ import logging
 from subprocess import PIPE
 
 from pytests.utils import are_dir_trees_equal
-from pytest_check import check
 
 
 def test_cc(init_project):

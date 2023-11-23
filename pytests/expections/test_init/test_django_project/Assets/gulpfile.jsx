@@ -1,6 +1,6 @@
 'use strict'
 
-const {src, dest, series, parallel} = require('gulp');
+const {src, dest, series, watch, parallel} = require('gulp');
 const sass = require('gulp-sass')(require('sass'));
 const webpack = require('webpack-stream');
 const through = require('through2');

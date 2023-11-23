@@ -1,7 +1,7 @@
 Installation
 ============
 
-Currently SDC is only available in a pre-release version on `github <https://github.com/StarmanMartin/SimpleDomControl/releases/latest>`_.
+Currently SDC is available in a pre-release version on `github <https://github.com/StarmanMartin/SimpleDomControl/releases/latest>`_ and on PyPI.
 
 PyPi
 ****
@@ -11,7 +11,7 @@ Simply use:
 
 .. code-block:: sh
 
-    $ pip install git+https://github.com/StarmanMartin/SimpleDomControl@latest
+    $ pip install simpledomcontrol
 
 
 Requirements
