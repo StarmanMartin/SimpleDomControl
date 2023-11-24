@@ -149,7 +149,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 STATIC_ROOT =  BASE_DIR /  'www/'
 
-STATICFILES_DIRS = [ BASE_DIR /  "static",  BASE_DIR / "Assets/node_modules" ]
+STATICFILES_DIRS = [ BASE_DIR /  "static",  BASE_DIR / "node_modules" ]
 
 ASGI_APPLICATION = 'test_django_project.asgi.application'
 
