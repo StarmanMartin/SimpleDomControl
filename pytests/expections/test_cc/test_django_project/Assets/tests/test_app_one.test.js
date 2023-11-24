@@ -3,43 +3,40 @@
  */
 
 import {test_utils} from "sdc";
+import {} from "../src/test_app_one/test_app_one.organizer.js";
+import '../../../Assets/__tests__/src/sdc_tools/sdc_tools.organizer.js'
+import '../../../Assets/__tests__/src/sdc_user/sdc_user.organizer.js'
 
 describe('TestSdcOne', () => {
-    let controller, Controller;
+    let controller;
 
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
-        const a = await test_utils.get_controller('test_app_one',
-                                       'test-sdc-one',
-                                       '<div><h1>Controller Loaded</h1></div>',
-                                       '<div class="">Loading</div>');
-        controller = a.instance;
-        Controller = a.class;
+        controller = await test_utils.get_controller('test-sdc-one',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
     });
 
     test('Load Content', async () => {
-        const $div = controller.$container.find('div');
-        expect($div.length).toBe(1);
+        const $div = $('body').find('test-sdc-one');
+        expect($div.length).toBeGreaterThan(0);
     });
 
 });
 
 describe('TestSdcTwo', () => {
-    let controller, Controller;
+    let controller;
 
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
-        const a = await test_utils.get_controller('test_app_one',
-                                       'test-sdc-two',
-                                       '<div><h1>Controller Loaded</h1></div>',
-                                       '<div class="">Loading</div>');
-        controller = a.instance;
-        Controller = a.class;
+        controller = await test_utils.get_controller('test-sdc-two',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
     });
 
     test('Load Content', async () => {
-        const $div = controller.$container.find('div');
-        expect($div.length).toBe(1);
+        const $div = $('body').find('test-sdc-two');
+        expect($div.length).toBeGreaterThan(0);
     });
 
 });

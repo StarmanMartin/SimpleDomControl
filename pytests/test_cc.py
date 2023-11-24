@@ -2,7 +2,6 @@ import json
 import re
 import sys
 import subprocess
-import logging
 from subprocess import PIPE
 
 from pytests.utils import are_dir_trees_equal

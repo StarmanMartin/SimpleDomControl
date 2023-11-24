@@ -3,3 +3,6 @@
  */
 
 import {test_utils} from "sdc";
+import {} from "../src/§APPNAME§/§APPNAME§.organizer.js";
+import '../../../Assets/__tests__/src/sdc_tools/sdc_tools.organizer.js'
+import '../../../Assets/__tests__/src/sdc_user/sdc_user.organizer.js'

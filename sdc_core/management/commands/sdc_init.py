@@ -44,8 +44,8 @@ class Command(BaseCommand):
                          os.path.join(project_app_root, "routing.py"),
                          options.REPLACEMENTS)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "requirements.txt"),
-                         os.path.join(options.PROJECT_ROOT, "requirements.txt"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "package.json"),
+                         os.path.join(options.PROJECT_ROOT, "package.json"),
                          options.REPLACEMENTS)
 
         asgi_file = os.path.join(project_app_root, "asgi.py")
