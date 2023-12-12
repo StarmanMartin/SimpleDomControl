@@ -1,4 +1,4 @@
-import {AbstractSDC, app, trigger, on} from 'sdc';
+import {AbstractSDC, app, trigger, on} from 'sdc_client';
 
 export class SdcNavigationClientController extends AbstractSDC {
 

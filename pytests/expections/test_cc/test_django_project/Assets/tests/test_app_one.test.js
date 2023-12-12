@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import {test_utils} from "sdc";
+import {test_utils} from 'sdc_client';
 import {} from "../src/test_app_one/test_app_one.organizer.js";
 import '../../../Assets/__tests__/src/sdc_tools/sdc_tools.organizer.js'
 import '../../../Assets/__tests__/src/sdc_user/sdc_user.organizer.js'

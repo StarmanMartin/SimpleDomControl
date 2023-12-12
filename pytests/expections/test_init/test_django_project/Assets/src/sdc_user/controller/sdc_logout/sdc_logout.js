@@ -1,4 +1,4 @@
-import {AbstractSDC, app, trigger, socketReconnect} from 'sdc';
+import {AbstractSDC, app, trigger, socketReconnect} from 'sdc_client';
 
 class SdcLogoutController extends AbstractSDC {
 

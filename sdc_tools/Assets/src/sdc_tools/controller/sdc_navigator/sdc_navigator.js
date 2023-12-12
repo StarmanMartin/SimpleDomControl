@@ -1,4 +1,4 @@
-import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from "sdc";
+import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from 'sdc_client';
 
 
 
@@ -59,6 +59,8 @@ export class SdcNavigatorController extends AbstractSDC {
     onLoad($html) {
         on('onNavLink', this);
         on('onNavigateToController', this);
+        on('goTo', this);
+        on('onNavigateToController', this);
         on('changeMenu', this);
         on('navigateToPage', this);
         on('navLoaded', this);
@@ -108,6 +110,10 @@ export class SdcNavigatorController extends AbstractSDC {
         this.onNavigateToController(link);
     }
 
+    goTo(controller_path_as_array, args = null) {
+        return this.onNavigateToController(controller_path_as_array, args);
+    }
+
     onNavigateToController(controller_path_as_array, args = null) {
         if (Array.isArray(controller_path_as_array)) {
             controller_path_as_array = controller_path_as_array.join('~')
@@ -115,6 +121,12 @@ export class SdcNavigatorController extends AbstractSDC {
         if (args) {
             if (Array.isArray(args)) {
                 args = args.join('&')
+            } else if (typeof args === 'object') {
+                const args_list = [];
+                for(const [key, value] of Object.entries(args)) {
+                    args_list.push(`${key}=${value}`);
+                }
+                args = args_list.join('&')
             }
             controller_path_as_array += '~&' + args
         }
@@ -234,7 +246,6 @@ export class SdcNavigatorController extends AbstractSDC {
 
     _updateBreadcrumb() {
         this._breadcrumb.splice(this._history_path.length);
-        const href = Array(this._breadcrumb.length - 1).fill('..');
         const $breadcrumps = this.find('.breadcrumb');
         const self = this;
         $breadcrumps.each(function () {
@@ -242,6 +253,11 @@ export class SdcNavigatorController extends AbstractSDC {
             $breadcrump.safeEmpty();
             let idx = $breadcrump.data('offset');
             idx = idx ? parseInt(idx) : 0;
+            const b_length = self._breadcrumb.length - idx - 1;
+            let href = [];
+            if(b_length > 0) {
+                href = Array(self._breadcrumb.length - idx - 1).fill('..');
+            }
             for (let i = idx; i < self._breadcrumb.length-1; ++i) {
                 $breadcrump.append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${self._breadcrumb[i]}</a></li>`);
                 href.pop();

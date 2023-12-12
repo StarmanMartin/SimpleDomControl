@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc';
+import {AbstractSDC, app} from 'sdc_client';
 
 
 class TestSdcOneController extends AbstractSDC {

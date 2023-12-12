@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 
-import {test_utils} from "sdc";
+import {test_utils} from 'sdc_client';
 import '../src/sdc_tools/sdc_tools.organizer.js'
 
 

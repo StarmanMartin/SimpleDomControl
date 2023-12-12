@@ -1,6 +1,6 @@
 import {} from "./sdc_tools/sdc_tools.organizer.js";
 import {} from "./sdc_user/sdc_user.organizer.js";
-import {app} from 'sdc';
+import {app} from 'sdc_client';
 
 import('jquery').then(({default: $})=> {
     window['jQuery'] = window['$'] = $;

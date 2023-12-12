@@ -1,4 +1,4 @@
-import {AbstractSDC, app, trigger} from "sdc";
+import {AbstractSDC, app, trigger} from 'sdc_client';
 
 
 export class SdcModelFormController extends AbstractSDC {

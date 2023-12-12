@@ -1,4 +1,4 @@
-import {AbstractSDC, clearErrorsInForm, setErrorsInForm, app} from 'sdc';
+import {AbstractSDC, clearErrorsInForm, setErrorsInForm, app} from 'sdc_client';
 
 
 export class SdcAutoSubmitController extends AbstractSDC {
