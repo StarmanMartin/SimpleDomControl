@@ -1,6 +1,6 @@
 import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from 'sdc_client';
 
-
+import {isMatch} from 'lodash';
 
 const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
@@ -36,6 +36,7 @@ export class SdcNavigatorController extends AbstractSDC {
             'click': {
                 '.navigation-links': function (btn, ev) {
                     ev.preventDefault();
+                    // noinspection JSPotentiallyInvalidUsageOfClassThis
                     this.onNavLink(btn, ev);
                 }
             }
@@ -142,9 +143,9 @@ export class SdcNavigatorController extends AbstractSDC {
         this.state && this._updateButton(this.state.buttonSelector);
         this._is_processing = true;
         this._origin_target = target;
-        this._previous_args = args;
 
-        let viewObj = this._getSubViewObj(this._origin_target);
+        let viewObj = this._getSubViewObj(args);
+        this._previous_args = args;
 
         if (viewObj.container.container.data('modal')) {
             if (!this._currentModal) {
@@ -249,9 +250,9 @@ export class SdcNavigatorController extends AbstractSDC {
         const $breadcrumps = this.find('.breadcrumb');
         const self = this;
         $breadcrumps.each(function () {
-            const $breadcrump = $(this);
-            $breadcrump.safeEmpty();
-            let idx = $breadcrump.data('offset');
+            const $breadcrumb = $(this);
+            $breadcrumb.safeEmpty();
+            let idx = $breadcrumb.data('offset');
             idx = idx ? parseInt(idx) : 0;
             const b_length = self._breadcrumb.length - idx - 1;
             let href = [];
@@ -259,11 +260,11 @@ export class SdcNavigatorController extends AbstractSDC {
                 href = Array(self._breadcrumb.length - idx - 1).fill('..');
             }
             for (let i = idx; i < self._breadcrumb.length-1; ++i) {
-                $breadcrump.append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${self._breadcrumb[i]}</a></li>`);
+                $breadcrumb.append(`<li class="breadcrumb-item"><a class="navigation-links" href="${href.join('~')}">${self._breadcrumb[i]}</a></li>`);
                 href.pop();
             }
 
-            self.find('.breadcrumb').append(`<li class="breadcrumb-item active">${self._breadcrumb.at(-1)}</li>`);
+            $breadcrumb.append(`<li class="breadcrumb-item active">${self._breadcrumb.at(-1)}</li>`);
         });
     }
 
@@ -322,7 +323,8 @@ export class SdcNavigatorController extends AbstractSDC {
         return $last_detail_container;
     }
 
-    _getSubViewObj(target) {
+    _getSubViewObj(args) {
+        const target = this._origin_target;
         let idx = 0;
         let isBack = false;
         while (idx < Math.min(target.length, this._history_path.length)
@@ -332,7 +334,7 @@ export class SdcNavigatorController extends AbstractSDC {
 
         if (idx >= target.length && target[idx - 1] === this._history_path[idx - 1]) {
             idx = target.length - 1;
-            isBack = target.length < this._history_path.length;
+            isBack = target.length < this._history_path.length && isMatch(this._previous_args, args);
             this._history_path = [...target];
         } else if (idx >= target.length) {
             idx = target.length - 1;
@@ -501,7 +503,7 @@ export class SdcNavigatorController extends AbstractSDC {
         return false;
     }
 
-    login(pk) {
+    login() {
         app.cleanCache();
         this.onNavigateToController(window.location.pathname);
     }

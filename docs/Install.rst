@@ -17,4 +17,4 @@ Simply use:
 Requirements
 ************
 
-Make sure you have  Python (> 3.9), Django (> 4.1.7) and Node.js (> 18.18.0) installed on your computer.
+Make sure you have  Python (> 3.9), Django (> 4.2.7) and Node.js (> 18.18.0) installed on your computer.

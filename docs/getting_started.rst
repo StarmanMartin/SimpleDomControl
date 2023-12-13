@@ -1,4 +1,5 @@
 .. _getting-started-label:
+
 Getting Started
 ===============
 
@@ -318,31 +319,12 @@ The whole client is organized in the *Assets* directory
 Let's first look at the dependencies in the package.json
 file. The following list presents all the development dependencies.
 
-* @babel/core = ^7.21.0
-* @babel/preset-env = ^7.20.2
-* babel-loader = ^9.1.2
-* css-loader = ^6.7.3
-* gulp = ^4.0.2
-* gulp-clean = ^0.4.0
-* gulp-rename = ^2.0.0
-* gulp-sass = ^5.1.0
-* gulp-sourcemaps = ^3.0.0
-* gulp-uglify = ^3.0.2
-* jest = ^28.1.3
-* sass = ^1.58.3
-* sass-loader = ^13.2.0
-* style-loader = ^3.3.1
-* terser-webpack-plugin = ^5.3.9
-* through2 = ^4.0.2
-* webpack = ^5.75.0
-* webpack-stream = ^7.0.0
+.. include:: js_dev_deps.rst
 
 All development dependencies are necessary for the build process.
 The remaining dependencies need to be installed for the error-free application of SDC
 
-* bootstrap = ^5.2.3
-* jquery = ^3.6.3
-* lodash = ^4.17.21"
+.. include:: js_deps.rst
 
 Please run the following to initialize the client.
 

@@ -1,30 +1,29 @@
 .. _sdc-controller-label:
+
 SDC controller
-=============
+==============
 
-A controller has two parts a client and a server.Vorab folgt
-ein klenes Kapitel über das generieren eines Controllers.
-Darauf folgend wir in einem absätzen vorgestellt wie der
-Server code zu verstehen ist. Darauf volgent kommt ein kurzer
-überplick über den Client code (HTML, SCSS, JavaScript)
+A controller has two parts a client and a server. This is preceded by a short chapter on generating a controller.
+This is followed by a paragraph on how the
+server code is to be understood. This is followed by a short
+overview of the client code (HTML, SCSS, JavaScript)
 
-.. _new-controller-label:
+.. _new-controller-controller:
+
 New controller
--------------
+--------------
 
-Wir bitten sie das Erstellen von Contollern dem dafür bereit gestellen
-script zu überlassen. Um einen neuen controller zu erwtellen führen
-sie follgenden Befehl in dem Prpjekt Verzeichniss aus.
+We recommend delegating the creation of controllers to the provided scripts designed for this purpose.
+To initiate the creation of a new controller, execute the following command within the project directory:
 
 .. code-block:: sh
 
     $ python manage.py sdc_cc
 
-You will need two answer two questions in the terminal to finish the process.
-Firstly, it needs to know in witch Django app (we choose  *mypage* in the example below)
-the controller has to be created. Secondly, you have to give the new controller a name
-(in the example the name is *about_me*). Importante, only use snake case for the controller
-name. See  for more details.
+To complete the process, you will be prompted with two questions in the terminal. Firstly,
+specify the Django app in which the controller should be created (for example, *mypage*).
+Secondly, provide a name for the new controller (in this example, the name is about_me).
+It's important to note that only snake case should be used for the controller name. For additional details, refer to :ref:`sdc-cc-core`.
 
 Alternative können die fragen auch übergangen werden.
 

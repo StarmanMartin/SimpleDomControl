@@ -1,6 +1,6 @@
 import os
 import types
-
+import traceback
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
@@ -182,8 +182,14 @@ class SDCConsumer(WebsocketConsumer):
             }, json_data.get('id'))
 
         except Exception as e:
+            if settings.DEBUG:
+                extracted_list = traceback.extract_tb(e.__traceback__)
+                traceback.print_tb(e.__traceback__)
+                e_text = e.__str__() + '\n'.join([item for item in traceback.StackSummary.from_list(extracted_list).format()])
+            else:
+                e_text = _f('Something went wrong')
             self.state_error({
-                'msg': _f('Something went wrong'),
+                'msg': e_text,
                 'header': _f('Upps!!')
             }, json_data.get('id'))
 
@@ -235,15 +241,15 @@ class SDCModelConsumer(WebsocketConsumer):
         }))
 
     def receive(self, text_data=None, bytes_data=None):
-        type = 'error'
+        msg_type = 'error'
         try:
             json_data = json.loads(text_data)
             self.scope['request'] = json_data
-            type = json_data.get('event_type', type)
-            self.scope['event_type'] = type
+            msg_type = json_data.get('event_type', msg_type)
+            self.scope['event_type'] = msg_type
             event_type = "%s_%s" % (json_data['event'], json_data['event_type'])
             self.queryset = json_data['args']['model_query']
-            if not self.model.is_authorised(self.scope['user'], type, self.queryset):
+            if not self.model.is_authorised(self.scope['user'], msg_type, self.queryset):
                 raise PermissionDenied
             if event_type == 'model_connect':
                 self._init_connection(json_data)
@@ -275,18 +281,22 @@ class SDCModelConsumer(WebsocketConsumer):
                     'is_error': False
                 }))
         except PermissionDenied as e:
-            if settings.DEBUG: raise e
             self.state_error({
-                'type': type,
+                'type': msg_type,
                 'msg': _f('403 Not allowed!'),
                 'header': _f('Upps!!')
             })
 
         except Exception as e:
-            if settings.DEBUG: raise e
+            if settings.DEBUG:
+                extracted_list = traceback.extract_tb(e.__traceback__)
+                traceback.print_tb(e.__traceback__)
+                e_text = e.__str__() + '\n'.join([item for item in traceback.StackSummary.from_list(extracted_list).format()])
+            else:
+                e_text = _f('Something went wrong')
             self.state_error({
-                'type': type,
-                'msg': _f('Something went wrong'),
+                'type': msg_type,
+                'msg': e_text,
                 'header': _f('Upps!!')
             })
 

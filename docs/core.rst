@@ -28,6 +28,8 @@ Let us first list all important commands:
 
 A brief summary of the terminal commands:
 
+.. _sdc-init-core:
+
 1 - sdc_init
 ************
 
@@ -37,10 +39,12 @@ The command *sdc_init* initializes SDC in your project. The *sdc_init* command h
 
     $ python manage.py sdc_init
 
+.. _sdc-cc-core:
+
 2 - sdc_cc
 **********
 
-The command *sdc_cc* creates a new SDC controller. A short introduction can be found here: :ref:`_new-model-label`.
+The command *sdc_cc* creates a new SDC controller. A short introduction can be found here: :ref:`new-controller-controller`.
 Make sure that you are in the same directory as the *manage.py* and run:
 
 .. code-block:: sh
@@ -116,7 +120,7 @@ The *sdc_update_links* command organizes client files by rearranging them. All c
 The *sdc_get_model_infos* command returns a JSON object containing all the necessary information for IDEs to connect with all files related to a certain model.
 
 6 - sdc_get_controller_infos
-***********************
+****************************
 
 The *sdc_get_controller_infos* command returns a JSON object containing all the necessary information for IDEs to connect with all files related to a certain sdc-controller.
 
