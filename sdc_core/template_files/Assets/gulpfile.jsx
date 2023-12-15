@@ -1,6 +1,6 @@
 'use strict'
 
-const {src, dest, series, watch, parallel} = require('gulp');
+const {src, dest, series, parallel} = require('gulp');
 const sass = require('gulp-sass')(require('sass'));
 const webpack = require('webpack-stream');
 const through = require('through2');
@@ -50,6 +50,7 @@ function collect_javascript() {
     return src('./src/**/*.js', {follow: true})
         .pipe(dest('./__tests__/src'));
 }
+
 function javascript() {
     const webpack_config = (process.env.NODE_ENV === 'development' ? './webpack.config/webpack.development.config.jsx' : './webpack.config/webpack.production.config.jsx');
 
@@ -67,11 +68,9 @@ function clean(done) {
 }
 
 function link_files(cb) {
-    const python = process.env.PYTHON
+    let python = process.env.PYTHON
     if (!python) {
-        console.error(`The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed`);
-        cb();
-        return;
+        python = 'python';
     }
 
     process.chdir('..');
@@ -79,14 +78,20 @@ function link_files(cb) {
         continueOnError: true, // default = false, true means don't emit error event
         pipeStdout: true, // default = false, true means stdout is written to file.contents
     };
-    return src(python)
-        .pipe(exec(file => `${file.path} manage.py sdc_update_links`, options).on('error', function (err) {
-            console.error('Error:', err.message);
-            this.emit('end'); // Continue with the next task
-        })).on('end', () => {
-            process.chdir('./Assets');
-            cb();
-        });
+    try {
+        return src('./manage.py')
+            .pipe(exec(file => `${python} ${file.path} sdc_update_links`, options).on('error', function (err) {
+                console.error('Error:', err.message);
+                console.error(`The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed`);
+                this.emit('end'); // Continue with the next task
+            })).on('end', () => {
+                process.chdir('./Assets');
+            });
+    } catch {
+        console.error(`The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed`);
+        process.chdir('./Assets');
+        cb();
+    }
 
 }
 
@@ -104,7 +109,7 @@ function watch_scss() {
     const watcher = chokidar.watch('./src/**/*.scss', {followSymlinks: true});
     watcher.on('change', (a) => {
         console.log(`${a} has changed! SCSS is recompiling...`);
-        scss().on('end', ()=>{
+        scss().on('end', () => {
             console.log(`... recompiling done!`);
         });
     });
@@ -126,6 +131,7 @@ exports.watch_webpack = watch_webpack;
 
 exports.develop = series(function (done) {
     process.env.NODE_ENV = 'development'
+    process.env.BABEL_ENV = 'development'
     done();
 }, defaultBuild, parallel(
     watch_scss,
