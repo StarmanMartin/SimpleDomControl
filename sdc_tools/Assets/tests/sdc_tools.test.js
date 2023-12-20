@@ -12,6 +12,7 @@ describe('SdcNavigator', () => {
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
         controller = await test_utils.get_controller('sdc-navigator', {}, '<div><h1>Controller loading...</h1></div>');
+        console.log(controller)
     });
 
     test('Load Content', async () => {

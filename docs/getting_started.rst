@@ -312,8 +312,8 @@ The whole client is organized in the *Assets* directory
              ├─ webpack.production.config.js
              └─ webpack.default.config.js
           ├─ .babelrc
-          ├─ gulpfile.js
-          └─ package.json
+          └─ gulpfile.js
+       ├─ package.json
        └─ ...
 
 Let's first look at the dependencies in the package.json
@@ -330,7 +330,6 @@ Please run the following to initialize the client.
 
 .. code-block:: sh
 
-    $ cd Assets
     $ npm install
 
 And you are done!!

@@ -18,6 +18,7 @@ import json
 from sdc_core.sdc_extentions.models import SdcModel
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
+from sdc_core.sdc_extentions.views import SdcAccessMixin
 
 ALL_MODELS = {
     model.__name__: model for model in apps.get_models() if hasattr(model, '__is_sdc_model__')
@@ -28,7 +29,7 @@ importlist = []
 
 class MsgManager:
     _messages = None
-    _msg_filepath = os.path.abspath(settings.BASE_DIR /  'templates/sdc_strings.json')
+    _msg_filepath = os.path.abspath(settings.BASE_DIR / 'templates/sdc_strings.json')
 
     @property
     def messages(self):
@@ -68,15 +69,14 @@ class ConsumerSerializer(Serializer):
 
     def handle_m2m_field(self, obj, field):
         super().handle_m2m_field(obj, field)
-        #self._current[field.name] = {
+        # self._current[field.name] = {
         #    'pk': self._current[field.name],
         #    'model': field.related_model.__name__,
         #    '__is_sdc_model__': True
-        #}
+        # }
 
     def _value_from_field(self, obj, field):
-
-        #if hasattr(field, 'foreign_related_fields') and ALL_MODELS.get(
+        # if hasattr(field, 'foreign_related_fields') and ALL_MODELS.get(
         #        field.related_model.__name__) == field.related_model:
         #    return {'pk': super()._value_from_field(obj, field), 'model': field.related_model.__name__,
         #            '__is_sdc_model__': True}
@@ -146,6 +146,10 @@ class SDCConsumer(WebsocketConsumer):
             if json_data['event'] == 'sdc_call':
                 controller_name = self.to_camel_case(json_data['controller'])
                 controller = import_function("%s.sdc_views.%s" % (json_data['app'], controller_name))
+                c_instance = controller()
+                if isinstance(c_instance, SdcAccessMixin):
+                    if not c_instance.check_requirements(self.scope['user']):
+                        raise PermissionDenied()
                 method = getattr(controller(), json_data['function'])
                 return_vals = method(channel=self, **json_data.get('args', {}))
                 return_vals_generator = []
@@ -160,20 +164,8 @@ class SDCConsumer(WebsocketConsumer):
                     'is_error': False
                 }))
                 for x in return_vals_generator: pass
-            elif json_data['event'] == 'sdc_add_group':
-                if json_data['group'] not in self.group_list:
-                    self.group_list.append(json_data['group'])
-                    async_to_sync(self.channel_layer.group_add)(
-                        json_data['group'],
-                        self.channel_name
-                    )
-            elif json_data['event'] == 'sdc_remove_group':
-                if json_data['group'] in self.group_list:
-                    self.group_list.remove(json_data['group'])
-                    async_to_sync(self.channel_layer.group_discard)(
-                        json_data['group'],
-                        self.channel_name
-                    )
+            else:
+                raise ValueError("event must be sdc_call")
 
         except PermissionDenied:
             self.state_error({
@@ -185,7 +177,7 @@ class SDCConsumer(WebsocketConsumer):
             if settings.DEBUG:
                 extracted_list = traceback.extract_tb(e.__traceback__)
                 traceback.print_tb(e.__traceback__)
-                e_text = e.__str__() + '\n'.join([item for item in traceback.StackSummary.from_list(extracted_list).format()])
+                e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
             else:
                 e_text = _f('Something went wrong')
             self.state_error({
@@ -237,37 +229,39 @@ class SDCModelConsumer(WebsocketConsumer):
             'type': event.get('type', 'error'),
             'is_error': True,
             'msg': event.get('msg', ''),
+            'event_id': event.get('event_id'),
             'header': event.get('header', ''),
         }))
 
     def receive(self, text_data=None, bytes_data=None):
         msg_type = 'error'
+        json_data = {}
         try:
             json_data = json.loads(text_data)
             self.scope['request'] = json_data
             msg_type = json_data.get('event_type', msg_type)
             self.scope['event_type'] = msg_type
             event_type = "%s_%s" % (json_data['event'], json_data['event_type'])
-            self.queryset = json_data['args']['model_query']
+            self.queryset = json_data['args'].get('model_query', {})
             if not self.model.is_authorised(self.scope['user'], msg_type, self.queryset):
                 raise PermissionDenied
             if event_type == 'model_connect':
                 self._init_connection(json_data)
-            if event_type == 'model_edit_form':
+            elif event_type == 'model_edit_form':
                 self._load_edit_form(json_data)
-            if event_type == 'model_create_form':
+            elif event_type == 'model_create_form':
                 self._load_create_form(json_data)
-            if event_type == 'model_list_view':
+            elif event_type == 'model_list_view':
                 self._load_list_view(json_data)
-            if event_type == 'model_detail_view':
+            elif event_type == 'model_detail_view':
                 self._load_detail_view(json_data)
-            if event_type == 'model_save':
+            elif event_type == 'model_save':
                 self._save_element(json_data)
-            if event_type == 'model_create':
+            elif event_type == 'model_create':
                 self._create_element(json_data)
-            if event_type == 'model_upload':
+            elif event_type == 'model_upload':
                 self._upload_file(json_data)
-            if event_type == 'model_delete':
+            elif event_type == 'model_delete':
                 self._delete_element(json_data)
             elif event_type == 'model_load':
                 model_data = ConsumerSerializer().serialize(self._load_model())
@@ -280,10 +274,14 @@ class SDCModelConsumer(WebsocketConsumer):
                     },
                     'is_error': False
                 }))
+            else:
+                raise ValueError(
+                    f"{json_data['event']} must be 'model' and {json_data['event_type']} must be in [load, delete, upload, create, save, detail_view, 'connect', 'edit_form', 'create_form', 'list_view']")
         except PermissionDenied as e:
             self.state_error({
                 'type': msg_type,
                 'msg': _f('403 Not allowed!'),
+                'event_id': json_data.get('event_id'),
                 'header': _f('Upps!!')
             })
 
@@ -291,12 +289,13 @@ class SDCModelConsumer(WebsocketConsumer):
             if settings.DEBUG:
                 extracted_list = traceback.extract_tb(e.__traceback__)
                 traceback.print_tb(e.__traceback__)
-                e_text = e.__str__() + '\n'.join([item for item in traceback.StackSummary.from_list(extracted_list).format()])
+                e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
             else:
                 e_text = _f('Something went wrong')
             self.state_error({
                 'type': msg_type,
                 'msg': e_text,
+                'event_id': json_data.get('event_id'),
                 'header': _f('Upps!!')
             })
 

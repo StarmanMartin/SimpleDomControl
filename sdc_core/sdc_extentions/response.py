@@ -42,7 +42,7 @@ def send_redirect(controller: str = None, back: bool = False, link_data: dict = 
     else:
         raise TypeError("Either URL or CONTROLLER must be set")
     kwargs['url-link'] = sdc_link_obj_factory(kwargs['url'])
-    return HttpResponse(json.dumps(kwargs, cls=DjangoJSONEncoder), content_type="application/json")
+    return HttpResponse(json.dumps(kwargs, cls=DjangoJSONEncoder), status=301, content_type="application/json")
 
 
 def send_success(template_name: str = None, context: dict = None, request = None, status= 'success', **kwargs):

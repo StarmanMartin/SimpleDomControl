@@ -32,12 +32,93 @@ Alternative können die fragen auch übergangen werden.
 
     $ python manage.py sdc_cc -a <django_app_name> -c <sdc_controller_name>
 
-Jedoch muss der *sdc_controller_name* im **snake_case** angegeben werden. Wenn die django app nich in den
+Jedoch muss der *sdc_controller_name* im **snake_case** angegeben werden. Wenn die django app nicht in den
 settings angegeben ist wir der angegeben parameter ignoriert.
 
 
 
-Auch wenn die die Model objecte die server logig zum großen teil ünerehemen kann gib SDC die möglichkeit
+Server part
+-----------
+
+A controller on the client side consists usually of three Files. A HTML template file a SCSS style file and the coed Javascript File.
+The Javascript contains the contoller class which ha a *contentUrl* property. This url points is registered at the *sdc_url.py* file which will be automaticly generted
+with the conroller. The registered url points at a python ViewClass. This Class extents *sdc_core.sdc_extentions.views.SDCView*. This Class is closely related
+to the *django.views.View* class. Additionally to the standard handler get, post, put etc. it also has the *get_content* handler. This method gets called only to
+render and serv the template.
+
+For the following example let us assume that we have a django project called *mysite* with an app called *myapp*.
 
 
+.. code-block:: python
+
+    ...
+    urlpatterns = [
+        # scd view below
+        ...
+        path('main_view', sdc_views.MainView.as_view(), name='scd_view_main_view'),
+        ...
+    ]
+    ...
+
+*./mysite/myapp/sdc_urls.py*
+
+.. code-block:: python
+
+    ...
+    class MainView(SDCView):
+        template_name='main_test/sdc/main_view.html'
+
+        def get_content(self, request, *args, **kwargs):
+            return render(request, self.template_name)
+    ...
+
+*./mysite/myapp/sdc_views.py*
+
+.. code-block:: js
+
+    ...
+    class MainViewController extends AbstractSDC {
+
+        constructor() {
+            super();
+            this.contentUrl = "/sdc_view/main_test/main_view"; //<main-view></main-view>
+
+    ...
+*./Assets/src/myapp/controller/main_view/main_view.js*
+
+To be able to work with this construct usfully it is nessesary to parameterize the query. Therefore you can either add url parameter in the *sdc_urls.py*
+
+
+.. code-block:: python
+
+    ...
+    urlpatterns = [
+        # scd view below
+        ...
+        path('main_view/<int:pk>', sdc_views.MainView.as_view(), name='scd_view_main_view'),
+        ...
+    ]
+    ...
+
+*./mysite/myapp/sdc_urls.py*
+
+If you then run
+
+.. code-block:: sh
+url
+    $ python manage.py sdc_update_urls
+
+the client will be automaticlly updetad its *contentUrl*
+
+.. code-block:: js
+
+    ...
+    class MainViewController extends AbstractSDC {
+
+        constructor() {
+            super();
+            this.contentUrl = "/sdc_view/main_test/main_view/%(pk)s"; //<main-view data-pk=""></main-view>
+
+Error handling and Premissions
+______________________________
 

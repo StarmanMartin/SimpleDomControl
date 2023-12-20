@@ -1,7 +1,5 @@
 import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from 'sdc_client';
 
-import {isMatch} from 'lodash';
-
 const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
 
@@ -334,7 +332,7 @@ export class SdcNavigatorController extends AbstractSDC {
 
         if (idx >= target.length && target[idx - 1] === this._history_path[idx - 1]) {
             idx = target.length - 1;
-            isBack = target.length < this._history_path.length && isMatch(this._previous_args, args);
+            isBack = target.length < this._history_path.length && _.isMatch(this._previous_args, args);
             this._history_path = [...target];
         } else if (idx >= target.length) {
             idx = target.length - 1;

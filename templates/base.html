@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+
+{% get_current_language as LANGUAGE_CODE %}
+
+<html lang="{{ LANGUAGE_CODE | default:'de' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <title>{% block title %}{% endblock %}</title>
+    <script>
+        window.LANGUAGE_CODE = "{{ LANGUAGE_CODE | default:'de' }}";
+        window.CSRF_TOKEN = '{{ csrf_token }}';
+        window.DEBUG = {% if debug %} true {% else %} false {% endif %};
+        window.VERSION = '{{VERSION}}';
+    </script>
+
+    <!--link href="{% static 'sdc_core/img/ico/favicon.ico' %}" rel="shortcut icon"-->
+
+    <script type="text/javascript" src="{% url 'javascript-catalog' %}"></script>
+
+    {% block scripts %}{% endblock %}
+</head>
+<body>
+{% block content %}{% endblock %}
+<div class="site-footer">
+    <p>By: Martin Starman {% if debug %} DEBUG_MODE {% endif %}</p>
+</div>
+</body>
+</html>

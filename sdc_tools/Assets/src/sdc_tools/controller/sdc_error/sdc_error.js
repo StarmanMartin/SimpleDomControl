@@ -29,6 +29,7 @@ export class SdcErrorController extends AbstractSDC {
     }
 
     onLoad($html) {
+        $html.find('.error_content').append(this.$container.html());
         return super.onLoad($html);
     }
 

@@ -1,0 +1,12 @@
+@import "../node_modules/bootstrap/scss/bootstrap";
+@import "./sdc_user/sdc_user.style";
+@import "./sdc_tools/sdc_tools.style";
+@import "./main_test/main_test.style.scss";
+
+body {
+    background-color: cornflowerblue;
+
+    .navbar-dummy {
+        height: 70px;
+    }
+}

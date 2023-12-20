@@ -46,11 +46,6 @@ function pre_compile_javascript() {
         .pipe(dest('./_build'));
 }
 
-function collect_javascript() {
-    return src('./src/**/*.js', {follow: true})
-        .pipe(dest('./__tests__/src'));
-}
-
 function javascript() {
     const webpack_config = (process.env.NODE_ENV === 'development' ? './webpack.config/webpack.development.config.jsx' : './webpack.config/webpack.production.config.jsx');
 
@@ -98,7 +93,6 @@ function link_files(cb) {
 
 const webpack_series = series(clean, pre_compile_javascript, javascript, clean);
 exports.webpack = webpack_series;
-exports.prepare_test = series(collect_javascript);
 exports.scss = scss;
 exports.link_files = link_files;
 exports.clean = clean;

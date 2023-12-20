@@ -29,7 +29,7 @@ def handle_search_form(query_set, search_form, filter_dict=None, range=0):
                 q_list = generate_q_key_value_request(key, key_word)
             else:
                 q_list = q_list | generate_q_key_value_request(key, key_word)
-        query_set = query_set.filter(q_list)
+        query_set = query_set.filter(q_list).distinct()
         query_set_count = query_set.count()
     elif(search_form.NO_RESULTS_ON_EMPTY_SEARCH):
         query_set = []

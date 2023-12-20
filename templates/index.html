@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Title{% endblock %}
+
+{% block scripts %}
+<script type="module" src="{% static 'index.organizer.js' %}"></script>
+<link rel="stylesheet" type="text/css" href="{% static 'index.style.css' %}"/>
+{% endblock %}
+
+{% block content %}
+
+
+<!--Here is the entrypoint to your HTML-->
+<h1>{% trans 'Loading' %}...</h1>
+
+<sdc-alert-messenger></sdc-alert-messenger>
+
+<!-- nav view controller ind sdc_tools -->
+<!-- data-default-controller sets the default view -->
+<sdc-navigator data-default-controller="main-view">
+    <!-- .header-loading element will have an addition class .active while loading -->
+    <div class="header-loading">
+        <h1>{% trans 'loading...' %}</h1>
+    </div>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="d-flex flex-grow-1">
+            <span class="w-25 d-block"><!-- hidden spacer to center brand on mobile --></span>
+
+            <a class="navbar-brand mx-auto navigation-links"
+               href="/main-view">{% trans 'TEST' %}</a>
+
+            <div class="w-100 text-right">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#sdc-nav-bar"
+                        aria-controls="sdc-nav-bar" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+            </div>
+        </div>
+        <div class="collapse navbar-collapse flex-grow-1" id="sdc-nav-bar">
+            <div class="navbar-nav ms-auto">
+
+                <a class="nav-item nav-link navigation-links" href="/main-view">
+                    {% trans 'main-view' %}
+                </a>
+                <a class="nav-item nav-link navigation-links" href="/editor-no-staff">
+                    {% trans 'editor-no-staff' %}
+                </a>
+
+            </div>
+            <div class="navbar-nav ms-auto flex-nowrap">
+                <sdc-logout></sdc-logout>
+            </div>
+        </div>
+    </nav>
+</sdc-navigator>
+
+
+{% endblock %}
+

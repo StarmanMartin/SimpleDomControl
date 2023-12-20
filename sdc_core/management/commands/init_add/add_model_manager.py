@@ -52,7 +52,7 @@ class AddModelManager():
         search_form_def = "\n".join([
             'class {2}SearchForm(AbstractSearchForm):',
             '{0}CHOICES = (("id", "Id"),)',
-            '{0}PLACEHOLDER = "Id"',
+            '{0}PLACEHOLDER = ""',
             '{0}DEFAULT_CHOICES = CHOICES[0][0]',
             '{0}SEARCH_FIELDS = ("id",)',
         ]).format(options.SEP, self.app_name, self.model_name)
@@ -64,7 +64,7 @@ class AddModelManager():
             '{0}html_list_template = "{1}/models/{2}/{2}_list.html"',
             '{0}html_detail_template = "{1}/models/{2}/{2}_details.html"',
             '',
-            '{0}@classmethod\n{0}def render(cls, template_name, context=None, request=None, using=None):\n{0}{0}if template_name == cls.html_list_template:\n{0}{0}{0}sf = {2}SearchForm(data=context.get("filter", {{}}))\n{0}{0}{0}context = context | handle_search_form(context["instances"], sf,  range=2)\n{0}{0}return render_to_string(template_name=template_name, context=context, request=request, using=using)',
+            '{0}@classmethod\n{0}def render(cls, template_name, context=None, request=None, using=None):\n{0}{0}if template_name == cls.html_list_template:\n{0}{0}{0}sf = {2}SearchForm(data=context.get("filter", {{}}))\n{0}{0}{0}context = context | handle_search_form(context["instances"], sf,  range=10)\n{0}{0}return render_to_string(template_name=template_name, context=context, request=request, using=using)',
             '',
             '{0}@classmethod\n{0}def is_authorised(cls, user, action, obj):\n{0}{0}return True',
             '',

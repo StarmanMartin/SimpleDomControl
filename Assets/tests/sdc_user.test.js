@@ -1,0 +1,1 @@
+../../sdc_user/Assets/tests/sdc_user.test.js

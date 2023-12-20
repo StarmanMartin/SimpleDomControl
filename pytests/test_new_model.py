@@ -12,7 +12,6 @@ def test_new_model(init_project_with_app):
     dir1 = init_project_with_app
     dir2 = './pytests/expections/test_new_model/test_django_project'
 
-
     assert are_dir_trees_equal(dir1, dir2) == []
 
 def test_model_list(init_project_with_app):

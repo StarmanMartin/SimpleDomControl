@@ -14,3 +14,7 @@ sdc.zip
 /.tool-versions
 /sdc_tools/Assets/src/**/*.html
 /sdc_user/Assets/src/**/*.html
+/test_media/
+/media/
+/static/
+/www/

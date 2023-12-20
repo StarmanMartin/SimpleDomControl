@@ -1,0 +1,49 @@
+{% load sdc_filter %}
+
+<div class="search-view-container">
+    <sdc-search-view
+            data-range-size="{{ range_size }}"
+            data-range-start="{{ range|indexfilter:0 }}"
+            data-range-end="{{ range|indexfilter:1 }}"
+            data-total-count="{{ total_count }}"
+            data-remove-labels="true">
+        {% csrf_token %}
+        {% include "elements/inline_form.html" with form=search_form %}
+    </sdc-search-view>
+</div>
+
+<table class="table">
+    <tbody></tbody>
+    {% for instance in instances %}
+    <tr>
+        <td>
+            {{instance}}
+        </td>
+        <td>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete-model-modal-{{instance.pk}}">
+                Remove
+            </button>
+            <a class="btn btn-dark navigation-links" href="/~sdc-model-form~&model={{instance|to_class_name}}&pk={{instance.pk}}">Edit</a>
+            <a class="btn btn-dark navigation-links" href="/~sdc-detail-view~&model={{instance|to_class_name}}&pk={{instance.pk}}">Detail</a>
+            <!-- Modal -->
+            <div class="modal fade" id="delete-model-modal-{{instance.pk}}" tabindex="-1" aria-label="Delete model {{instance.pk}}" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="delete-model-modal-{{instance.pk}}-label">Are you sure</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            Do you want to delete {{instance}}?
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            <button sdc_click="removeInstance" data-instance-pk="{{instance.pk}}" type="button" class="btn btn-danger" data-bs-dismiss="modal">Remove {{instance}}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+</table>

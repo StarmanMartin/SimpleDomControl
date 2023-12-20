@@ -27,7 +27,14 @@ def are_dir_trees_equal(dir1, dir2):
     (_, mismatch, errors) =  filecmp.cmpfiles(
         dir1, dir2, comparison.common_files, shallow=False)
     if len(mismatch) != 0:
-        return [os.path.join(dir1, x) for x in mismatch]
+        if os.environ.get('correct-errors', 'False') == 'True':
+            for x in mismatch:
+                with open(os.path.join(dir1, x), 'r') as src:
+                    with open(os.path.join(dir2, x), 'w') as dst:
+                        a = src.read()
+                        dst.write(a)
+        else:
+            return [os.path.join(dir1, x) for x in mismatch]
     if len(errors) != 0:
         return [os.path.join(dir1, x) for x in errors]
 
