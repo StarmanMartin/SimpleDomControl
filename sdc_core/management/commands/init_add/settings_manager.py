@@ -2,6 +2,7 @@ import importlib
 import re
 import os
 
+import regex
 from django.core.management import CommandError
 
 from sdc_core.management.commands.init_add import options
@@ -80,6 +81,12 @@ class SettingsManager:
         data = re.sub(r'(ALLOWED_HOSTS[^\n]*)', '# \g<1>', data)
         data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
 
+        new_val = f"DATABASES_AVAILABLE = {{\n{sep}'jest': {{'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'test_db.sqlite3', }},"
+        data = re.sub(r'DATABASES\s*=\s*\{', new_val, data)
+        db_pattern = self.balanced_pattern_factory('DATABASES_AVAILABLE = ')
+        db_settings = db_pattern.search(data).group()
+        data = db_pattern.sub(db_settings + f"\n\ndatabase = os.environ.get('DJANGO_DATABASE', 'default')\n\nDATABASES = {{'default': DATABASES_AVAILABLE[database]}}", data)
+
         data += settings_extension
 
         fout = open(self.get_settings_file_path(), "wt", encoding='utf-8')
@@ -114,3 +121,7 @@ class SettingsManager:
     def find_and_set_project_name(self):
         options.setPROJECT(self.get_setting_vals().ROOT_URLCONF.split(".")[0])
         print(options.PROJECT)
+
+    @classmethod
+    def balanced_pattern_factory(cls, prefix: str,  icon_start: str = r"\{", icon_end: str = r"\}") -> regex.regex:
+        return regex.compile(fr'{prefix}({icon_start}(?:[^{icon_start}{icon_end}]+|(?1))*{icon_end})')

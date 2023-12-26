@@ -67,6 +67,9 @@ export class SdcNavigatorController extends AbstractSDC {
         on('logout', this);
 
         $html.find('.main-nav-import-container').append(this.$container.html());
+        console.log($html);
+        console.log($html[0]);
+        console.log($html.html());
         return super.onLoad($html);
     }
 

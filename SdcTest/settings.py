@@ -95,13 +95,22 @@ WSGI_APPLICATION = 'SdcTest.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DATABASES = {
+DATABASES_AVAILABLE = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'jest': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / "test_db.sqlite3",
     }
 }
 
+database = os.environ.get('DJANGO_DATABASE', 'default')
+
+DATABASES = {
+    'default': DATABASES_AVAILABLE[database]
+}
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

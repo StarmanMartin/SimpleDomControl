@@ -6,6 +6,8 @@ class MainViewController extends AbstractSDC {
     constructor() {
         super();
         this.contentUrl = "/sdc_view/main_test/main_view"; //<main-view></main-view>
+        this.headerText = "test";
+        this.flow_test = ["constructor"];
 
         /**
          * Events is an array of dom events.
@@ -26,18 +28,39 @@ class MainViewController extends AbstractSDC {
     //-------------------------------------------------//
 
     onInit() {
+        this.flow_test.push('onInit');
     }
 
     onLoad($html) {
+        this.flow_test.push('onLoad');
         return super.onLoad($html);
     }
 
     willShow() {
+        this.flow_test.push('willShow');
         return super.willShow();
     }
 
     onRefresh() {
+        this.flow_test.push('onRefresh');
         return super.onRefresh();
+    }
+
+    test_view_func(args) {
+        return <div><button onClick={this.updateHeader}></button><h1 className="test-header">{this.headerText} {args['arg']}</h1></div>
+    }
+
+    async_test_view_func(args) {
+        return new Promise((resolve)=> {
+            setTimeout(()=> {
+                resolve(<p className="async-test-header">After 50 mil.sec.</p>);
+            }, 50);
+        });
+    }
+
+    updateHeader(){
+        this.headerText = 'Button Pressed!!';
+        this.refresh();
     }
 
 }

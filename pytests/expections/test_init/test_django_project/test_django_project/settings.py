@@ -96,12 +96,17 @@ WSGI_APPLICATION = "test_django_project.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
 
-DATABASES = {
+DATABASES_AVAILABLE = {
+    'jest': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'test_db.sqlite3', },
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+
+database = os.environ.get('DJANGO_DATABASE', 'default')
+
+DATABASES = {'default': DATABASES_AVAILABLE[database]}
 
 
 # Password validation

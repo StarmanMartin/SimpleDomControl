@@ -8,6 +8,9 @@ const gclean = require('gulp-clean');
 const fs = require('fs');
 const chokidar = require('chokidar');
 const exec = require('gulp-exec');
+require('dotenv');
+const dotenv = require("dotenv");
+
 
 function scss() {
     return src('./src/*.scss', {follow: true})
@@ -63,9 +66,10 @@ function clean(done) {
 }
 
 function link_files(cb) {
+    dotenv.config({path: './.sdc_env'});
     let python = process.env.PYTHON
     if (!python) {
-        python = 'python';
+        console.error(`The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed`);
     }
 
     process.chdir('..');
@@ -73,17 +77,18 @@ function link_files(cb) {
         continueOnError: true, // default = false, true means don't emit error event
         pipeStdout: true, // default = false, true means stdout is written to file.contents
     };
+    const error_msg = `The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed. Or the ${process.cwd()} is not correct`;
     try {
         return src('./manage.py')
             .pipe(exec(file => `${python} ${file.path} sdc_update_links`, options).on('error', function (err) {
                 console.error('Error:', err.message);
-                console.error(`The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed`);
+                console.error(error_msg);
                 this.emit('end'); // Continue with the next task
             })).on('end', () => {
                 process.chdir('./Assets');
             });
     } catch {
-        console.error(`The environment variable PYTHON (Path to python interpreter) is not set. In this case link_files cannot be executed`);
+        console.error(error_msg);
         process.chdir('./Assets');
         cb();
     }
