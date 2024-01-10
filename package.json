@@ -58,7 +58,7 @@
     "terser-webpack-plugin": "^5.3.9",
     "through2": "^4.0.2",
     "webpack": "^5.89.0",
-    "webpack-stream": "^7.0.0",
+    "webpack-stream": "^7.0.0"
   },
   "overrides": {
     "glob-parent": "$glob-parent"
