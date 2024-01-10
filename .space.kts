@@ -10,7 +10,7 @@ job("Prepare Docker image") {
             labels["vendor"] = "sdc"
         }
 
-        push("sdc.registry.jetbrains.space/p/main/sdc-python") {
+        push("sdc.registry.jetbrains.space/p/main/sdc-python/myimage) {
             tags{
                 +"0.0.1"
             }
