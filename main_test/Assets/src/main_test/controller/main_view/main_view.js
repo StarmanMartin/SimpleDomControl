@@ -14,7 +14,14 @@ class MainViewController extends AbstractSDC {
          * The pattern is {'event': {'dom_selector': handler}}
          * Uncommend the following line to add events;
          */
-        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
+        this.events.unshift({
+            'click': {
+                '.class_sdc_click': function () {
+                    this.headerText = "Class click";
+                    this.refresh();
+                }
+            }
+        });
     }
 
     //-------------------------------------------------//
@@ -47,19 +54,26 @@ class MainViewController extends AbstractSDC {
     }
 
     test_view_func(args) {
-        return <div><button onClick={this.updateHeader}></button><h1 className="test-header">{this.headerText} {args['arg']}</h1></div>
+        return <div>
+            <button className="func_view_button" onClick={this.updateHeader.bind(this)}></button>
+            <h1 className="test-header">{this.headerText} {args['arg']}</h1></div>
     }
 
-    async_test_view_func(args) {
-        return new Promise((resolve)=> {
-            setTimeout(()=> {
-                resolve(<p className="async-test-header">After 50 mil.sec.</p>);
-            }, 50);
+    async_test_view_func() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(<p className="async-test-header">After 10 mil.sec.</p>);
+            }, 10);
         });
     }
 
-    updateHeader(){
+    updateHeader() {
         this.headerText = 'Button Pressed!!';
+        this.refresh();
+    }
+
+    attr_sdc_click() {
+        this.headerText = 'attr click';
         this.refresh();
     }
 

@@ -6,6 +6,13 @@ class MainView(SdcLoginRequiredMixin, SDCView):
     template_name = 'main_test/sdc/main_view.html'
     raise_exception = True
 
+    def call_echo(self, channel, **kwargs):
+        return kwargs
+
+    def call_no_response(self, channel, **kwargs):
+        pass
+
+
     def test_echo_call(self, channel, **kwargs):
         channel.state_redirect({'link': '/logged-in'})
         return kwargs

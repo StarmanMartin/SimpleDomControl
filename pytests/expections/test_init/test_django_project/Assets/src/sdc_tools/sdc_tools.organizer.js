@@ -1,3 +1,4 @@
+import {} from "./controller/sdc_dummy/sdc_dummy.js";
 import {} from "./controller/sdc_auto_submit/sdc_auto_submit.js";
 import {} from "./controller/sdc_error/sdc_error.js";
 import {} from "./controller/sdc_navigation_client/sdc_navigation_client.js";

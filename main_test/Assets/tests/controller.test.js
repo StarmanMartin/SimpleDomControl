@@ -1,14 +1,11 @@
-/**
- * @jest-environment jsdom
- */
-
-import {test_utils, socketReconnect} from 'sdc_client';
+import {test_utils, on, socketReconnect} from 'sdc_client';
 import {} from "#root/src/main_test/main_test.organizer.js";
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 import '#root/src/sdc_user/sdc_user.organizer.js'
 import Cookies from 'js-cookie';
 
-describe('MainView server call', () => {
+
+describe('WS server call', () => {
     let controller;
 
     beforeAll(async () => {
@@ -52,7 +49,7 @@ describe('MainView server call', () => {
 
 });
 
-describe('MainView server call no user', () => {
+describe('WS server call [logged out]', () => {
     let controller;
 
     beforeAll(async () => {
@@ -82,7 +79,7 @@ describe('MainView server call no user', () => {
     });
 });
 
-describe('MainView', () => {
+describe('Controller controlflow', () => {
     let controller;
 
     beforeAll(async () => {
@@ -119,7 +116,37 @@ describe('MainView', () => {
 
 });
 
-describe('MainView Logged out', () => {
+describe('Controller flow redirect [logged out]', () => {
+    let controller;
+
+    beforeEach(async () => {
+        Cookies.set('sessionid', null);
+        console.log('Removed session key');
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('admin-only',
+            {},
+            '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        on('onNavLink', {
+            'onNavLink': (onNavRes) => {
+                expect(onNavRes).toStrictEqual('<a href=".~sdc-login~&next=..">Redirector</a>');
+            }
+        });
+
+        let controller = await test_utils.get_controller('staff-and-admin',
+            {}, '<div><h1>Contro Loaded</h1></div>');
+
+        const $div = $('body').find('staff-and-admin');
+        expect($div.length).toBeGreaterThan(0);
+        const $header = controller.find('sdc-error');
+        expect($header.data('code')).toBe(301);
+    });
+
+});
+
+describe('Controller controlflow [logged out]', () => {
     let controller;
 
     beforeAll(async () => {
@@ -147,7 +174,7 @@ describe('MainView Logged out', () => {
 });
 
 
-describe('MainView events', () => {
+describe('DOM events', () => {
     let controller, refreshHandler;
 
     beforeAll(async () => {
@@ -203,91 +230,6 @@ describe('MainView events', () => {
         controller.find('.attr_sdc_click').trigger('click');
         await new Promise((resolve) => setTimeout(resolve, 30));
 
-    });
-
-});
-
-describe('AdminOnly', () => {
-    let controller;
-
-    beforeEach(async () => {
-        // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('admin-only',
-            {},
-            '<div><h1>Controller Loaded</h1></div>');
-    });
-
-    test('Load Content', async () => {
-        const $div = $('body').find('admin-only');
-        expect($div.length).toBeGreaterThan(0);
-    });
-
-});
-
-describe('EditorAndStaff', () => {
-    let controller;
-
-    beforeEach(async () => {
-        // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('editor-and-staff',
-            {},
-            '<div><h1>Controller Loaded</h1></div>');
-    });
-
-    test('Load Content', async () => {
-        const $div = $('body').find('editor-and-staff');
-        expect($div.length).toBeGreaterThan(0);
-    });
-
-});
-
-describe('EditorNoStaff', () => {
-    let controller;
-
-    beforeEach(async () => {
-        // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('editor-no-staff',
-            {},
-            '<div><h1>Controller Loaded</h1></div>');
-    });
-
-    test('Load Content', async () => {
-        const $div = $('body').find('editor-no-staff');
-        expect($div.length).toBeGreaterThan(0);
-    });
-
-});
-
-describe('LoggedIn', () => {
-    let controller;
-
-    beforeEach(async () => {
-        // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('logged-in',
-            {},
-            '<div><h1>Controller Loaded</h1></div>');
-    });
-
-    test('Load Content', async () => {
-        const $div = $('body').find('logged-in');
-        expect($div.length).toBeGreaterThan(0);
-    });
-
-});
-
-describe('Error404', () => {
-    let controller;
-
-    beforeEach(async () => {
-        // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('error404',
-            {},
-            '<div><h1>Controller Loaded</h1></div>');
-    });
-
-    test('Load Content', async () => {
-        const $div = $('body').find('error404');
-        expect($div.length).toBeGreaterThan(0);
     });
 
 });

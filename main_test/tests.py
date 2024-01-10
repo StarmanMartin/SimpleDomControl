@@ -178,7 +178,7 @@ class SearchTest(TestCase, WithMockedElementTest):
 class ServerCallTest(TestCase):
     def setUp(self) -> None:
         password = "asd"
-        self.user: User = User.objects.create(username='testuser')
+        self.user: User = User.objects.create_superuser(username='testuser')
         self.user.set_password(password)
         self.user.save()
 

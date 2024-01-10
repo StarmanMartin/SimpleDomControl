@@ -191,3 +191,27 @@ LOGIN_SUCCESS = '/'
 #DEFAULT_FROM_EMAIL = ''
 #EMAIL_HOST_PASSWORD = ''
 #EMAIL_USE_TLS = True
+
+import os
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            'formatter': 'console',
+        },
+    },
+    'formatters': {
+        'console': {
+            # exact format is not important, this is the minimum information
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{"
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "DEBUG",
+    },
+}

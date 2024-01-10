@@ -30,6 +30,8 @@ export class SdcAlertMessengerController extends AbstractSDC {
     }
 
     onLoad($html) {
+        on('pushMsg', this);
+        on('pushErrorMsg', this);
         return super.onLoad($html);
     }
 
@@ -54,13 +56,15 @@ export class SdcAlertMessengerController extends AbstractSDC {
             msgList = [msgList];
         }
 
-        for (let msg of msgList) {
-            this._pushMsgArray(header, msgList, isError);
-        }
+        this._pushMsgArray(header, msgList, isError);
     }
 
     _pushMsgArray(header, msg, isError) {
         let $dummyRow = this.find('.dummy_row');
+        if($dummyRow.length === 0) {
+            return
+        }
+
         let $cloneRow = $dummyRow.clone();
         $cloneRow.removeClass('dummy_row');
         if (isError) {

@@ -9,6 +9,7 @@ from django.utils.datastructures import MultiValueDict
 from django.utils.translation import gettext as _f
 from django.apps import apps
 from django.db.models import FileField
+from django.contrib.auth import get_user_model
 from channels.generic.websocket import WebsocketConsumer
 
 from asgiref.sync import async_to_sync
@@ -19,6 +20,11 @@ from sdc_core.sdc_extentions.models import SdcModel
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
 from sdc_core.sdc_extentions.views import SdcAccessMixin
+
+import logging
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
 
 ALL_MODELS = {
     model.__name__: model for model in apps.get_models() if hasattr(model, '__is_sdc_model__')
@@ -142,6 +148,7 @@ class SDCConsumer(WebsocketConsumer):
     def receive(self, text_data=None, bytes_data=None):
         json_data = {}
         try:
+            session = self.scope['session'].load()
             json_data = json.loads(text_data)
             if json_data['event'] == 'sdc_call':
                 controller_name = self.to_camel_case(json_data['controller'])
@@ -151,6 +158,9 @@ class SDCConsumer(WebsocketConsumer):
                     if not c_instance.check_requirements(self.scope['user']):
                         raise PermissionDenied()
                 method = getattr(controller(), json_data['function'])
+
+                logger.info(f"SDC call Socket received: {json_data['app']}.{controller_name}.{json_data['function']}")
+
                 return_vals = method(channel=self, **json_data.get('args', {}))
                 return_vals_generator = []
                 if isinstance(return_vals, types.GeneratorType):
@@ -174,11 +184,10 @@ class SDCConsumer(WebsocketConsumer):
             }, json_data.get('id'))
 
         except Exception as e:
-            if settings.DEBUG:
-                extracted_list = traceback.extract_tb(e.__traceback__)
-                traceback.print_tb(e.__traceback__)
-                e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
-            else:
+            extracted_list = traceback.extract_tb(e.__traceback__)
+            e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
+            logger.error('\n'.join(e_text))
+            if not settings.DEBUG:
                 e_text = _f('Something went wrong')
             self.state_error({
                 'msg': e_text,
@@ -242,6 +251,7 @@ class SDCModelConsumer(WebsocketConsumer):
             msg_type = json_data.get('event_type', msg_type)
             self.scope['event_type'] = msg_type
             event_type = "%s_%s" % (json_data['event'], json_data['event_type'])
+            logger.debug("Socket received: " + event_type)
             self.queryset = json_data['args'].get('model_query', {})
             if not self.model.is_authorised(self.scope['user'], msg_type, self.queryset):
                 raise PermissionDenied
@@ -278,6 +288,7 @@ class SDCModelConsumer(WebsocketConsumer):
                 raise ValueError(
                     f"{json_data['event']} must be 'model' and {json_data['event_type']} must be in [load, delete, upload, create, save, detail_view, 'connect', 'edit_form', 'create_form', 'list_view']")
         except PermissionDenied as e:
+            logger.error("403 Not allowed!")
             self.state_error({
                 'type': msg_type,
                 'msg': _f('403 Not allowed!'),
@@ -286,11 +297,12 @@ class SDCModelConsumer(WebsocketConsumer):
             })
 
         except Exception as e:
+            extracted_list = traceback.extract_tb(e.__traceback__)
+            e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
             if settings.DEBUG:
-                extracted_list = traceback.extract_tb(e.__traceback__)
                 traceback.print_tb(e.__traceback__)
-                e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
             else:
+                logger.error(e_text)
                 e_text = _f('Something went wrong')
             self.state_error({
                 'type': msg_type,

@@ -46,3 +46,9 @@ class SdcError(SDCView):
 
     def get_content(self, request, code, *args, **kwargs):
         return render(request, self.template_name, {'code': code})
+
+class SdcDummy(SDCView):
+    template_name='sdc_tools/sdc/sdc_dummy.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)

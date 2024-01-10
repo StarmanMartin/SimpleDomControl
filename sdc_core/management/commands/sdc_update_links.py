@@ -28,10 +28,11 @@ def make_app_links(app_name):
         os.remove(sdc_controller_link_dir)
     relative_symlink(sdc_controller_dir, sdc_controller_link_dir)
 
-    sdc_test_link = os.path.join(options.PROJECT_ROOT, "Assets/tests", f"{app_name}.test.js")
-    sdc_test_file = os.path.join(app_root, "Assets/tests", f"{app_name}.test.js")
-
-    relative_symlink(sdc_test_file, sdc_test_link)
+    sdc_test_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/tests")#, f"{app_name}.test.js")
+    sdc_test_file_dir = os.path.join(app_root, "Assets/tests")#, f"{app_name}.test.js")
+    for file in  os.listdir(sdc_test_file_dir):
+        if file.endswith('.test.js'):
+            relative_symlink(os.path.join(sdc_test_file_dir, file), os.path.join(sdc_test_link_dir, file))
 
 
 def make_link(app_name, controller_name):

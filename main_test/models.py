@@ -79,8 +79,6 @@ class BookContentSearchForm(AbstractSearchForm):
 class BookContent(models.Model, SdcModel):
     edit_form = "main_test.forms.BookContentForm"
     create_form = "main_test.forms.BookContentForm"
-    html_list_template = "main_test/models/BookContent/BookContent_list.html"
-    html_detail_template = "main_test/models/BookContent/BookContent_details.html"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     text = models.FileField()
