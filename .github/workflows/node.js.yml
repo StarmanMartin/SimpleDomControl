@@ -44,7 +44,7 @@ jobs:
         poetry install
 
     - name: Install dependencies (npm)
-      run: npm install
+      run: npm ci
 
     - name: Run Tests
       run: |
