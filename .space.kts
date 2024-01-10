@@ -12,14 +12,14 @@ job("Prepare Docker image") {
 
         push("sdc.registry.jetbrains.space/p/main/sdc-python/myimage") {
             tags{
-                +"0.0.1"
+                +"0.0.2"
             }
         }
     }
 }
 
 job("Run tests, build, publish") {
-    container(image = "sdc.registry.jetbrains.space/p/main/sdc-python/myimage:0.0.1") {
+    container(image = "sdc.registry.jetbrains.space/p/main/sdc-python/myimage:0.0.2") {
         // specify URL of the package index using env var
         env["URL"] = "https://packages.jetbrains.space/pypi/p/my-python-project/mypypi/legacy"
 
