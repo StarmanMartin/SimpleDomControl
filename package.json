@@ -42,6 +42,7 @@
     "chokidar": "^3.5.3",
     "css-loader": "^6.8.1",
     "dotenv": "^16.3.1",
+    "glob-parent": "^6.0.1",
     "gulp": "^4.0.2",
     "gulp-clean": "^0.4.0",
     "gulp-exec": "^5.0.0",
@@ -58,7 +59,6 @@
     "through2": "^4.0.2",
     "webpack": "^5.89.0",
     "webpack-stream": "^7.0.0",
-    "glob-parent": "^6.0.1"
   },
   "overrides": {
     "glob-parent": "$glob-parent"
