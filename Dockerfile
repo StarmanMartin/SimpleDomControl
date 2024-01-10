@@ -12,7 +12,7 @@ ENV PATH="/root/.nvm/versions/node/v${NODE_VERSION}/bin/:${PATH}"
 RUN node --version
 RUN npm --version
 
-WORKDIR /usr/src/app
+WORKDIR /mnt/space/work/SimpleDomControl/
 
 ENV POETRY_VERSION=1.5.1
 
