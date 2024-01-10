@@ -6,11 +6,11 @@ job("Prepare Docker image") {
 
     kaniko {
         build {
-            file = "./Dockerfile"
+            dockerfile = "./Dockerfile"
             labels["vendor"] = "sdc"
         }
 
-        push("sdc.registry.jetbrains.space/p/main/sdc-python/myimage) {
+        push("sdc.registry.jetbrains.space/p/main/sdc-python/myimage") {
             tags{
                 +"0.0.1"
             }
