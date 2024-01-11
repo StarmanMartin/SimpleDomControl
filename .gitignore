@@ -19,7 +19,6 @@ sdc.zip
 /static/
 /www/
 /plyaground.py
-/Assets/.sdc_env
 /Assets/tests/dumps/test_data_dump.json
 /test_db.sqlite3
 /Assets/tests/logs

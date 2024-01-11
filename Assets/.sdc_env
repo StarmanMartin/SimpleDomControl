@@ -1,0 +1,4 @@
+PYTHON=""
+JSON_DATA_DUMP="Assets/tests/dumps/test_data_dump.json"
+COPY_DEFAULT_DB=1
+DB_PYTHON_SCRIPT="Assets/tests/data_scripts/test_prepare_data_script.py" # Add path to pythonscript to prepare DB
