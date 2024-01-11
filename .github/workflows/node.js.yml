@@ -32,7 +32,7 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Run image
+    - name: Install Poetry image
       uses: abatilo/actions-poetry@v2
       with:
         poetry-version: ${{ matrix.poetry-version }}
@@ -43,8 +43,10 @@ jobs:
         python -m pip install --upgrade pip
         poetry install
 
-    - name: Install dependencies (npm)
-      run: npm ci
+    - name: Install dependencies (yarn)
+      run: |
+        npm i -g yarn
+        yarn install
 
     - name: Run Tests
       run: |
