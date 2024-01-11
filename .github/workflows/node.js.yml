@@ -42,11 +42,14 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         poetry install
+      timeout-minutes: 10
+
+    - name: Install yarn
+      run: npm i -g yarn
+      timeout-minutes: 10
 
     - name: Install dependencies (yarn)
-      run: |
-        npm i -g yarn
-        yarn install --frozen-lockfile
+      run: yarn install --frozen-lockfile
       timeout-minutes: 10
 
     - name: Run Tests
