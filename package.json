@@ -1,6 +1,6 @@
 {
   "name": "sdc-test",
-  "version": "1.0.0",
+  "version": "0.4.10",
   "description": "",
   "private": true,
   "type": "module",
@@ -15,7 +15,12 @@
   },
   "jest": {
     "transform": {
-      "\\.[jt]sx?$": ["babel-jest", { "configFile": "./Assets/.babelrc" }]
+      "\\.[jt]sx?$": [
+        "babel-jest",
+        {
+          "configFile": "./Assets/.babelrc"
+        }
+      ]
     },
     "testEnvironment": "jest-environment-jsdom",
     "testEnvironmentOptions": {
@@ -34,7 +39,7 @@
   "author": "",
   "license": "",
   "devDependencies": {
-    "@babel/core": "^7.23.3",
+    "@babel/core": "^7.23.7",
     "@babel/preset-react": "^7.23.3",
     "@babel/register": "^7.22.15",
     "babel-jest": "^29.7.0",
@@ -43,6 +48,7 @@
     "css-loader": "^6.8.1",
     "dotenv": "^16.3.1",
     "glob-parent": "^6.0.1",
+    "glob-watcher": "^6.0.0",
     "gulp": "^4.0.2",
     "gulp-clean": "^0.4.0",
     "gulp-exec": "^5.0.0",
@@ -52,6 +58,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "js-cookie": "^3.0.5",
+    "micromatch": "^4.0.5",
     "sass": "^1.69.5",
     "sass-loader": "^13.3.2",
     "style-loader": "^3.3.3",
@@ -61,12 +68,15 @@
     "webpack-stream": "^7.0.0"
   },
   "overrides": {
-    "glob-parent": "$glob-parent"
+    "glob-parent": "$glob-parent",
+    "glob-watcher": "$glob-watcher"
   },
   "dependencies": {
+    "@popperjs/core": "^2.11.8",
     "bootstrap": "^5.3.2",
     "esm": "^3.2.25",
-    "jquery": "^3.7.0",
-    "lodash": "^4.17.21"
+    "jquery": "3.7.0",
+    "lodash": "^4.17.21",
+    "sdc_client": "^0.3.11"
   }
 }

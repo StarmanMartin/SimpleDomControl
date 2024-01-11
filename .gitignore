@@ -23,3 +23,5 @@ sdc.zip
 /Assets/tests/dumps/test_data_dump.json
 /test_db.sqlite3
 /Assets/tests/logs
+/Assets/_build/
+/db.sqlite3
