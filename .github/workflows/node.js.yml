@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.10", "3.11"]
-        poetry-version: ["1.2.2", "1.7.1"]
+        poetry-version: ["1.5.1", "1.7.1"]
         node-version: [16.x, 18.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
@@ -47,6 +47,7 @@ jobs:
       run: |
         npm i -g yarn
         yarn install
+      timeout-minutes: 10
 
     - name: Run Tests
       run: |
