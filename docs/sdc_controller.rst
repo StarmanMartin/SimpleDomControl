@@ -40,9 +40,10 @@ settings angegeben ist wir der angegeben parameter ignoriert.
 Server part
 -----------
 
-A controller on the client side consists usually of three Files. A HTML template file a SCSS style file and the coed Javascript File.
-The Javascript contains the contoller class which ha a *contentUrl* property. This url points is registered at the *sdc_url.py* file which will be automaticly generted
-with the conroller. The registered url points at a python ViewClass. This Class extents *sdc_core.sdc_extentions.views.SDCView*. This Class is closely related
+A controller on the client side consists usually of three Files. A HTML template file a SCSS style file and the JavaScript code File.
+The JavaScript contains the controller class which ha a *contentUrl* property. This url points at a entrypoint which is registered at the *sdc_url.py* file. This file
+will be generted automaticly when the first controller in the coresponding Django app is generted. The registered url then calls python ViewClass.
+This Class extents *sdc_core.sdc_extentions.views.SDCView*. This Class is closely related
 to the *django.views.View* class. Additionally to the standard handler get, post, put etc. it also has the *get_content* handler. This method gets called only to
 render and serv the template.
 
@@ -84,6 +85,7 @@ For the following example let us assume that we have a django project called *my
             this.contentUrl = "/sdc_view/main_test/main_view"; //<main-view></main-view>
 
     ...
+
 *./Assets/src/myapp/controller/main_view/main_view.js*
 
 To be able to work with this construct usfully it is nessesary to parameterize the query. Therefore you can either add url parameter in the *sdc_urls.py*
@@ -102,10 +104,10 @@ To be able to work with this construct usfully it is nessesary to parameterize t
 
 *./mysite/myapp/sdc_urls.py*
 
-If you then run
+If you then run:
 
 .. code-block:: sh
-url
+
     $ python manage.py sdc_update_urls
 
 the client will be automaticlly updetad its *contentUrl*
@@ -119,6 +121,6 @@ the client will be automaticlly updetad its *contentUrl*
             super();
             this.contentUrl = "/sdc_view/main_test/main_view/%(pk)s"; //<main-view data-pk=""></main-view>
 
-Error handling and Premissions
+Error handling and Permissions
 ______________________________
 
