@@ -36,7 +36,6 @@ class Command(BaseCommand):
         return line_number
 
     def _parse_controller_to_info_json(self, app_name, controller_name):
-        controller_asset_dir = os.path.join(self.src_path, app_name, 'controller', controller_name)
         app = importlib.import_module(app_name)
         app_path = os.path.dirname(app.__file__)
         app_view_path = os.path.join(app_path, 'sdc_views.py')

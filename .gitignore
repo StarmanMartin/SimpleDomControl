@@ -1,9 +1,5 @@
-/sdc.iml
-/SimpleDomControl.iml
-
 __pycache__/
 
-\.idea/
 /sdctest/db.sqlite3
 /lib/
 /node_modules/
