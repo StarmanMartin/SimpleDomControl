@@ -148,13 +148,13 @@ The client will automatically update its contentUrl:
 Redirect, Error handling and Permissions
 ________________________________________
 
-Es ist simple mit Redirect, Errors zu Premissions umzugehen. Der abschnitt über Redirect und Errors kann sehr kurz abgehndelt werden.
-Die Premisstions sind bieten ein paar Einstellungen, die behandelt werden müssen.
+Auch an Redirect, Errors zu Premissions ist gedacht. Eine mitgeliefete methode erlaubt einen Redirect des Clients. Auch Errors können einfach über Error *raise*ing gemacht werden.
+Die Premisstions sind über Abstrackte Klassen  der Views gehandhabt. .
 
 Redirect
 ++++++++
 
-A redirect can be simplly trigger from the server side by returning *sdc_core.sdc_extensions.response.send_redirect*.
+A redirect can be simplly triggered from the server side by returning *sdc_core.sdc_extensions.response.send_redirect*.
 
 
 .. automodule:: sdc_core.sdc_extentions.response

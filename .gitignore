@@ -21,3 +21,4 @@ sdc.zip
 /Assets/tests/logs
 /Assets/_build/
 /db.sqlite3
+/Assets/.sdc_python_env

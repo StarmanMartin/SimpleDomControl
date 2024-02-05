@@ -15,16 +15,21 @@
   },
   "jest": {
     "transform": {
-      "\\.[jt]sx?$": ["babel-jest", { "configFile": "./Assets/.babelrc" }]
+      "\\.[jt]sx?$": [
+        "babel-jest",
+        {
+          "configFile": "./Assets/.babelrc"
+        }
+      ]
     },
     "testEnvironment": "jest-environment-jsdom",
     "testEnvironmentOptions": {
       "url": "http://127.0.0.1:8765"
     },
-    "globalSetup": "<rootDir>/Assets/tests/pre-test-setup.js",
-    "globalTeardown": "<rootDir>/Assets/tests/post-test-teardown.js",
+    "globalSetup": "<rootDir>/Assets/tests/config/pre-test-setup.js",
+    "globalTeardown": "<rootDir>/Assets/tests/config/post-test-teardown.js",
     "setupFilesAfterEnv": [
-      "<rootDir>/Assets/tests/test-setup.js"
+      "<rootDir>/Assets/tests/config/test-setup.js"
     ],
     "testMatch": [
       "<rootDir>/*/Assets/tests/*.test.js?(x)"
@@ -39,7 +44,6 @@
     "@babel/register": "^7.23.7",
     "babel-jest": "^29.7.0",
     "babel-loader": "^9.1.3",
-    "chokidar": "^3.5.3",
     "css-loader": "^6.9.0",
     "dotenv": "^16.3.1",
     "glob-parent": "^6.0.2",
@@ -58,7 +62,6 @@
     "sass-loader": "^13.3.3",
     "style-loader": "^3.3.4",
     "terser-webpack-plugin": "^5.3.10",
-    "through2": "^4.0.2",
     "webpack": "^5.89.0",
     "webpack-stream": "^7.0.0"
   },
@@ -72,6 +75,6 @@
     "esm": "^3.2.25",
     "jquery": "^3.7.0",
     "lodash": "^4.17.21",
-    "sdc_client": "^0.3.11"
+    "sdc_client": "^0.4.11"
   }
 }

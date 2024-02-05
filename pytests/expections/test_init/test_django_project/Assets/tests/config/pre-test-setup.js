@@ -5,6 +5,7 @@ import path from "path";
 
 
 dotenv.config({path: './Assets/.sdc_env'});
+dotenv.config({path: './Assets/.sdc_python_env'});
 
 export default async function (globalConfig, projectConfig) {
     const python = process.env.PYTHON;
