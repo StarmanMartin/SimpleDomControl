@@ -42,6 +42,13 @@
         <div class="collapse navbar-collapse flex-grow-1" id="sdc-nav-bar">
             <div class="navbar-nav ms-auto">
 
+                <a class="nav-item nav-link navigation-links only-logged-out" href="/main-view">
+                    {% trans 'only-logged-out main-view' %}
+                </a>
+                <a class="nav-item nav-link navigation-links only-logged-in" href="/main-view">
+                    {% trans 'only-logged-in editor-no-staff' %}
+                </a>
+
                 <a class="nav-item nav-link navigation-links" href="/main-view">
                     {% trans 'main-view' %}
                 </a>
@@ -51,7 +58,7 @@
 
             </div>
             <div class="navbar-nav ms-auto flex-nowrap">
-                <sdc-logout></sdc-logout>
+                <sdc-user-nav-btn></sdc-user-nav-btn>
             </div>
         </div>
     </nav>

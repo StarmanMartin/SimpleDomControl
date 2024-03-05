@@ -3,9 +3,9 @@
 SDC controller
 ==============
 
-A controller has two parts a client and a server. This is preceded by a short chapter on generating a controller.
-This is followed by a paragraph on how the
-server code is to be understood. This is followed by a short
+One of the nice features of SDC is that you can use server rendering methods in combination with agile clients. To have the best of both worlds, SDC uses self-contained controller instances. Such a controller consists of two parts, a client and a server. It is preceded by a short chapter on how to create a controller.
+This is followed by a paragraph on how to understand the
+server code is to be understood. This is followed by a brief
 overview of the client code (HTML, SCSS, JavaScript)
 
 .. _new-controller-controller:
@@ -32,9 +32,7 @@ Alternatively, you can skip the prompts using the following command:
 
     $ python manage.py sdc_cc -a <django_app_name> -c <sdc_controller_name>
 
-However, the *sdc_controller_name* must be specified in **snake_case**. If the Django app is not specified in the settings, the provided parameter will be ignored.
-
-
+However, the *sdc_controller_name* must be specified in **snake_case**. If the Django app is not listed in the installed_apps in the django settings, the provided parameter will be ignored.
 
 Server part
 -----------
@@ -134,7 +132,7 @@ After running:
 
     $ python manage.py sdc_update_urls
 
-The client will automatically update its contentUrl:
+The client will automatically update its contentUrl property:
 
 .. code-block:: js
 
@@ -145,11 +143,70 @@ The client will automatically update its contentUrl:
             super();
             this.contentUrl = "/sdc_view/main_test/main_view/%(pk)s"; //<main-view data-pk=""></main-view>
 
+*./Assets/src/myapp/controller/main_view/main_view.js*
+
+The Client
+----------
+
+When we talk about the client in this section, we mean the ECMAScript (JavaScript) controller class, a template HTML file and a Style SCSS file.
+These files are placed in a Assets folder which lies in the Django app directory. This directory is linked in the global Assets directory.sdc_extensions
+
+Linked directory: *./Assets/src/<APP>* -> ./<APP>/Assets/src
+
+.. list-table:: Client Files
+   :widths: 30 30 40
+   :header-rows: 1
+
+   * - Type
+     - Filetype
+     - File
+   * - Style
+     - .scss
+     - *./Assets/src/<APP>/controller/<CONTROLLER>/<CONTROLLER>.scss*
+   * - ECMAScript
+     - .js
+     - *./Assets/src/<APP>/controller/<CONTROLLER>/<CONTROLLER>.js*
+   * - Template
+     - .html
+     - *./Assets/src/<APP>/controller/<CONTROLLER>/<CONTROLLER>.html*
+
+Style
++++++
+
+The scss file is imported in the apps *./Assets/src/<APP>/<APP>.style.scss* which then is imported in the global style file *./Assets/src/index.style.scss*.
+It has to be manged that you can add global styling rules to both files: ./Assets/src/<APP>/<APP>.style.scss* and *./Assets/src/index.style.scss* without
+interfering with the SDC  philosophy. The actual *./Assets/src/<APP>/controller/<CONTROLLER>/<CONTROLLER>.scss* effects all HTML within a controller.
+If you leave it empty it will be ignored. Hence, you dont need to delete it. Following an example for the *MainView* controller:
+
+.. code-block:: css
+
+    [main-view] {
+        /* <- Your code goes here! */
+    }
+
+*./Assets/src/myapp/controller/main_view/main_view.scss*
+
+
+Template
+++++++++
+
+The template file is a basic HTML file, rendered by the *get_content* method of the Python View Class. By default,
+SDC utilizes Django’s built-in rendering engine (see `Django Tutorial <https://docs.djangoproject.com/en/5.0/intro/tutorial03/>`_).
+However, you have the flexibility to use other rendering engines
+if you prefer. Please bear in mind that the controller generating command, *sdc_cc*, always generates an HTML file and employs
+Django’s built-in render function.
+
+ECMAScript Controller
++++++++++++++++++++++
+
+
+
 Redirect, Error handling and Permissions
 ________________________________________
 
-Auch an Redirect, Errors zu Premissions ist gedacht. Eine mitgeliefete methode erlaubt einen Redirect des Clients. Auch Errors können einfach über Error *raise*ing gemacht werden.
-Die Premisstions sind über Abstrackte Klassen  der Views gehandhabt. .
+Redirects, errors, and permissions have been carefully addressed in the system. A built-in method facilitates client redirection, while errors can be efficiently handled through error raising.
+
+Permissions are managed through abstracted classes (mixins) within the views, ensuring a structured and secure approach to access control.
 
 Redirect
 ++++++++

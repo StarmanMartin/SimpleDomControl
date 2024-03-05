@@ -382,7 +382,7 @@ describe('SDC Model [form & file]', () => {
         const changeEvent = new Event('change', { bubbles: true });
         Object.defineProperty( controller.find('.edit_form #id_text')[0], 'files', { value: [file] });
         controller.find('.edit_form #id_text')[0].dispatchEvent(changeEvent);
-        controller.find('.edit_form #id_user').val(1);
+        controller.find('.edit_form #id_user').val(2);
         controller.find('.edit_form').submit();
         await sevRes
 
@@ -428,8 +428,13 @@ describe('SDC Model [form & file]', () => {
         let books = controller.newModel('BookContent', {'pk': 1});
 
 
-        await new Promise((resolv) => {
-            controller.find('.edit_form').safeEmpty().append(books.editForm(1, resolv));
+        await new Promise((resolv, reject) => {
+            controller.find('.edit_form').safeEmpty().append(books.editForm(1, resolv, reject));
+        });
+
+
+        await new Promise((resolv, reject) => {
+            books.editForm(2, reject, resolv);
         });
 
         const file = new File(['file contents NEW'], 'manage.txt', { type: 'text/plain' });

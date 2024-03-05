@@ -118,8 +118,6 @@ This should add four new Django modules to the *INSTALLED_APPS*, a *templates* f
 
     └─ your_chosen_directory/
        └─ mysite/
-          └─ sdc_examples/
-             └─ ...
           ├─ template/
              ├─ base.html
              └─ index.html

@@ -9,7 +9,7 @@ export class SdcNavigatorController extends AbstractSDC {
     constructor() {
         super();
         this.contentUrl = "/sdc_view/sdc_tools/sdc_navigator"; //<sdc-navigator></sdc-navigator>
-
+        this._isLoggedIn = false;
         this._history_path = [];
         this._breadcrumb = [];
         this._history_idx = 0;
@@ -66,6 +66,7 @@ export class SdcNavigatorController extends AbstractSDC {
         on('logout', this);
 
         $html.find('.main-nav-import-container').append(this.$container.html());
+        this._isLoggedIn = $html.find('.main-page-frame').data('user');
         return super.onLoad($html);
     }
 
@@ -144,7 +145,7 @@ export class SdcNavigatorController extends AbstractSDC {
 
     navigateToPage(target, args, _state) {
         this._current_process = [target, args];
-        this.state && this._updateButton(this.state.buttonSelector);
+        _state && this._updateButton(_state.buttonSelector);
         this._is_processing = true;
         this._origin_target = target;
 
@@ -393,6 +394,14 @@ export class SdcNavigatorController extends AbstractSDC {
             $button.addClass('active');
         }
 
+        if(this._isLoggedIn) {
+            this.find('.navigation-links.only-logged-in').show();
+            this.find('.navigation-links.only-logged-out').hide();
+        } else {
+            this.find('.navigation-links.only-logged-in').hide();
+            this.find('.navigation-links.only-logged-out').show();
+        }
+
         return $button;
     }
 
@@ -521,12 +530,15 @@ export class SdcNavigatorController extends AbstractSDC {
     }
 
     login() {
+        this._isLoggedIn = true;
         app.cleanCache();
         this.onNavigateToController(window.location.pathname);
     }
 
-    logout(pk) {
-        this.login(pk);
+    logout() {
+        this._isLoggedIn = false;
+        app.cleanCache();
+        this.onNavigateToController(window.location.pathname);
     }
 
 }

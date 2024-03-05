@@ -50,3 +50,9 @@ class SdcLogout(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class SdcUserNavBtn(SDCView):
+    template_name='sdc_user/sdc/sdc_user_nav_btn.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)
