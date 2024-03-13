@@ -68,7 +68,7 @@ export class SdcNavigatorController extends AbstractSDC {
         on('logout', this);
 
         $html.find('.main-nav-import-container').append(this.$container.html());
-        this._isLoggedIn = $html.find('.main-page-frame').data('user');
+        this._isLoggedIn = $html.data('user');
         return super.onLoad($html);
     }
 
