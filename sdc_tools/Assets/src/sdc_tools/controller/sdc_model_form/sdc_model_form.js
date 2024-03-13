@@ -79,7 +79,7 @@ export class SdcModelFormController extends AbstractSDC {
 
     submitModelForm($form, e) {
         let self = this;
-        return super._submitModelForm($form, e).then(function (res) {
+        return super.defaultSubmitModelForm($form, e).then(function (res) {
             if (res && res.type === 'create') {
                 $form[0].reset();
             }

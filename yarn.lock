@@ -4710,7 +4710,7 @@ schema-utils@^4.0.0:
     ajv-keywords "^5.1.0"
 
 "sdc_client@file:../SimpleDomControlClient":
-  version "0.4.13"
+  version "0.4.15"
   resolved "file:../SimpleDomControlClient"
   dependencies:
     "@popperjs/core" "^2.11.8"
