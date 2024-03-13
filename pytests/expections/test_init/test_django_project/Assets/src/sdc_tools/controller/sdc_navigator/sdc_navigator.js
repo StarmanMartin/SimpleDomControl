@@ -21,6 +21,7 @@ export class SdcNavigatorController extends AbstractSDC {
         this._is_processing = false;
         this._process_queue = [];
         this._current_process = null;
+        this._redirectAfterCurrentProcess = null;
 
         this._non_controller_path_prefix = '/';
         this._menu_id = 0;
@@ -58,6 +59,7 @@ export class SdcNavigatorController extends AbstractSDC {
     onLoad($html) {
         on('onNavLink', this);
         on('onNavigateToController', this);
+        on('_RedirectOnView', this);
         on('goTo', this);
         on('changeMenu', this);
         on('navigateToPage', this);
@@ -186,9 +188,7 @@ export class SdcNavigatorController extends AbstractSDC {
             }
             this._is_processing = false;
             this._updateBreadcrumb();
-            this._current_process = null;
-            let next = this._process_queue.shift();
-            if (next) this._pushState(next);
+            this._checkProcessQueue();
             this.refresh();
             return;
         }
@@ -225,6 +225,7 @@ export class SdcNavigatorController extends AbstractSDC {
 
 
     navLoaded(controller) {
+        console.log(this._current_process, controller.controller_name(), this._previous_args);
         let idx = this._history_path.length - 1;
         let last_view_array = this._preparedLastViewContainer(idx);
         last_view_array.active_container.removeClass('active loading').addClass('empty');
@@ -240,14 +241,29 @@ export class SdcNavigatorController extends AbstractSDC {
         } else {
             this._updateBreadcrumb();
             if (!this._manageDefault(last_view_array.empty_container)) {
-                let next = this._process_queue.shift();
-                this._current_process = null;
-                if (next) this._pushState(next, false);
+                this._checkProcessQueue();
             }
             setTimeout(() => {
                 this.$container.find('.header-loading').removeClass('active');
             }, 100);
         }
+    }
+
+    _checkProcessQueue() {
+        let next = this._process_queue.shift();
+        this._current_process = null;
+        if (next) {
+            this._pushState(next[0], next[1]);
+        } else if (this._redirectAfterCurrentProcess) {
+            const temp = this._redirectAfterCurrentProcess;
+            this._redirectAfterCurrentProcess=null;
+            this.goTo(temp);
+        }
+
+    }
+
+    _RedirectOnView($btn) {
+        this._redirectAfterCurrentProcess = $($btn).attr('href');
     }
 
     _updateBreadcrumb() {
@@ -508,7 +524,7 @@ export class SdcNavigatorController extends AbstractSDC {
         const $sub_container = container.find(`.${SDC_DETAIL_CONTROLLER}`);
         const df = $sub_container.data('default-controller');
         if (df) {
-            this._pushState(`.~${df}`);
+            this._pushState(`.~${df}`, false);
             return true;
         }
 
@@ -517,7 +533,7 @@ export class SdcNavigatorController extends AbstractSDC {
 
     _pushState(url, commit= true) {
         if(this._is_processing) {
-            this._process_queue.push(url);
+            this._process_queue.push([url, commit]);
             return;
         }
 

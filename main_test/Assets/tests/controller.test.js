@@ -1,4 +1,4 @@
-import {test_utils, on, socketReconnect} from 'sdc_client';
+import {test_utils, on, socketReconnect, trigger} from 'sdc_client';
 import {} from "#root/src/main_test/main_test.organizer.js";
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 import '#root/src/sdc_user/sdc_user.organizer.js'
@@ -45,6 +45,30 @@ describe('WS server call', () => {
         }
 
         expect(a).toBe(undefined);
+    });
+
+});
+
+describe('SdcNavigator Logged out', () => {
+    let controller,
+        child = null;
+    const textArg = 'DUMMY';
+
+    beforeEach(async () => {
+        Cookies.set('sessionid', null);
+        console.log('Session key set: null');
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('sdc-navigator',
+            {'defaultController': `sdc-dummy?text=${textArg}`},
+            '<div><h1 >Controller loading...</h1></div>');
+
+    });
+
+
+    test('Navigate deep admin', async () => {
+        trigger('goTo', ['', 'admin-only', 'admin-only']);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        expect(controller._childController.sdcLogin.length).toBe(1);
     });
 
 });

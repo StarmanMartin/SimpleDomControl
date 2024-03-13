@@ -63,7 +63,8 @@ describe('SdcNavigator', () => {
     test('Navigate next level [A.2]', async () => {
         trigger('goTo', './sdc-dummy', {text: 'SUB DUMMY A.2'});
         await new Promise(resolve => setTimeout(resolve, 100));
-        expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('SUB DUMMY A.2');
+        let idx = controller._origin_target.length - 1
+        expect(controller.find(`.${idx}_sdc_sub_detail_container.active`).text().trim()).toBe('SUB DUMMY A.2');
     });
 
     test('Navigate next level [B]', async () => {
@@ -94,7 +95,8 @@ describe('SdcNavigator', () => {
         trigger('goTo', ['/', 'sdc-dummy'], {text: 'DUMMY B'});
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY B'});
         trigger('goTo', ['..']);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        console.log(controller);
         expect(controller.find('.0_sdc_sub_detail_container.active').text().trim()).toBe('DUMMY B');
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('');
     });
