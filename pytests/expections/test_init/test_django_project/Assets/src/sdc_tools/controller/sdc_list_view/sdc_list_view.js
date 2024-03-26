@@ -27,36 +27,40 @@ export class SdcListViewController extends AbstractSDC {
     // - onRemove                                      //
     //-------------------------------------------------//
 
-    onInit(model, filter, onUpdate ) {
-        if(!this.model) {
+    onInit(model, filter, onUpdate) {
+        if (!this.model) {
             if (this.model_name) {
                 model = this.model_name;
             }
 
             this.model = this.newModel(model);
         }
-        if(onUpdate) {
+        if (onUpdate) {
             this.on_update = onUpdate;
         }
-        if(typeof filter === 'function') {
+        if (typeof filter === 'function') {
             filter = filter();
         }
-        if(typeof filter === 'object') {
+        if (typeof filter === 'object') {
             this.model.filter(filter);
         }
 
-        if(this.on_update) {
-            this.model.load().then(()=> {
+        if (this.on_update) {
+            this.model.load().then(() => {
                 this.on_update(this.model.values_list);
             });
         }
     }
 
     onLoad($html) {
-        $html.filter('.list-container').append(this.model.listView(this.search_values));
+        let lc = $html.filter('.list-container');
+        if (lc.length === 0) {
+            lc = $html.find('.list-container');
+        }
+        lc.append(this.model.listView(this.search_values));
         this.model.on_update = this.model.on_create = () => {
-            if(this.on_update) {
-                this.model.load().then(()=> {
+            if (this.on_update) {
+                this.model.load().then(() => {
                     this.on_update(this.model.values_list);
                 });
             }
@@ -71,7 +75,7 @@ export class SdcListViewController extends AbstractSDC {
 
     onRefresh() {
         const $tooltip = this.find('[data-toggle="tooltip"]');
-        if($tooltip.length > 0 && $tooltip.tooltip) {
+        if ($tooltip.length > 0 && $tooltip.tooltip) {
             $tooltip.tooltip();
         }
         return super.onRefresh();
@@ -88,7 +92,7 @@ export class SdcListViewController extends AbstractSDC {
     }
 
     _updateView() {
-        const $div = this.model.listView(this.search_values, ()=> {
+        const $div = this.model.listView(this.search_values, () => {
             const elems = $('.tooltip.fade.show');
             elems.remove();
             this.find('.list-container').safeEmpty().append($div);
