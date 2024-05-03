@@ -259,6 +259,8 @@ class SDCModelConsumer(WebsocketConsumer):
                 self._init_connection(json_data)
             elif event_type == 'model_edit_form':
                 self._load_edit_form(json_data)
+            elif event_type == 'model_named_form':
+                self._load_named_form(json_data)
             elif event_type == 'model_create_form':
                 self._load_create_form(json_data)
             elif event_type == 'model_list_view':
@@ -347,6 +349,15 @@ class SDCModelConsumer(WebsocketConsumer):
         instance = self._load_model().get(pk=json_data['args']['pk'])
         instance.scope = self.scope
         return self._load_form(json_data, self.model.edit_form, instance)
+
+    def _load_named_form(self, json_data):
+        instance = self._load_model().get(pk=json_data['args']['pk'])
+        instance.scope = self.scope
+        form_name = json_data['args']['form_name']
+        if not hasattr(self.model, 'forms'):
+            raise NotImplemented()
+
+        return self._load_form(json_data, self.model.forms.get(form_name), instance)
 
     def _load_form(self, json_data, form_attr, instance=None):
         if callable(form_attr):

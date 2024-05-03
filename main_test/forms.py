@@ -22,6 +22,15 @@ class BookForm(ModelForm):
 
 
 
+# Form Model Book
+
+class SmallBookForm(ModelForm):
+    class Meta:
+        model = Book
+        fields = ("title",)
+
+
+
 # Form Model BookCover
 
 class BookContentForm(ModelForm):

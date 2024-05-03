@@ -9,6 +9,25 @@ export class SdcNavigatorController extends AbstractSDC {
     constructor() {
         super();
         this.contentUrl = "/sdc_view/sdc_tools/sdc_navigator"; //<sdc-navigator></sdc-navigator>
+        this._setup();
+        /**
+         * Events is an array of dom events.
+         * The pattern is {'event': {'dom_selector': handler}}
+         * Uncommend the following line to add events;
+         */
+        this.events.unshift({
+            'click': {
+                '.navigation-links': function (btn, ev) {
+                    ev.preventDefault();
+                    // noinspection JSPotentiallyInvalidUsageOfClassThis
+                    this.onNavLink(btn, ev);
+                }
+            }
+        });
+    }
+
+    _setup() {
+
         this._isLoggedIn = false;
         this._history_path = [];
         this._breadcrumb = [];
@@ -25,21 +44,6 @@ export class SdcNavigatorController extends AbstractSDC {
 
         this._non_controller_path_prefix = '/';
         this._menu_id = 0;
-
-        /**
-         * Events is an array of dom events.
-         * The pattern is {'event': {'dom_selector': handler}}
-         * Uncommend the following line to add events;
-         */
-        this.events.unshift({
-            'click': {
-                '.navigation-links': function (btn, ev) {
-                    ev.preventDefault();
-                    // noinspection JSPotentiallyInvalidUsageOfClassThis
-                    this.onNavLink(btn, ev);
-                }
-            }
-        });
     }
 
     //-------------------------------------------------//
@@ -225,7 +229,6 @@ export class SdcNavigatorController extends AbstractSDC {
 
 
     navLoaded(controller) {
-        console.log(this._current_process, controller.controller_name(), this._previous_args);
         let idx = this._history_path.length - 1;
         let last_view_array = this._preparedLastViewContainer(idx);
         last_view_array.active_container.removeClass('active loading').addClass('empty');
@@ -548,12 +551,14 @@ export class SdcNavigatorController extends AbstractSDC {
     login() {
         this._isLoggedIn = true;
         app.cleanCache();
+        this._setup();
         this.onNavigateToController(window.location.pathname);
     }
 
     logout() {
         this._isLoggedIn = false;
         app.cleanCache();
+        this._setup();
         this.onNavigateToController(window.location.pathname);
     }
 

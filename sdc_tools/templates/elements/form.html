@@ -15,61 +15,13 @@
 {% endif %}
 
 <style>
-    .non-field-errors {
-        margin: 10px 5px;
-    }
-
-    .non-field-errors ul {
-        margin: 0;
-    }
-    .error-msg {
-        padding: 3px;
-    }
-
-    .error-msg .errorlist {
-        margin: 0;
-    }
-
-    input[type="checkbox"] {
-        height: 30px;
-    }
-
-    .label-container {
-        text-align: right;
-    }
-
-    .form-group .help {
-        text-align: left;
-        padding: 3px 5px;
-    }
-
-    .label-container ul {
-        text-align: left;
-    }
-
-    .control-label:after {
-        content: ':';
-    }
-
-    .picker__select--year {
-        min-width: 59px;
-    }
-
-    .picker__select--month, .picker__select--year {
-        min-height: 42px !important;
-        padding: 0;
-    }
-
-    @media only screen and (max-width: 600px) {
-        .label-container {
-            text-align: center;
-        }
+    .form-group {
+        margin: 5px 0;
     }
 </style>
 
 {% for field in form.visible_fields %}
-<div style="border-bottom: 1px solid #cccccc"
-     class="row form-group{% if field.errors %} has-error{% endif %} {{ field.auto_id }}"
+<div class="row form-group{% if field.errors %} has-error{% endif %} {{ field.auto_id }}"
      data-auto-id="{{ field.auto_id }}">
     <div class="col-md-4 label-container">
 
@@ -89,9 +41,9 @@
         {% endif %}
     </div>
     {% if field.help_text %}
-    <div class="col-md-2 label-container">
+    <div class="col-md-4 label-container">
     </div>
-    <div class="col-md-9 label-container">
+    <div class="col-md-8 label-container">
         <p class="help help_for_{{ field.auto_id }}">{{ field.help_text|safe }}</p>
     </div>
     {% endif %}

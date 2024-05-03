@@ -51,6 +51,9 @@ class Book(models.Model, SdcModel):
     create_form = "main_test.forms.BookForm"
     html_list_template = "main_test/models/Book/Book_list.html"
     html_detail_template = "main_test/models/Book/Book_details.html"
+    forms = {
+        'test': "main_test.forms.SmallBookForm"
+    }
 
     title = models.CharField(max_length=255)
     author = models.ForeignKey(Author, on_delete=models.CASCADE)

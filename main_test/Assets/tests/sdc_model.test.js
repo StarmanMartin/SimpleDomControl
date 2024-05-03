@@ -312,16 +312,15 @@ describe('SDC Model [form]', () => {
     });
 
 
-    test('Book edit form to model', async () => {
+    test('Book named form to model', async () => {
         let books = controller.newModel('Book', {'pk': 1});
         await new Promise((resolv) => {
-            controller.find('.edit_form').append(books.editForm(-1, resolv));
+            controller.find('.edit_form').empty().append(books.namedForm(-1, 'test', resolv));
         });
-        controller.find('.edit_form #id_title').val('My super doper doper doper doper Book');
-        controller.find('.edit_form #id_author').val(2);
+        controller.find('.edit_form #id_title').val('My super Noval');
+        expect(controller.find('.edit_form #id_author').length).toBe(0);
         books.syncForm();
         expect(books.values.title).toBe(controller.find('.edit_form #id_title').val());
-        expect(books.values.id_author).toBe(controller.find('.edit_form #id_id_author').val());
         books.close();
     });
 
