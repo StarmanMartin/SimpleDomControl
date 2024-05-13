@@ -549,17 +549,15 @@ export class SdcNavigatorController extends AbstractSDC {
     }
 
     login() {
-        this._isLoggedIn = true;
-        app.cleanCache();
-        this._setup();
-        this.onNavigateToController(window.location.pathname);
+        window.addEventListener("beforeunload", function(e){
+            // Do something
+            e.preventDefault();
+        }, false);
+        location.reload();
     }
 
     logout() {
-        this._isLoggedIn = false;
-        app.cleanCache();
-        this._setup();
-        this.onNavigateToController(window.location.pathname);
+        this.login();
     }
 
 }
