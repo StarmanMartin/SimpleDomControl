@@ -116,8 +116,13 @@ describe('SDC Model [create]', () => {
     test('create Book', async () => {
         let books = controller.newModel('Book');
         await books.create({'title': 'Last of the books!', 'author': 2})
-        expect(books.values).toMatchObject({"author": 2, "title": "Last of the books!"});
+        expect(books.values).toMatchObject({"author": expect.any(Number), "title": "Last of the books!"});
+        const auth = controller.newModel(books.values.author);
         books.close();
+        auth.load().then(()=> {
+            expect(auth.values).toMatchObject({'age': 23, 'name': 'Nina', 'pk': 2});
+        });
+
     });
 
 
@@ -126,7 +131,7 @@ describe('SDC Model [create]', () => {
         let is_on_create = false;
         books.on_create = (res) => {
             is_on_create = true;
-            expect(res[0]).toMatchObject({"author": 2, "title": "First of the books!"});
+            expect(res[0]).toMatchObject({"author": expect.any(Number), "title": "First of the books!"});
         }
         await books.create({'title': 'First of the books!', 'author': 2});
 
@@ -524,4 +529,37 @@ describe('SDC Model [list & details]', () => {
         books.close();
     });
 
-})
+});
+
+
+describe('SDC Model Submodel', () => {
+    let controller;
+
+
+    beforeAll(async () => {
+        const session_key = SCRIPT_OUTPUT[0];
+        Cookies.set('sessionid', session_key);
+        console.log('Session key set:', session_key);
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('admin-only',
+            {},
+            '<div><h1>Controller Loaded</h1></div>');
+    });
+
+
+    test('Book content no details exist', async () => {
+        let books = controller.newModel('Book');
+        await books.create({'title': 'Last of the books!', 'author': 2})
+        expect(books.values).toMatchObject({"author": expect.any(Number), "title": "Last of the books!"});
+
+        await new Promise((resolv) => {
+            controller.find('.edit_form').append(books.editForm(-1, resolv));
+        });
+
+        const auth = controller.newModel(books.values.author);
+        books.close();
+        auth.load().then(()=> {
+            expect(auth.values).toMatchObject({'age': 23, 'name': 'Nina', 'pk': 2});
+        });
+    });
+});

@@ -75,17 +75,17 @@ class ConsumerSerializer(Serializer):
 
     def handle_m2m_field(self, obj, field):
         super().handle_m2m_field(obj, field)
-        # self._current[field.name] = {
-        #    'pk': self._current[field.name],
-        #    'model': field.related_model.__name__,
-        #    '__is_sdc_model__': True
-        # }
+        self._current[field.name] = {
+           'pk': self._current[field.name],
+           'model': field.related_model.__name__,
+           '__is_sdc_model__': True
+        }
 
     def _value_from_field(self, obj, field):
-        # if hasattr(field, 'foreign_related_fields') and ALL_MODELS.get(
-        #        field.related_model.__name__) == field.related_model:
-        #    return {'pk': super()._value_from_field(obj, field), 'model': field.related_model.__name__,
-        #            '__is_sdc_model__': True}
+        if hasattr(field, 'foreign_related_fields') and ALL_MODELS.get(
+               field.related_model.__name__) == field.related_model:
+           return {'pk': super()._value_from_field(obj, field), 'model': field.related_model.__name__,
+                   '__is_sdc_model__': True}
         if issubclass(field.__class__, FileField):
             return field.value_from_object(obj).url
         return super()._value_from_field(obj, field)
