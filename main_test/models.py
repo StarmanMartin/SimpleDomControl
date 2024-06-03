@@ -47,6 +47,7 @@ class BookSearchForm(AbstractSearchForm):
     SEARCH_FIELDS = ('title', 'author__name')
 
 class Book(models.Model, SdcModel):
+
     edit_form = "main_test.forms.BookForm"
     create_form = "main_test.forms.BookForm"
     html_list_template = "main_test/models/Book/Book_list.html"
@@ -80,6 +81,8 @@ class BookContentSearchForm(AbstractSearchForm):
     SEARCH_FIELDS = ("id",)
 
 class BookContent(models.Model, SdcModel):
+    class SdcMeta:
+        age = 5
     edit_form = "main_test.forms.BookContentForm"
     create_form = "main_test.forms.BookContentForm"
 

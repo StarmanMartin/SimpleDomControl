@@ -4,11 +4,9 @@ import traceback
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
-from django.core.serializers.json import Serializer
+
 from django.utils.datastructures import MultiValueDict
 from django.utils.translation import gettext as _f
-from django.apps import apps
-from django.db.models import FileField
 from django.contrib.auth import get_user_model
 from channels.generic.websocket import WebsocketConsumer
 
@@ -16,7 +14,7 @@ from asgiref.sync import async_to_sync
 import importlib
 import json
 
-from sdc_core.sdc_extentions.models import SdcModel
+from sdc_core.sdc_extentions.models import SdcModel, ConsumerSerializer, all_models
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
 from sdc_core.sdc_extentions.views import SdcAccessMixin
@@ -26,12 +24,8 @@ import logging
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
-ALL_MODELS = {
-    model.__name__: model for model in apps.get_models() if hasattr(model, '__is_sdc_model__')
-}
-
 importlist = []
-
+ALL_MODELS = all_models()
 
 class MsgManager:
     _messages = None
@@ -69,26 +63,6 @@ class MsgManager:
                 'on_change': {'header': f'{model} was changed', 'msg': '{0} was changed'},
                 'create': {'header': f'{model} created', 'msg': '{0} was successfully created'},
                 'delete': {'header': f'{model} was deleted', 'msg': '{0} was changed'}}
-
-
-class ConsumerSerializer(Serializer):
-
-    def handle_m2m_field(self, obj, field):
-        super().handle_m2m_field(obj, field)
-        self._current[field.name] = {
-           'pk': self._current[field.name],
-           'model': field.related_model.__name__,
-           '__is_sdc_model__': True
-        }
-
-    def _value_from_field(self, obj, field):
-        if hasattr(field, 'foreign_related_fields') and ALL_MODELS.get(
-               field.related_model.__name__) == field.related_model:
-           return {'pk': super()._value_from_field(obj, field), 'model': field.related_model.__name__,
-                   '__is_sdc_model__': True}
-        if issubclass(field.__class__, FileField):
-            return field.value_from_object(obj).url
-        return super()._value_from_field(obj, field)
 
 
 class SDCConsumer(WebsocketConsumer):
@@ -220,15 +194,13 @@ class SDCModelConsumer(WebsocketConsumer):
         pass
 
     def on_update(self, data):
-        if data['args']['data'].pk in self.ids:
-            data['args']['data'] = ConsumerSerializer().serialize([data['args']['data']])
+        if data['pk'] in self.ids:
             self.send(text_data=json.dumps(data))
 
     def on_create(self, data):
-        instance = data['args']['data']
+        instance = data['pk']
         try:
-            self._load_model().get(pk=instance.pk)
-            data['args']['data'] = ConsumerSerializer().serialize([instance])
+            self._load_model().get(pk=instance)
             self.send(text_data=json.dumps(data))
         except:
             pass
