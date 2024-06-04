@@ -1,3 +1,5 @@
+import uuid
+
 from django import template
 import datetime
 import random
@@ -26,6 +28,11 @@ def random_tag(a):
     for i in range(a):
         b = "%s%d" % (b, random.randint(0, 9))
     return b
+
+
+@register.simple_tag(name='get_list_id')
+def get_list_id():
+    return uuid.uuid4().__str__()
 
 
 @register.filter
