@@ -277,7 +277,9 @@ class SDCModelConsumer(WebsocketConsumer):
                 traceback.print_tb(e.__traceback__)
             else:
                 logger.error(e_text)
-                e_text = _f('Something went wrong')
+                e_text_details = str(e)
+                e_text = _f('Something went wrong! {e}').format(e=e_text_details)
+
             self.state_error({
                 'type': msg_type,
                 'msg': e_text,

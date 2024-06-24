@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc_client';
+import {AbstractSDC, app, on} from 'sdc_client';
 
 
 export class SdcAlertMessengerController extends AbstractSDC {
