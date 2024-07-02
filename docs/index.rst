@@ -3,8 +3,13 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to ChemotionAPI's documentation!
-========================================
+.. image:: _static/sdc_icon.drawio.png
+   :align: center
+   :width: 30%
+
+Welcome to Simple-Dom-Control`s documentation!
+==============================================
+
 
 .. toctree::
    :maxdepth: 2

@@ -23,8 +23,8 @@ def test_model_list(init_project_with_app):
     result = json.loads(text)['sdc_models']
 
     assert len(result) == 2
-    assert result[0]['model_file_line'] == 15
-    assert result[1]['model_file_line'] == 42
+    assert result[0]['model_file_line'] == 11
+    assert result[1]['model_file_line'] == 43
     assert result[0]['name'] == 'TestOneModel'
     assert result[0]['app'] == 'test_app_one'
     assert result[0]['create_form']['class'] == 'TestOneModelForm'

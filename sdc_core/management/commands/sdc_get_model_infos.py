@@ -44,26 +44,26 @@ class Command(BaseCommand):
             'model_file': os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'),
             'model_file_line': self._get_class_line_number(
                 os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'), model.__name__),
-            'create_form': self._separate_file_class(model.create_form),
-            'edit_form': self._separate_file_class(model.edit_form)
+            'create_form': self._separate_file_class(model.SdcMeta.create_form),
+            'edit_form': self._separate_file_class(model.SdcMeta.edit_form)
 
         }
 
-        if model.html_detail_template:
+        if model.SdcMeta.html_detail_template:
             try:
-                mi['html_detail_template'] = get_template(model.html_detail_template).origin.name
+                mi['html_detail_template'] = get_template(model.SdcMeta.html_detail_template).origin.name
             except:
                 pass
 
-        if model.html_list_template:
+        if model.SdcMeta.html_list_template:
             try:
-                mi['html_list_template'] = get_template(model.html_list_template).origin.name
+                mi['html_list_template'] = get_template(model.SdcMeta.html_list_template).origin.name
             except:
                 pass
 
-        if model.html_form_template:
+        if model.SdcMeta.html_form_template:
             try:
-                mi['html_form_template'] = get_template(model.html_form_template).origin.name
+                mi['html_form_template'] = get_template(model.SdcMeta.html_form_template).origin.name
             except:
                 pass
 

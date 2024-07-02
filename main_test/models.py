@@ -81,8 +81,7 @@ class BookContentSearchForm(AbstractSearchForm):
     SEARCH_FIELDS = ("id",)
 
 class BookContent(models.Model, SdcModel):
-    class SdcMeta:
-        age = 5
+
     edit_form = "main_test.forms.BookContentForm"
     create_form = "main_test.forms.BookContentForm"
 
@@ -91,7 +90,7 @@ class BookContent(models.Model, SdcModel):
 
     @classmethod
     def render(cls, template_name, context=None, request=None, using=None):
-        if template_name == cls.html_list_template:
+        if template_name == cls.SdcMeta.html_list_template:
             sf = BookContentSearchForm(data=context.get("filter", {}))
             context = context | handle_search_form(context["instances"], sf,  range=10)
         return render_to_string(template_name=template_name, context=context, request=request, using=using)

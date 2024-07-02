@@ -22,3 +22,4 @@ sdc.zip
 /Assets/_build/
 /db.sqlite3
 /Assets/.sdc_python_env
+/playground.py

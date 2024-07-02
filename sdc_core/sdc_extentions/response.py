@@ -5,12 +5,10 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.core.serializers.json import DjangoJSONEncoder
 
-
 NEXT = 'next_controller'
 
 
-
-def sdc_link_factory(controller: str = None, link_data: dict = None, add_sdc_index : bool = True) -> str:
+def sdc_link_factory(controller: str = None, link_data: dict = None, add_sdc_index: bool = True) -> str:
     """
     :param controller: path to controller
     :type controller: str, optional
@@ -51,16 +49,14 @@ def send_redirect(controller: str = None, back: bool = False, link_data: dict = 
     send_redirect is a simple way to redirect a client to another SDC controller. Set the controller argument according to
     the rules of the sdc_tools.sdc_navigator. Following you see some examples:
 
-
     - /view-a/view-b -> view-b as subview of view-a
     - */view-b -> keeps first view as it is and view-b as subview
     - ../view-b -> replaces current latest subview by view-b
     - ./view-b -> adds view-b as next latest subview to the current path
 
-
     :param controller: path to controller
     :type controller: str, optional
-    :param back: if 'True' the redirect url is equal to '..', default is 'False'
+    :param back: if ``True`` the redirect url is equal to ``..``, default is ``False``
     :type back: boolean, optional
     :param link_data: arguments passed to the new redirected controller
     :type link_data: dict, optional
@@ -86,7 +82,7 @@ def send_redirect(controller: str = None, back: bool = False, link_data: dict = 
     return HttpResponse(json.dumps(kwargs, cls=DjangoJSONEncoder), status=301, content_type="application/json")
 
 
-def send_success(template_name: str = None, context: dict = None, request = None, status= 'success', **kwargs):
+def send_success(template_name: str = None, context: dict = None, request=None, status='success', **kwargs):
     """
 
     :param template_name: HTML template name
@@ -110,5 +106,6 @@ def send_error(template_name: str = None, context: dict = None, request=None, st
         kwargs['html'] = render_to_string(template_name, request=request, context=context)
     return HttpResponse(json.dumps(kwargs, cls=DjangoJSONEncoder), status=status, content_type="application/json")
 
+
 def send_controller(controller_name: str):
-    return HttpResponse('<%s></%s>' % (controller_name,controller_name), content_type="text/html")
+    return HttpResponse('<%s></%s>' % (controller_name, controller_name), content_type="text/html")

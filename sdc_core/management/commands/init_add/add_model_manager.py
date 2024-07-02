@@ -49,22 +49,25 @@ class AddModelManager():
         self._check_if_sdcmodel_imported(model_path)
         f = open(model_path, 'a')
 
-        search_form_def = "\n".join([
-            'class {2}SearchForm(AbstractSearchForm):',
-            '{0}CHOICES = (("id", "Id"),)',
-            '{0}PLACEHOLDER = ""',
-            '{0}DEFAULT_CHOICES = CHOICES[0][0]',
-            '{0}SEARCH_FIELDS = ("id",)',
-        ]).format(options.SEP, self.app_name, self.model_name)
+        search_form_def = "\n".join([]).format(options.SEP, self.app_name, self.model_name)
 
         class_def = "\n".join([
             'class {2}(models.Model, SdcModel):',
-            '{0}edit_form = "{1}.forms.{2}Form"',
-            '{0}create_form = "{1}.forms.{2}Form"',
-            '{0}html_list_template = "{1}/models/{2}/{2}_list.html"',
-            '{0}html_detail_template = "{1}/models/{2}/{2}_details.html"',
+            '{0}class SearchForm(AbstractSearchForm):',
+            '{0}{0}"""A default search form used in the list view. You can delete it if you dont need it"""',
+            '{0}{0}CHOICES = (("id", "Id"),)',
+            '{0}{0}PLACEHOLDER = ""',
+            '{0}{0}DEFAULT_CHOICES = CHOICES[0][0]',
+            '{0}{0}SEARCH_FIELDS = ("id",)',
             '',
-            '{0}@classmethod\n{0}def render(cls, template_name, context=None, request=None, using=None):\n{0}{0}if template_name == cls.html_list_template:\n{0}{0}{0}sf = {2}SearchForm(data=context.get("filter", {{}}))\n{0}{0}{0}context = context | handle_search_form(context["instances"], sf,  range=10)\n{0}{0}return render_to_string(template_name=template_name, context=context, request=request, using=using)',
+            '{0}class _SdcMeta:',
+            '{0}{0}"""Meta data information needed to manage all SDC operations."""',
+            '{0}{0}edit_form = "{1}.forms.{2}Form"',
+            '{0}{0}create_form = "{1}.forms.{2}Form"',
+            '{0}{0}html_list_template = "{1}/models/{2}/{2}_list.html"',
+            '{0}{0}html_detail_template = "{1}/models/{2}/{2}_details.html"',
+            '',
+            '{0}@classmethod\n{0}def render(cls, template_name, context=None, request=None, using=None):\n{0}{0}if template_name == cls.SdcMeta.html_list_template:\n{0}{0}{0}sf = cls.SearchForm(data=context.get("filter", {{}}))\n{0}{0}{0}context = context | handle_search_form(context["instances"], sf,  range=10)\n{0}{0}return render_to_string(template_name=template_name, context=context, request=request, using=using)',
             '',
             '{0}@classmethod\n{0}def is_authorised(cls, user, action, obj):\n{0}{0}return True',
             '',

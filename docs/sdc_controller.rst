@@ -151,7 +151,7 @@ The Client
 When we talk about the client in this section, we mean the ECMAScript (JavaScript) controller class, a template HTML file and a Style SCSS file.
 These files are placed in a Assets folder which lies in the Django app directory. This directory is linked in the global Assets directory.sdc_extensions
 
-Linked directory: *./Assets/src/<APP>* -> ./<APP>/Assets/src
+Linked directory: *./Assets/src/<APP>* refers to ./<APP>/Assets/src
 
 .. list-table:: Client Files
    :widths: 30 30 40
@@ -199,17 +199,39 @@ Django’s built-in render function.
 ECMAScript Controller
 +++++++++++++++++++++
 
+The ECMAScript controller is a class that extends sdc_client.AbstractSDC. It is the centrepiece of the client and connects all other elements
+It is responsible for:
+
+* The client lifecycle.
+* Events (both DOM events and SDC events)
+* Collecting arguments
+* Model management (see :ref:`sdc-model-label`)
+* Server communication
+* Registering the html TAG
+
+Live cycle
+__________
+
+The life cycle consists of 5 steps. Each step has a responsible processor, see Figure 1:
+
+.. figure:: _static/sdc_life_cycle.drawio.png
+  :width: 100%
+  :alt: 1) contstruction 2) onInit 3) willShow 4) onRefresh (can be repeated) 5) onRemove
+
+  **Figure 1:** Live cycle of a SDC controller.
+
 
 
 Redirect, Error handling and Permissions
-________________________________________
+++++++++++++++++++++++++++++++++++++++++
 
 Redirects, errors, and permissions have been carefully addressed in the system. A built-in method facilitates client redirection, while errors can be efficiently handled through error raising.
 
 Permissions are managed through abstracted classes (mixins) within the views, ensuring a structured and secure approach to access control.
 
 Redirect
-++++++++
+________
+
 
 A redirect can be simplly triggered from the server side by returning *sdc_core.sdc_extensions.response.send_redirect*.
 

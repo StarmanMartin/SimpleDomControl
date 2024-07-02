@@ -11,9 +11,12 @@ from django.apps import apps
 from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 
+from sdc_core.sdc_extentions.forms import AbstractSearchForm
+
 User = get_user_model()
 
 _ALL_MODELS = None
+
 
 def all_models():
     global _ALL_MODELS
@@ -22,6 +25,7 @@ def all_models():
             model.__name__: model for model in apps.get_models() if hasattr(model, '__is_sdc_model__')
         }
     return _ALL_MODELS
+
 
 class ConsumerSerializer(Serializer):
 
@@ -42,15 +46,46 @@ class ConsumerSerializer(Serializer):
             return field.value_from_object(obj).url
         return super()._value_from_field(obj, field)
 
+
+_SDC_META_DEFAULT = {'edit_form': None,
+                     'create_form': None,
+                     'html_list_template': None,
+                     'html_detail_template': None,
+                     'html_form_template': getattr(settings, 'MODEL_FORM_TEMPLATE', "elements/form.html")
+                     }
+
+class classproperty(property):
+    def __get__(self, obj, objtype=None):
+        return super().__get__(objtype)
+    def __set__(self, obj, value):
+        super().__set__(type(obj), value)
+
+class _SdcMetaDummy:
+    _sdc_checked = False
+
 class SdcModel():
     __is_sdc_model__ = True
-    edit_form = None
-    create_form = None
-    html_list_template = None
-    html_detail_template = None
-    html_form_template = getattr(settings, 'MODEL_FORM_TEMPLATE', "elements/form.html")
-    apply_filter = None
     _scope = None
+
+    class SearchForm(AbstractSearchForm):
+        CHOICES = (("id", "Id"),)
+        PLACEHOLDER = ""
+        DEFAULT_CHOICES = CHOICES[0][0]
+        SEARCH_FIELDS = ("id",)
+
+    @classproperty
+    def SdcMeta(cls):
+        if not hasattr(cls, '_SdcMeta'):
+            setattr(cls, '_SdcMeta', _SdcMetaDummy())
+
+        sdc_meta = getattr(cls, '_SdcMeta')
+
+        if not getattr(sdc_meta, '_sdc_checked', False):
+            setattr(sdc_meta,'_sdc_checked', True)
+            for k, v in _SDC_META_DEFAULT.items():
+                if not hasattr(sdc_meta, k):
+                    setattr(sdc_meta, k, getattr(cls, k, v))
+        return sdc_meta
 
     @property
     def scope(self) -> dict[str: any]:
@@ -73,7 +108,7 @@ class SdcModel():
         raise NotImplemented
 
     @classmethod
-    def data_load(cls, user: User, action: str, obj: dict[str: any]) -> QuerySet|None:
+    def data_load(cls, user: User, action: str, obj: dict[str: any]) -> QuerySet | None:
         return None
 
 
