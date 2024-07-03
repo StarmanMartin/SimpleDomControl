@@ -2,6 +2,7 @@
 
 const {src, dest, series, parallel} = require('gulp');
 const webpack = require('webpack-stream');
+const copy = require('gulp-copy');
 
 process.env.JS_CILENT_FILE_EXTENTIONS = ['.js', '.json'];
 

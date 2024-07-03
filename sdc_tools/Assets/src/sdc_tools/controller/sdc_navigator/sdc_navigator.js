@@ -549,10 +549,6 @@ export class SdcNavigatorController extends AbstractSDC {
     }
 
     login() {
-        window.addEventListener("beforeunload", function(e){
-            // Do something
-            e.preventDefault();
-        }, false);
         location.reload();
     }
 

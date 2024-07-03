@@ -10,7 +10,7 @@ class AdminOnlyController extends AbstractSDC {
         /**
          * Events is an array of dom events.
          * The pattern is {'event': {'dom_selector': handler}}
-         * Uncommend the following line to add events;
+         * Uncomment the following line to add events;
          */
         // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
     }

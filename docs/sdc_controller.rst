@@ -212,15 +212,36 @@ It is responsible for:
 Live cycle
 __________
 
-The life cycle consists of 5 steps. Each step has a responsible processor, see Figure 1:
+The life cycle consists of 6 steps. Each step has a responsible handler, see Figure 1:
 
 .. figure:: _static/sdc_life_cycle.drawio.png
   :width: 100%
-  :alt: 1) contstruction 2) onInit 3) willShow 4) onRefresh (can be repeated) 5) onRemove
+  :alt: 1) constructor 2) onInit 3) willShow 4) willShow 5) onRefresh (can be repeated) 6) onRemove
 
   **Figure 1:** Live cycle of a SDC controller.
 
+1) **constructor**
 
+The constructor is the default ES class constructor. It contains by default the *contentUrl* pointing to the Django entrypoint.
+Also some important controller settings can be set.
+
+* *events*:
+    events is a list of objects containing event handlers the controller listens on. One example is given in the comment. The patter is
+    EVENT.SELECTOR: handler
+
+    .. code-block:: JavaScript
+
+        {
+          'click':
+          {
+            '.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')
+          }
+        }
+
+* *contentReload*:
+    Set this to true to make sure the HTML template of this controller is not cached and reloaded for every instance of this controller. If the content url contains a variable *contentReload* is always true.
+* *load_async*:
+    Set this to true to make this controller asynchronous. This means that the parent controller finishes loading without waiting for this controller
 
 Redirect, Error handling and Permissions
 ++++++++++++++++++++++++++++++++++++++++
@@ -228,6 +249,96 @@ Redirect, Error handling and Permissions
 Redirects, errors, and permissions have been carefully addressed in the system. A built-in method facilitates client redirection, while errors can be efficiently handled through error raising.
 
 Permissions are managed through abstracted classes (mixins) within the views, ensuring a structured and secure approach to access control.
+
+2) **onInit**
+
+The onInit handler is called before the content is loaded. This handler can be used to pass information from the parent controller on to the child.
+To pass on information the *data* attributes of the HTML tag is used. The parameter of the the onInit function are populated with the on data attributes of the
+tag with the same name.
+Let
+
+.. code-block:: JavaScript
+
+    class MainViewController(AbstractSDC) {
+        ...
+
+        onInit(pk, name) {
+            console.log(`pk=${pk}, name=${name}`)
+        }
+    ...
+
+a onInit method of the MainView controller. And
+
+.. code-block:: html
+
+        <main-view data-pk="3" data-name="martin"></main-view>
+
+is the calling HTML tag. Then the console output is "*pk=3, name=martin*". It is also possible to pass information from a parent controller to child controller.
+Data is passed if the value of a data argument fits a property name of the parent controller.
+
+Let Dashboard be another controller.
+
+.. code-block:: JavaScript
+
+    class DashboardController(AbstractSDC) {
+        ...
+
+        constructor() {
+            ...
+            this.name = "Tom"
+        }
+    ...
+
+and
+
+.. code-block:: html
+
+        <dashboard>
+            <main-view data-pk="3" data-name="name"></main-view>
+        </dashboard>
+
+Then the console output is "*pk=3, name=Tom*".
+
+3) **onLoad**
+
+This handler is called after the HTML content has been rendered and loaded but before it is set to the main document. It gets the rendered HTML as a JQurey object as an argument.
+
+.. code-block:: JavaScript
+
+    class MainViewController(AbstractSDC) {
+        ...
+
+        onLoad($html) {
+            super($html);
+        }
+    ...
+
+The content of the tag is replaced by the new rendered HTML.
+
+.. code-block:: html
+
+        <dashboard>
+            <main-view data-pk="3" data-name="name">
+                <p>Loading</p>
+            </main-view>
+        </dashboard>
+
+However, the pre loaded HTML content can be accessed by the *$container* property of the controller.
+
+.. code-block:: JavaScript
+
+    class MainViewController(AbstractSDC) {
+        ...
+
+        onLoad($html) {
+            $html.append(this.$container.html())
+            super($html);
+        }
+    ...
+
+4) **willShow**
+
+This handler is called when the HTML content is set to the main document. In this handler the *$container* contains already the newly rendered HTML as a JQuery object.
 
 Redirect
 ________
