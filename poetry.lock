@@ -1545,6 +1545,25 @@ markupsafe = ">=1"
 standard-imghdr = {version = "3.10.14", markers = "python_version >= \"3.13\""}
 
 [[package]]
+name = "sphinx-markdown-builder"
+version = "0.6.6"
+description = "A Sphinx extension to add markdown generation support."
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "sphinx-markdown-builder-0.6.6.tar.gz", hash = "sha256:febd8e03e20e357e624c52efdc7ef9d5ab70d58549784158033c9657d040f44e"},
+    {file = "sphinx_markdown_builder-0.6.6-py3-none-any.whl", hash = "sha256:e6fd4626c6daf1c25a464fd7d6d64e4a97e69abca1684fb2a12fba44cb6db363"},
+]
+
+[package.dependencies]
+docutils = "*"
+sphinx = ">=5.1.0"
+tabulate = "*"
+
+[package.extras]
+dev = ["black", "bumpver", "coveralls", "flake8", "isort", "pip-tools", "pylint", "pytest", "pytest-cov", "sphinx (>=5.3.0)", "sphinx-needs", "sphinxcontrib-plantuml", "sphinxcontrib.httpdomain"]
+
+[[package]]
 name = "sphinx-prompt"
 version = "1.8.0"
 description = "Sphinx directive to add unselectable prompt"
@@ -1981,4 +2000,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "b5814ac215372e6136ee00b9800e16b7b7f0c46607bca47213330d9b207e83d2"
+content-hash = "cbb36f9539bc31deb1e7306094be38632c5c698cd4ed84bb718cd8cff234b901"
