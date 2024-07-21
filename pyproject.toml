@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "SimpleDomControl"
-version = "0.55.4"
+version = "0.56.0"
 authors = [ "Martin Starman <private@martin-starman.com>", ]
 description = "Simple DOM control -> a django MVC framework"
 readme = "README.md"
@@ -38,6 +38,8 @@ testpaths = [
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"
 pillow = "^10.1.0"
+sphinx-toolbox = "^3.6.0"
+sphinx-rtd-theme = "^2.0.0"
 
 [build-system]
 requires = ["poetry-core"]

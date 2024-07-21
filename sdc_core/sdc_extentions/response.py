@@ -10,6 +10,7 @@ NEXT = 'next_controller'
 
 def sdc_link_factory(controller: str = None, link_data: dict = None, add_sdc_index: bool = True) -> str:
     """
+
     :param controller: path to controller
     :type controller: str, optional
     :param link_data: arguments passed to the new redirected controller

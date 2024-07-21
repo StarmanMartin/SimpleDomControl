@@ -1,9 +1,15 @@
 .. _getting-started-label:
 
+Version 0.56.0
+================
+
+
 Getting Started
 ===============
 
 In the following steps, we provide a brief introduction on how to initiate a new project. Throughout this introduction, we will refer to the project as *'mysite'*.
+
+
 
 
 Quick and dirty
