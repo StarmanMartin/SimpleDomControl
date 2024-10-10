@@ -77,8 +77,8 @@ class SettingsManager:
 
         data = fin.read()
         fin.close()
-        data = re.sub(r'(from[^\n]*)', '\g<1>\nimport os\nfrom urllib.parse import urlparse, urlunparse', data)
-        data = re.sub(r'(ALLOWED_HOSTS[^\n]*)', '# \g<1>', data)
+        data = re.sub(r'(from[^\n]*)', r'\g<1>\nimport os\nfrom urllib.parse import urlparse, urlunparse', data)
+        data = re.sub(r'(ALLOWED_HOSTS[^\n]*)', r'# \g<1>', data)
         data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
 
         new_val = f"DATABASES_AVAILABLE = {{\n{sep}'jest': {{'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'test_db.sqlite3', }},"

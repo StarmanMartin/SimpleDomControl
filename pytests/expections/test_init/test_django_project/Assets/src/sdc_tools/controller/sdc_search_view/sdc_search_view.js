@@ -84,7 +84,7 @@ export class SdcSearchViewController extends AbstractSDC {
 
         if (!this.isRange) {
             $pageContainer.remove();
-            return;
+            return super.willShow();
         }
 
         $pageContainer.find('.range-span').text(this.range[1] + ' - ' + this.range[2]);

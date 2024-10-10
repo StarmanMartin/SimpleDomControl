@@ -1,10 +1,32 @@
+"""
+The SDC package 'sdc_extentions' houses a form called 'AbstractSearchForm' to simplify search implementations.
+"""
+
 from django import forms
 from django.utils.translation import gettext_lazy as _
 
+
 class AbstractSearchForm(forms.Form):
-    CHOICES = ()
-    SEARCH_FIELDS = ()
-    DEFAULT_CHOICES = ""
+    """
+    The AbstractSearchForm facilitates the development of a user interface for searching
+    entries of a Django model type from the database. This form is closely  linked to
+    the :func:`sdc_core.sdc_extentions.search.handle_search_form` handler. A form class
+    that extends this class is automatically created when you use the sdc management
+    command 'sdc_new_model'.
+
+    The following class properties can be used to customize the search form:
+
+    :cvar CHOICES: specifies the property according to which the search results are to be sorted.
+    The value is a tuple of tuples of human-readable name, property name.
+    :cvar DEFAULT_CHOICES: is the name of the property to which the search results are to be sorted if non is selected.
+    :cvar SEARCH_FIELDS: is a list or a tuple of names of the properties that are included in the actual search
+    :cvar PLACEHOLDER: is the placeholder text in the search input field.
+
+    """
+
+    CHOICES: tuple[tuple[str,str]] = ()
+    SEARCH_FIELDS: list[str] = []
+    DEFAULT_CHOICES: str = ""
     NO_RESULTS_ON_EMPTY_SEARCH = False
     PLACEHOLDER = _('Search')
     search = forms.CharField(label=_('Search'), required=False, max_length=100, initial='')

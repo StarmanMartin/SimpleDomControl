@@ -46,7 +46,7 @@ class Command(BaseCommand):
             app_name = all_apps[idx]
         model_name = ops.get('model_name')
         if model_name is None:
-            text = "Enter the name of the new Model class name (use camel-case):"
+            text = "Enter the name of the new Model class name (use CamelCase):"
             model_name = str(input(text))
 
         if model_name in [model.__name__ for model in apps.get_app_config(app_name).get_models()]:

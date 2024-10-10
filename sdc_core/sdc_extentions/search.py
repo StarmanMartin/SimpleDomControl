@@ -1,11 +1,21 @@
-from django.db.models import Q
+from django.db.models import Q, QuerySet
+from sdc_core.sdc_extentions.forms import AbstractSearchForm
 
-def generate_q_key_value_request(key, val):
+def _generate_q_key_value_request(key, val):
     map_val = {key + '__icontains': val}
     return Q(**map_val)
 
 
-def handle_search_form(query_set, search_form, filter_dict=None, range=0):
+def handle_search_form(query_set: QuerySet, search_form: AbstractSearchForm, filter_dict: dict=None, range: int=0):
+    """
+    This handler function takes a :class:`sdc_core.sdc_extentions.forms.AbstractSearchForm`
+
+    :param query_set:
+    :param search_form:
+    :param filter_dict:
+    :param range:
+    :return:
+    """
     if not search_form.is_valid():
         data = {}
     else:
@@ -26,9 +36,9 @@ def handle_search_form(query_set, search_form, filter_dict=None, range=0):
         q_list = None
         for key in search_form.SEARCH_FIELDS:
             if q_list is None:
-                q_list = generate_q_key_value_request(key, key_word)
+                q_list = _generate_q_key_value_request(key, key_word)
             else:
-                q_list = q_list | generate_q_key_value_request(key, key_word)
+                q_list = q_list | _generate_q_key_value_request(key, key_word)
         query_set = query_set.filter(q_list).distinct()
         query_set_count = query_set.count()
     elif(search_form.NO_RESULTS_ON_EMPTY_SEARCH):

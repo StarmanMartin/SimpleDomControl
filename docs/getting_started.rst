@@ -1,6 +1,6 @@
 .. _getting-started-label:
 
-Version 0.56.0
+Version 0.56.1
 ================
 
 
@@ -9,6 +9,14 @@ Getting Started
 
 In the following steps, we provide a brief introduction on how to initiate a new project. Throughout this introduction, we will refer to the project as *'mysite'*.
 
+
+To start a new SDC project, open your command line and cd to the directory
+where you want to start your code. Then, execute the following commands:
+
+-- code-block:: sh
+
+    $ pip install simpledomcontrol
+    $ sdc new
 
 
 
@@ -24,12 +32,10 @@ Navigate to your project container directory and run the following chell command
     $ cd ./$PROJECT_NAME
     $ virtualenv venv
     $ source venv/bin/activate
-    $ pip install django
     $ pip install simpledomcontrol
     $ sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_core',/g" ./$PROJECT_NAME/settings.py
     $ sed -i "s/'DIRS'\: \[\]/'DIRS'\: \[BASE_DIR \/ 'templates'\]/g" ./$PROJECT_NAME/settings.py
     $ python manage.py sdc_init
-    $ cd ./Assets
     $ npm install
 
 

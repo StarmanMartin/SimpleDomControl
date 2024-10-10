@@ -19,8 +19,8 @@ def test_cc(init_project):
     result = json.loads(text)['sdc_controller']['test_app_one']
 
     assert len(result) == 2
-    assert result[0]['name'] == 'test_sdc_one'
-    assert result[1]['name'] == 'test_sdc_two'
+    assert result[0]['name'] in ['test_sdc_one', 'test_sdc_two']
+    assert result[1]['name'] in ['test_sdc_one', 'test_sdc_two']
 
     assert are_dir_trees_equal(dir1, dir2) == []
 

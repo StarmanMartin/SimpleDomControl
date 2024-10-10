@@ -14,7 +14,7 @@ from asgiref.sync import async_to_sync
 import importlib
 import json
 
-from sdc_core.sdc_extentions.models import SdcModel, ConsumerSerializer, all_models
+from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
 from sdc_core.sdc_extentions.views import SdcAccessMixin
@@ -248,7 +248,7 @@ class SDCModelConsumer(WebsocketConsumer):
             elif event_type == 'model_delete':
                 self._delete_element(json_data)
             elif event_type == 'model_load':
-                model_data = ConsumerSerializer().serialize(self._load_model())
+                model_data = SDCSerializer().serialize(self._load_model())
                 self.send(text_data=json.dumps({
                     'type': json_data['event_type'],
                     'event_id': json_data['event_id'],
@@ -406,7 +406,7 @@ class SDCModelConsumer(WebsocketConsumer):
 
         if is_valid:
             form_instance.save()
-            new_instance = ConsumerSerializer().serialize(self._load_model().filter(pk=form_instance.instance.pk))
+            new_instance = SDCSerializer().serialize(self._load_model().filter(pk=form_instance.instance.pk))
             msg = self.msg_manager.get_msg(form_instance.instance, json_data['event_type'])
         else:
             msg = {'header': 'Upss!',

@@ -18,7 +18,13 @@ User = get_user_model()
 _ALL_MODELS = None
 
 
-def all_models():
+def all_models() -> dict[str,any]:
+    """
+    Collects and returns all SDC Models
+
+    :return: all SDC models as a dict with keys are model names and the class as value
+    """
+
     global _ALL_MODELS
     if _ALL_MODELS is None:
         _ALL_MODELS = {
@@ -27,7 +33,11 @@ def all_models():
     return _ALL_MODELS
 
 
-class ConsumerSerializer(Serializer):
+class SDCSerializer(Serializer):
+    """
+    The SDCSerializer serializes SdcModels for the API and websocket communication
+
+    """
 
     def handle_m2m_field(self, obj, field):
         super().handle_m2m_field(obj, field)
@@ -54,16 +64,25 @@ _SDC_META_DEFAULT = {'edit_form': None,
                      'html_form_template': getattr(settings, 'MODEL_FORM_TEMPLATE', "elements/form.html")
                      }
 
+
 class classproperty(property):
     def __get__(self, obj, objtype=None):
         return super().__get__(objtype)
+
     def __set__(self, obj, value):
         super().__set__(type(obj), value)
+
 
 class _SdcMetaDummy:
     _sdc_checked = False
 
+
 class SdcModel():
+    """
+    A Django Model which also extents the SdcModel class can be used as a Websocked based Client Model.
+    Use the SDC management command new_model to create a new model class.
+    """
+
     __is_sdc_model__ = True
     _scope = None
 
@@ -75,13 +94,23 @@ class SdcModel():
 
     @classproperty
     def SdcMeta(cls):
+        """
+        SdcMeta is a metaclass that contains all the
+        important metadata for rendering HTML views of instances.
+        All class variable are python import sting
+
+        :cvar edit_form: Import string to edit form class
+        :cvar create_form: Import string to edit form class
+        :cvar forms: Import string to edit form class
+
+        """
         if not hasattr(cls, '_SdcMeta'):
             setattr(cls, '_SdcMeta', _SdcMetaDummy())
 
         sdc_meta = getattr(cls, '_SdcMeta')
 
         if not getattr(sdc_meta, '_sdc_checked', False):
-            setattr(sdc_meta,'_sdc_checked', True)
+            setattr(sdc_meta, '_sdc_checked', True)
             for k, v in _SDC_META_DEFAULT.items():
                 if not hasattr(sdc_meta, k):
                     setattr(sdc_meta, k, getattr(cls, k, v))
@@ -89,10 +118,16 @@ class SdcModel():
 
     @property
     def scope(self) -> dict[str: any]:
+        """
+        :return: Websocket scope object
+        """
         return self._scope
 
     @scope.setter
     def scope(self, scope: dict[str: any]):
+        """
+        Set the Websocket scope object
+        """
         self._scope = scope
 
     @classmethod
@@ -114,9 +149,18 @@ class SdcModel():
 
 @receiver(post_save)  # instead of @receiver(post_save, sender=Rebel)
 @receiver(post_delete)  # instead of @receiver(post_save, sender=Rebel)
-def set_winner(sender, instance=None, created=False, **kwargs):
+def set_winner(sender, instance=None, created: bool = False, **kwargs):
+    """
+    Handles the client notification if an SDC model has been saved, created or deleted.
+
+    :param sender: The modul class
+    :param instance: Saved, created or deleted instance
+    :param created: True if instance has no db id before it has been saved
+    :param kwargs:
+    """
+
     if instance is not None and hasattr(sender, '__is_sdc_model__'):
-        serialize_instance = ConsumerSerializer().serialize([instance])
+        serialize_instance = SDCSerializer().serialize([instance])
         if created:
             async_to_sync(get_channel_layer().group_send)(sender.__name__, {
                 'event_id': 'none',
