@@ -179,9 +179,9 @@ class SDCModelConsumer(WebsocketConsumer):
         self.queryset = {}
         self.model_id_list = []
         self._upload_handler = {}
+        self._group_names = []
 
     def connect(self):
-
         self.model_name = self.scope['url_route']['kwargs']['model_name']
         self.model = ALL_MODELS.get(self.model_name)
         if self.model is None or not hasattr(self.model, '__is_sdc_model__'):
@@ -191,7 +191,8 @@ class SDCModelConsumer(WebsocketConsumer):
         self.accept()
 
     def disconnect(self, close_code):
-        pass
+        for group in self._group_names:
+            async_to_sync(self.channel_layer.group_discard( group, self.channel_name ))
 
     def on_update(self, data):
         if data['pk'] in self.ids:
