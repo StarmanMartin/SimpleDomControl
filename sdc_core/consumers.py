@@ -74,12 +74,13 @@ class SDCConsumer(WebsocketConsumer):
         self.group_list = []
         self.queryset = None
 
-    def disconnect(self, close_code):
+    def websocket_disconnect(self, close_code):
         for group in self.group_list:
             async_to_sync(self.channel_layer.group_discard)(
                 group,
                 self.channel_name
             )
+        super().websocket_disconnect(close_code)
 
     def state_sdc_event(self, event):
         self.send(text_data=json.dumps({
@@ -190,9 +191,10 @@ class SDCModelConsumer(WebsocketConsumer):
         self.scope["session"].save()
         self.accept()
 
-    def disconnect(self, close_code):
+    def websocket_disconnect(self, close_code):
         for group in self._group_names:
             async_to_sync(self.channel_layer.group_discard( group, self.channel_name ))
+        super().websocket_disconnect(close_code)
 
     def on_update(self, data):
         if data['pk'] in self.ids:
@@ -289,6 +291,7 @@ class SDCModelConsumer(WebsocketConsumer):
             })
 
     def _add_to_class(self):
+        self._group_names.append(self.model_name)
         async_to_sync(self.channel_layer.group_add)(
             self.model_name,
             self.channel_name
