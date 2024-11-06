@@ -1,6 +1,8 @@
+import asyncio
 import os
 import types
 import traceback
+
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
@@ -8,7 +10,7 @@ from django.core.files.uploadhandler import TemporaryFileUploadHandler
 from django.utils.datastructures import MultiValueDict
 from django.utils.translation import gettext as _f
 from django.contrib.auth import get_user_model
-from channels.generic.websocket import WebsocketConsumer
+from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 
 from asgiref.sync import async_to_sync
 import importlib
@@ -65,25 +67,23 @@ class MsgManager:
                 'delete': {'header': f'{model} was deleted', 'msg': '{0} was changed'}}
 
 
-class SDCConsumer(WebsocketConsumer):
+class SDCConsumer(AsyncWebsocketConsumer):
 
-    def connect(self):
-        self.scope["session"]["channel_name"] = self.channel_name
-        self.scope["session"].save()
-        self.accept()
+    async def connect(self):
+        await self.accept()
         self.group_list = []
         self.queryset = None
 
-    def websocket_disconnect(self, close_code):
+    async def websocket_disconnect(self, close_code):
         for group in self.group_list:
-            async_to_sync(self.channel_layer.group_discard)(
+            await self.channel_layer.group_discard(
                 group,
                 self.channel_name
             )
-        super().websocket_disconnect(close_code)
+        await super().websocket_disconnect(close_code)
 
-    def state_sdc_event(self, event):
-        self.send(text_data=json.dumps({
+    async def state_sdc_event(self, event):
+        await self.send(text_data=json.dumps({
             'type': 'sdc_event',
             'event': event.get('event', False),
             'msg': event.get('msg', False),
@@ -92,11 +92,11 @@ class SDCConsumer(WebsocketConsumer):
             'is_error': False
         }))
 
-    def state_redirect(self, event):
+    async def state_redirect(self, event):
         if 'controller' in event:
             event['link'] = sdc_link_factory(event.get('controller'), event.get('args'))
 
-        self.send(text_data=json.dumps({
+        await self.send(text_data=json.dumps({
             'type': 'sdc_redirect',
             'msg': event.get('msg', False),
             'header': event.get('header', False),
@@ -104,8 +104,8 @@ class SDCConsumer(WebsocketConsumer):
             'is_error': False
         }))
 
-    def state_error(self, event, id=None):
-        self.send(text_data=json.dumps({
+    async def state_error(self, event, id=None):
+        await self.send(text_data=json.dumps({
             'type': 'error',
             'id': id,
             'is_error': True,
@@ -120,10 +120,9 @@ class SDCConsumer(WebsocketConsumer):
         # with the 'title' method and join them together.
         return ''.join(x.title() for x in components)
 
-    def receive(self, text_data=None, bytes_data=None):
+    async def receive(self, text_data=None, bytes_data=None):
         json_data = {}
         try:
-            session = self.scope['session'].load()
             json_data = json.loads(text_data)
             if json_data['event'] == 'sdc_call':
                 controller_name = self.to_camel_case(json_data['controller'])
@@ -135,14 +134,17 @@ class SDCConsumer(WebsocketConsumer):
                 method = getattr(controller(), json_data['function'])
 
                 logger.info(f"SDC call Socket received: {json_data['app']}.{controller_name}.{json_data['function']}")
+                if asyncio.iscoroutinefunction(method):
+                    return_vals = await method(self, **json_data.get('args', {}))
+                else:
+                    return_vals = method(self, **json_data.get('args', {}))
 
-                return_vals = method(channel=self, **json_data.get('args', {}))
                 return_vals_generator = []
                 if isinstance(return_vals, types.GeneratorType):
                     return_vals_generator = return_vals
                     return_vals = next(return_vals, None)
 
-                self.send(text_data=json.dumps({
+                await self.send(text_data=json.dumps({
                     'id': json_data['id'],
                     'type': 'sdc_recall',
                     'data': return_vals,
@@ -153,7 +155,7 @@ class SDCConsumer(WebsocketConsumer):
                 raise ValueError("event must be sdc_call")
 
         except PermissionDenied:
-            self.state_error({
+            await self.state_error({
                 'msg': _f('403 Not allowed!'),
                 'header': _f('Upps!!')
             }, json_data.get('id'))
@@ -164,7 +166,7 @@ class SDCConsumer(WebsocketConsumer):
             logger.error('\n'.join(e_text))
             if not settings.DEBUG:
                 e_text = _f('Something went wrong')
-            self.state_error({
+            await self.state_error({
                 'msg': e_text,
                 'header': _f('Upps!!')
             }, json_data.get('id'))

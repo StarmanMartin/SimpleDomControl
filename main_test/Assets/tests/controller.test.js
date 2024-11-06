@@ -13,7 +13,6 @@ describe('WS server call', () => {
         Cookies.set('sessionid', session_key);
         console.log('Session key set:', session_key);
 
-
         // Create new controller instance based on the standard process.
         controller = await test_utils.get_controller('main-view',
             {},
@@ -28,8 +27,30 @@ describe('WS server call', () => {
 
     test('Call no response', async () => {
         const sentData = {'a': 1, 'b': true, 'c': null, 'd': 'test'};
+        window.SERVER_CALL_VIA_WEB_SOCKET = false;
         let res = await controller.serverCall('call_no_response', sentData);
         expect(res).toStrictEqual(null);
+    });
+
+    test('Call echo websocket', async () => {
+        const sentData = {'a': 1, 'b': true, 'c': null, 'd': 'test'};
+        window.SERVER_CALL_VIA_WEB_SOCKET = true;
+        let res = await controller.serverCall('call_async_echo', sentData);
+        window.SERVER_CALL_VIA_WEB_SOCKET = false;
+        expect(res).toStrictEqual(sentData);
+    });
+
+    test('Call echo websocket', async () => {
+        const sentData = {'a': 1, 'b': true, 'c': null, 'd': 'test'};
+        window.SERVER_CALL_VIA_WEB_SOCKET = true;
+        await new Promise((resolve, reject) => {
+            controller.serverCall('call_echo', sentData).then(reject).catch(() => {
+                resolve();
+            });
+        });
+
+        window.SERVER_CALL_VIA_WEB_SOCKET = false;
+        expect(true).toStrictEqual(true);
     });
 
     test('Call no existing', async () => {

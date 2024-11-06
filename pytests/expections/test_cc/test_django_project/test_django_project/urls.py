@@ -28,7 +28,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
 ]
 def index(request):
-    return render(request, 'index.html', {'VERSION': settings.VERSION})
+    return render(request, 'index.html', {'VERSION': settings.VERSION, 'debug': settings.DEBUG, 'server_call_via_web_socket': settings.SERVER_CALL_VIA_WEB_SOCKET})
 
 urlpatterns += [
     re_path(r'^jsi18n/$', JavaScriptCatalog.as_view(), name='javascript-catalog'),

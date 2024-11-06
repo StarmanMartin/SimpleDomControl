@@ -150,6 +150,8 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+SERVER_CALL_VIA_WEB_SOCKET = False
+
 #DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 STATIC_ROOT =  BASE_DIR /  'www/'

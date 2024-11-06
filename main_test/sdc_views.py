@@ -1,3 +1,7 @@
+from asgiref.sync import async_to_sync
+from channels.db import database_sync_to_async
+
+from main_test.models import Author
 from sdc_core.sdc_extentions.views import SDCView, SdcGroupRequiredMixin, SdcLoginRequiredMixin
 from django.shortcuts import render
 
@@ -6,15 +10,23 @@ class MainView(SdcLoginRequiredMixin, SDCView):
     template_name = 'main_test/sdc/main_view.html'
     raise_exception = True
 
-    def call_echo(self, channel, **kwargs):
+    def create_author(self):
+        Author.objects.create(name='XX FF', age=2)
+
+    def call_echo(self, channel=None, **kwargs):
+        self.create_author()
         return kwargs
 
-    def call_no_response(self, channel, **kwargs):
+    async def call_async_echo(self, channel=None, **kwargs):
+        await database_sync_to_async(self.create_author)()
+        return kwargs
+
+    def call_no_response(self, channel=None, **kwargs):
         pass
 
 
-    def test_echo_call(self, channel, **kwargs):
-        channel.state_redirect({'link': '/logged-in'})
+    async def test_echo_call(self, channel=None, **kwargs):
+        await channel.state_redirect({'link': '/logged-in'})
         return kwargs
 
     def get_content(self, request, *args, **kwargs):

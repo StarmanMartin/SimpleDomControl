@@ -1,8 +1,11 @@
+import json
+
 from django.contrib.auth.mixins import AccessMixin
 from django.core.exceptions import PermissionDenied, ImproperlyConfigured
+from django.http import HttpResponse
 from django.views import View
 from functools import wraps
-from sdc_core.sdc_extentions.response import send_redirect
+from sdc_core.sdc_extentions.response import send_redirect, send_success
 from django.conf import settings
 
 class SdcAccessMixin(AccessMixin):
@@ -92,6 +95,15 @@ class SDCView(View):
 
         if request.method.lower() == 'get' and request.GET.get('_method') == 'api':
             request.method += '_api'
+
+        if request.method.lower() == 'post' and request.POST.get('_method') == 'sdc_server_call':
+            handler = getattr(
+                self, request.POST.get('_sdc_func_name'), self.http_method_not_allowed
+            )
+            res = handler(request, **json.loads(request.POST.get('data')))
+            if isinstance(res, HttpResponse):
+                return res
+            return send_success(_return_data=res)
 
         return super(SDCView, self).dispatch(request, *args, **kwargs)
 

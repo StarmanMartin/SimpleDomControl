@@ -8,6 +8,8 @@ import '#root/src/sdc_tools/sdc_tools.organizer.js'
 import '#root/src/sdc_user/sdc_user.organizer.js'
 import Cookies from 'js-cookie';
 
+
+
 describe('MainView server call', () => {
     let controller;
 
