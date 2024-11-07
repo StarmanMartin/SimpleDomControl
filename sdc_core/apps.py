@@ -8,6 +8,7 @@ class SdcCoreConfig(AppConfig):
     def ready(self):
         import sys
         from django.conf import settings
+        from sdc_core.signals import set_winner
 
         if settings.DEBUG and os.path.exists('./Assets'):
             env_vars = {}
