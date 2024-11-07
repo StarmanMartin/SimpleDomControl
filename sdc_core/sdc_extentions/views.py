@@ -100,7 +100,7 @@ class SDCView(View):
             handler = getattr(
                 self, request.POST.get('_sdc_func_name'), self.http_method_not_allowed
             )
-            res = handler(request, **json.loads(request.POST.get('data')))
+            res = handler(request, **json.loads(request.POST.get('data', '{}')))
             if isinstance(res, HttpResponse):
                 return res
             return send_success(_return_data=res)

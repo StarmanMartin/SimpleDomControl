@@ -1,6 +1,6 @@
 .. _getting-started-label:
 
-Version 0.56.5
+Version 0.57.0
 ================
 
 
