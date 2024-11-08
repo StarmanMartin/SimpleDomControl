@@ -74,7 +74,7 @@ export class SdcListViewController extends AbstractSDC {
     }
 
     onRefresh() {
-        const $tooltip = this.find('[data-toggle="tooltip"]');
+        const $tooltip = this.find('[data-bs-toggle="tooltip"]');
         if ($tooltip.length > 0 && $tooltip.tooltip) {
             $tooltip.tooltip();
         }
