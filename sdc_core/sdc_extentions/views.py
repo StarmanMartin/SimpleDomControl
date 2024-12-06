@@ -1,5 +1,6 @@
 import json
 
+from channels.db import database_sync_to_async
 from django.contrib.auth.mixins import AccessMixin
 from django.core.exceptions import PermissionDenied, ImproperlyConfigured
 from django.http import HttpResponse
@@ -9,6 +10,10 @@ from sdc_core.sdc_extentions.response import send_redirect, send_success
 from django.conf import settings
 
 class SdcAccessMixin(AccessMixin):
+
+    async def async_check_requirements(self, user):
+        return self.check_requirements(user)
+
     def check_requirements(self, user):
         return True
 
@@ -18,6 +23,10 @@ class SdcAccessMixin(AccessMixin):
 
 class SdcLoginRequiredMixin(SdcAccessMixin):
     """Verify that the current user is authenticated."""
+
+    async def async_check_requirements(self, user):
+        return self.check_requirements(user)
+
     def check_requirements(self, user):
         return user.is_authenticated
 
@@ -55,13 +64,30 @@ class SdcGroupRequiredMixin(SdcLoginRequiredMixin):
     group_required: list[str] = []
     staff_allowed: bool = True
 
+
+    def _get_groups(self, user):
+        user_groups = []
+        for group in user.groups.values_list('name', flat=True):
+            user_groups.append(group)
+        return user_groups
+
+    async def async_check_requirements(self, user):
+        if not super().async_check_requirements(user):
+            return False
+        user_groups = await database_sync_to_async(self._get_groups)(user)
+
+        return self._check_groups(user_groups, user)
+
     def check_requirements(self, user):
         if not super().check_requirements(user):
             return False
         user_groups = []
-        for group in user.groups.values_list('name', flat=True):
+        for group in  self._get_groups(user):
             user_groups.append(group)
 
+        return self._check_groups(user_groups, user)
+
+    def _check_groups(self, user_groups, user):
         return len(set(user_groups).intersection(self.group_required)) > 0 or user.is_superuser or (self.staff_allowed and user.is_staff)
 
     def dispatch(self, request, *args, **kwargs):
@@ -100,7 +126,7 @@ class SDCView(View):
             handler = getattr(
                 self, request.POST.get('_sdc_func_name'), self.http_method_not_allowed
             )
-            res = handler(request, **json.loads(request.POST.get('data', '{}')))
+            res = handler(request, **json.loads(request.POST.get('data')))
             if isinstance(res, HttpResponse):
                 return res
             return send_success(_return_data=res)

@@ -129,7 +129,7 @@ class SDCConsumer(AsyncWebsocketConsumer):
                 controller = import_function("%s.sdc_views.%s" % (json_data['app'], controller_name))
                 c_instance = controller()
                 if isinstance(c_instance, SdcAccessMixin):
-                    if not c_instance.check_requirements(self.scope['user']):
+                    if not await c_instance.async_check_requirements(self.scope['user']):
                         raise PermissionDenied()
                 method = getattr(controller(), json_data['function'])
 
