@@ -1,12 +1,6 @@
-@import "../../node_modules/bootstrap/dist/css/bootstrap";
-@import "./sdc_user/sdc_user.style";
-@import "./sdc_tools/sdc_tools.style";
-
-body::before {
-    content: "SDC Works";
-    font-size: larger;
-    color: red;
-}
+@use "../../node_modules/bootstrap/dist/css/bootstrap";
+@use "sdc_user/sdc_user.style";
+@use "sdc_tools/sdc_tools.style";
 
 body {
     background-color: cornflowerblue;

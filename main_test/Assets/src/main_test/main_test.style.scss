@@ -1,7 +1,7 @@
-@import "./controller/main_view/main_view.scss";
-@import "./controller/admin_only/admin_only.scss";
-@import "./controller/staff_and_admin/staff_and_admin.scss";
-@import "./controller/editor_and_staff/editor_and_staff.scss";
-@import "./controller/editor_no_staff/editor_no_staff.scss";
-@import "./controller/logged_in/logged_in.scss";
-@import "./controller/error_404/error_404.scss";
+@use "controller/main_view/main_view.scss";
+@use "controller/admin_only/admin_only.scss";
+@use "controller/staff_and_admin/staff_and_admin.scss";
+@use "controller/editor_and_staff/editor_and_staff.scss";
+@use "controller/editor_no_staff/editor_no_staff.scss";
+@use "controller/logged_in/logged_in.scss";
+@use "controller/error_404/error_404.scss";

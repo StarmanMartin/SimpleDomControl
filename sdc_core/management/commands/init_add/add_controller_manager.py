@@ -160,11 +160,11 @@ class AddControllerManager:
             if not os.path.exists(org_style_file_path):
                 org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
                                              "index.style.scss")
-                line = '@import "./%s/%s.style.scss";\n' % (self.app_name, self.app_name)
+                line = '@use "./%s/%s.style.scss";\n' % (self.app_name, self.app_name)
 
                 self._add_scss_to_src(org_file_path_root, line)
 
-            line = '@import "./controller/%s/%s.scss";\n' % (self.controller_name_sc, self.controller_name_sc)
+            line = '@use "./controller/%s/%s.scss";\n' % (self.controller_name_sc, self.controller_name_sc)
             self._add_scss_to_src(org_style_file_path, line)
 
         line = 'import {} from "./controller/%s/%s.js";\n' % (self.controller_name_sc, self.controller_name_sc)
@@ -206,7 +206,7 @@ class AddControllerManager:
             text = ''
             added = False
             for line in fin:
-                if not line.startswith('@import') and not added:
+                if not line.startswith('@use') and not added:
                     text += "%s" % new_line
                     added = True
                 text += line
