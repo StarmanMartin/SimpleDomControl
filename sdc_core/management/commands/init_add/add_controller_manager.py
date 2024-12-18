@@ -46,6 +46,20 @@ class AddControllerManager:
                 return url_to_sdc
         return ''
 
+    @classmethod
+    def add_js_app_to_organizer(cls, app_name):
+        org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
+                                          "index.organizer.js")
+        line = 'import {} from "./%s/%s.organizer.js";\n' % (app_name, app_name)
+        cls._add_js_to_src(org_file_path_root, line)
+
+    @classmethod
+    def add_css_app_to_organizer(cls, app_name):
+        org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
+                                          "index.style.scss")
+        line = '@use "./%s/%s.style.scss";\n' % (app_name, app_name)
+        cls._add_scss_to_src(org_file_path_root, line)
+
     def check_if_url_is_unique(self):
         return not self.check_controller_name(self.controller_name_sc)
 
@@ -150,19 +164,11 @@ class AddControllerManager:
                                            "%s.style.scss" % self.app_name)
 
         if not os.path.exists(org_js_file_path):
-            org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
-                                         "index.organizer.js")
-            line = 'import {} from "./%s/%s.organizer.js";\n' % (self.app_name, self.app_name)
-
-            self._add_js_to_src(org_file_path_root, line)
+            self.add_js_app_to_organizer(self.app_name)
 
         if add_css:
             if not os.path.exists(org_style_file_path):
-                org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
-                                             "index.style.scss")
-                line = '@use "./%s/%s.style.scss";\n' % (self.app_name, self.app_name)
-
-                self._add_scss_to_src(org_file_path_root, line)
+                self.add_css_app_to_organizer(self.app_name)
 
             line = '@use "./controller/%s/%s.scss";\n' % (self.controller_name_sc, self.controller_name_sc)
             self._add_scss_to_src(org_style_file_path, line)
@@ -179,21 +185,18 @@ class AddControllerManager:
         fout.close()
 
     @staticmethod
-    def _add_js_to_src(org_file_path, new_line):
-        text = new_line
-        if not os.path.exists(org_file_path):
-            fin = open(org_file_path, 'x', encoding='utf-8')
-        else:
-            fin = open(org_file_path, 'r', encoding='utf-8')
+    def _add_js_to_src(org_file_path, new_line: str):
+        text = []
+        new_line = new_line.strip('\n')
+        if os.path.exists(org_file_path):
+            with  open(org_file_path, 'r', encoding='utf-8') as fin:
+                for line in fin:
+                    text.append(line.strip('\n'))
 
-            for line in fin:
-                text += line
-
-        fin.close()
-
-        fout = open(org_file_path, "w+", encoding='utf-8')
-        fout.write(text)
-        fout.close()
+        if new_line not in text:
+            text.insert(0, new_line)
+        with open(org_file_path, "w+", encoding='utf-8') as fout:
+            fout.write('\n'.join(text))
 
     @staticmethod
     def _add_scss_to_src(org_file_path, new_line):

@@ -25,7 +25,7 @@ if 'VERSION' not in locals():
 # Add daphne amd SDC packages to installed apps
 # (https://docs.djangoproject.com/en/5.1/howto/deployment/asgi/daphne/)
 
-INSTALLED_APPS = ['daphne'] + INSTALLED_APPS + ['sdc_tools', 'sdc_user']
+INSTALLED_APPS = ['daphne'] + INSTALLED_APPS + ['channels', 'sdc_tools', 'sdc_user']
 
 if 'INTERNAL_IPS' not in locals():
     INTERNAL_IPS = (

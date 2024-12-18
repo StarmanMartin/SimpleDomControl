@@ -19,4 +19,5 @@ await new Promise(resolve => {
         console.error(e);
     });
 });
+
 Object.assign(global, { TextDecoder, TextEncoder, $, jest, _sdc, _});

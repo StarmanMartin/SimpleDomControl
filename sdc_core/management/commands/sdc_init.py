@@ -3,9 +3,8 @@ import sys
 
 from django.core.management.base import BaseCommand, CommandError
 
-from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
-from sdc_core.management.commands.sdc_update_links import make_link
 from sdc_core.management.commands.init_add import options, settings_manager
+from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
 from sdc_core.management.commands.init_add.sdc_core_manager import add_sdc_to_main_urls
 from sdc_core.management.commands.init_add.utils import copy, copy_and_prepare, prepare_as_string
 from sdc_core.management.commands.sdc_update_links import make_app_links
@@ -86,8 +85,8 @@ class Command(BaseCommand):
             add_sdc_to_main_urls(sdc_settings.get_main_url_path())
         else:
             for sdc_app in sdc_settings.get_sdc_apps():
-                AddControllerManager(sdc_app, controller_name)
-                make_link(sdc_app)
+                AddControllerManager.add_js_app_to_organizer(sdc_app)
+                AddControllerManager.add_css_app_to_organizer(sdc_app)
 
         make_app_links('sdc_tools')
         make_app_links('sdc_user')
