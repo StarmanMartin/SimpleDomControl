@@ -57,7 +57,7 @@ class AddControllerManager:
     def add_css_app_to_organizer(cls, app_name):
         org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
                                           "index.style.scss")
-        line = '@use "./%s/%s.style.scss";\n' % (app_name, app_name)
+        line = '@use "%s/%s.style";\n' % (app_name, app_name)
         cls._add_scss_to_src(org_file_path_root, line)
 
     def check_if_url_is_unique(self):
@@ -170,7 +170,7 @@ class AddControllerManager:
             if not os.path.exists(org_style_file_path):
                 self.add_css_app_to_organizer(self.app_name)
 
-            line = '@use "./controller/%s/%s.scss";\n' % (self.controller_name_sc, self.controller_name_sc)
+            line = '@use "controller/%s/%s";\n' % (self.controller_name_sc, self.controller_name_sc)
             self._add_scss_to_src(org_style_file_path, line)
 
         line = 'import {} from "./controller/%s/%s.js";\n' % (self.controller_name_sc, self.controller_name_sc)
@@ -200,27 +200,21 @@ class AddControllerManager:
 
     @staticmethod
     def _add_scss_to_src(org_file_path, new_line):
+        add_idx = 0
+        text = []
+        new_line = new_line.strip('\n')
+        if os.path.exists(org_file_path):
+            with  open(org_file_path, 'r', encoding='utf-8') as fin:
+                add_idx = -1
+                for idx, line in enumerate(fin):
+                    if not line.startswith('@use') and add_idx == -1:
+                        add_idx = idx
+                    text.append(line.strip('\n'))
 
-        if not os.path.exists(org_file_path):
-            fin = open(org_file_path, 'x', encoding='utf-8')
-            text = new_line
-        else:
-            fin = open(org_file_path, 'r', encoding='utf-8')
-            text = ''
-            added = False
-            for line in fin:
-                if not line.startswith('@use') and not added:
-                    text += "%s" % new_line
-                    added = True
-                text += line
-            if not added:
-                text += "%s" % new_line
-
-        fin.close()
-
-        fout = open(org_file_path, "w+", encoding='utf-8')
-        fout.write(text)
-        fout.close()
+        if new_line not in text:
+            text.insert(add_idx, new_line)
+        with open(org_file_path, "w+", encoding='utf-8') as fout:
+            fout.write('\n'.join(text))
 
     @staticmethod
     def _add_to_urls(main_urls_path, url_path, handler):
