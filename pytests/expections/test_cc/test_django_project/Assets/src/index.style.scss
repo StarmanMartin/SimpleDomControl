@@ -1,7 +1,7 @@
 @use "../../node_modules/bootstrap/dist/css/bootstrap";
 @use "sdc_user/sdc_user.style";
 @use "sdc_tools/sdc_tools.style";
-@use "test_app_one/test_app_one.style.scss";
+@use "test_app_one/test_app_one.style";
 
 body {
     background-color: cornflowerblue;
