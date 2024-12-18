@@ -52,46 +52,14 @@ class SettingsManager:
             exit(1)
 
     def update_settings(self, settings_extension):
+        settings_path = self.get_settings_file_path()
+        settings_dir = os.path.dirname(settings_path)
+        base_settingd_path = os.path.join(settings_dir, 'base_settings.py')
+        if not os.path.exists(base_settingd_path):
+            os.rename(settings_path, base_settingd_path)
 
-        apps = self.get_setting_vals().INSTALLED_APPS
-        apps = [a for a in apps if a != 'sdc_core']
-        apps.insert(0, 'daphne')
-        apps.append('channels')
-        apps.append('sdc_tools')
-        apps.append('sdc_user')
-        apps.append('sdc_core')
-        sep = str(options.SEP)
-
-        new_val = f"VERSION=0.0\n\nINSTALLED_APPS = [\n{sep}'%s'\n]" % (("',\n%s'" % sep).join(apps))
-        pre_add = '\n'.join(["if not DEBUG:",
-                             sep + "hosts = [urlparse(x)  for x in os.environ.get('ALLOWED_HOST').split(',')]",
-                             sep + "ALLOWED_HOSTS = [host.hostname for host in hosts]",
-                             sep + "CSRF_TRUSTED_ORIGINS = [urlunparse(x) for x in hosts]",
-                             "else:",
-                             sep + "ALLOWED_HOSTS = ['*']"])
-
-        new_val = f"{pre_add}\n\n{new_val}"
-        new_val += "\n\nINTERNAL_IPS = (\n%s'127.0.0.1',\n)\n" % (options.SEP)
-
-        fin = open(self.get_settings_file_path(), "rt", encoding='utf-8')
-
-        data = fin.read()
-        fin.close()
-        data = re.sub(r'(from[^\n]*)', r'\g<1>\nimport os\nfrom urllib.parse import urlparse, urlunparse', data)
-        data = re.sub(r'(ALLOWED_HOSTS[^\n]*)', r'# \g<1>', data)
-        data = re.sub(r'INSTALLED_APPS\s*=\s*\[[^\]]+\]', new_val, data)
-
-        new_val = f"DATABASES_AVAILABLE = {{\n{sep}'jest': {{'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'test_db.sqlite3', }},"
-        data = re.sub(r'DATABASES\s*=\s*\{', new_val, data)
-        db_pattern = self.balanced_pattern_factory('DATABASES_AVAILABLE = ')
-        db_settings = db_pattern.search(data).group()
-        data = db_pattern.sub(db_settings + f"\n\ndatabase = os.environ.get('DJANGO_DATABASE', 'default')\n\nDATABASES = {{'default': DATABASES_AVAILABLE[database]}}", data)
-
-        data += settings_extension
-
-        fout = open(self.get_settings_file_path(), "wt", encoding='utf-8')
-        fout.write(data)
-        fout.close()
+        with open(self.get_settings_file_path(), "w+", encoding='utf-8') as fout:
+            fout.write(settings_extension)
 
     def get_apps(self):
         self.find_and_set_project_name()

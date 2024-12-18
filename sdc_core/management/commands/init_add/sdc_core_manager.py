@@ -5,17 +5,6 @@ import shutil
 
 from sdc_core.management.commands.init_add import options
 
-def copy_apps():
-    for tool in ['sdc_examples']:
-        src = os.path.join(options.SCRIPT_ROOT, "template_files", 'apps', tool)
-        dest = os.path.join(options.PROJECT_ROOT, tool)
-        try:
-            shutil.copytree(src, dest)
-        except OSError as exc: # python >2.5
-            if exc.errno == errno.ENOTDIR:
-                shutil.copy(src, dest)
-            else: raise
-
 def add_sdc_to_main_urls(main_urls_path):
     fin = open(main_urls_path, "rt", encoding='utf-8')
     text = ""

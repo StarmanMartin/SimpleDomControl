@@ -1,29 +1,18 @@
-import errno
 import os
 import re
+from typing import Callable
 
 
-def makedirs_if_not_exist(directory):
-    try:
-        os.makedirs(directory)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise
-
-
-def copy_and_prepare(src, des, map_val):
-    fin = open(src, "rt", encoding='utf-8')
-
-    makedirs_if_not_exist(os.path.dirname(des))
-    fout = open(des, "wt", encoding='utf-8')
-
-    for line in fin:
-        for key in map_val:
-            line = line.replace(key, map_val[key])
-        fout.write(line)
-
-    fin.close()
-    fout.close()
+def copy_and_prepare(src, des, map_val, overwrite_handler: Callable[[str], bool] = None):
+    with open(src, "r", encoding='utf-8') as fin:
+        os.makedirs(os.path.dirname(des), exist_ok=True)
+        if os.path.exists(des) and (overwrite_handler is None or overwrite_handler(f"Would you like to overwrite {des}?")):
+            return
+        with open(des, "w+", encoding='utf-8') as fout:
+            for line in fin:
+                for key in map_val:
+                    line = line.replace(key, map_val[key])
+                fout.write(line)
 
 
 def prepare_as_string(src, map_val):
@@ -38,7 +27,7 @@ def prepare_as_string(src, map_val):
     return fout
 
 
-def copy(src, dest, map_val):
+def copy(src, dest, map_val, overwrite_handler: Callable[[str], bool] = None):
     if os.path.isdir(src):
         for root, dirs, files in os.walk(src):
             if '__pycache__' in dirs:
@@ -47,12 +36,11 @@ def copy(src, dest, map_val):
             for file in files:
                 copy_and_prepare(os.path.join(root, file),
                                  os.path.join(dest, rel_path, file),
-                                 map_val)
+                                 map_val, overwrite_handler)
 
     elif os.path.exists(src):
         copy_and_prepare(src, dest,
-                         map_val)
-
+                         map_val, overwrite_handler)
 
 
 def convert_to_snake_case(name):
