@@ -1,8 +1,14 @@
 What is SDC
 ===========
 
+SDC is a framework that integrates elements of the MVC (Model-View-Controller) and MVT (Model-View-Template) design patterns. Its primary goal is to provide a tool for simple and efficient web development. To achieve this, it combines three key features:
 
-SDC is a framework that combines elements of both the MVC (Model-View-Controller) and MVT (Model-View-Template) patterns. Its main goal is to provide a tool for simple and efficient web development. The name 'SDC' is an abbreviation for 'Simple DOM Control,' indicating its focus on controlling and manipulating the Document Object Model (DOM), which is crucial for web development, particularly in dynamic web pages.
+1) **Seamless integration of JavaScript front-end frameworks with parallel server-side rendering:** This enables the creation of dynamic and modern web applications.
+2) **Client-side utilization of Django's ORM (Object-Relational Mapper):** This ensures consistent data handling and smooth interaction between the front-end and back-end.
+3) **Efficient development with a comprehensive CLI:** A robust set of CLI commands facilitates the rapid and straightforward development of both client and server components.
+
+The name "SDC" stands for "Simple DOM Control," reflecting the framework's focus on managing and manipulating the Document Object Model (DOM). This emphasis is particularly significant for the development of dynamic websites.
+
 
 Unlike other frameworks, SDC is closely integrated with the Python-based Django framework. This design decision enhances development support and performance. In conjunction with JavaScript, SDC offers an ideal environment for rapidly creating web applications with enhanced functionality and interactivity.
 

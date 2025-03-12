@@ -15,9 +15,5 @@ def test_init():
 
 
         assert are_dir_trees_equal(dir1, dir2) == []
-
-    except:
-        assert False
-        pass
     finally:
         shutil.rmtree('./pytests/test_django_project')
