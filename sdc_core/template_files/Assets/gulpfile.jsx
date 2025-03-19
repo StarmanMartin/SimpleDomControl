@@ -43,7 +43,7 @@ exports.develop = series(function (done) {
     process.env.NODE_ENV = 'development';
     process.env.BABEL_ENV = 'development';
     done();
-}, sdc_default_build_factory(webpack_javascript), parallel(
+}, copy_statics, sdc_default_build_factory(webpack_javascript), parallel(
     sdc_watch_scss,
     sdc_watch_webpack_factory(webpack_javascript)
 ));
