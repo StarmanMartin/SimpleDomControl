@@ -77,3 +77,9 @@ class Error404(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class TestItem(SDCView):
+    template_name='main_test/sdc/test_item.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)

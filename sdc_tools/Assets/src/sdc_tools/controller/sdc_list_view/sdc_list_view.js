@@ -1,6 +1,5 @@
 import {AbstractSDC, app} from 'sdc_client';
 
-
 export class SdcListViewController extends AbstractSDC {
 
     constructor() {
@@ -95,8 +94,7 @@ export class SdcListViewController extends AbstractSDC {
         const $div = this.model.listView(this.search_values, () => {
             const elems = $('.tooltip.fade.show');
             elems.remove();
-            this.find('.list-container').safeEmpty().append($div);
-            this.refresh();
+            app.reconcile(this, $div, this.find('.list-container .container-fluid').first());
         });
     }
 }

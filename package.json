@@ -1,6 +1,6 @@
 {
   "name": "sdc-test",
-  "version": "0.57.10",
+  "version": "0.57.11",
   "description": "",
   "private": true,
   "type": "module",
@@ -49,6 +49,7 @@
     "dotenv": "^16.4.7",
     "glob-parent": "^6.0.2",
     "glob-watcher": "^6.0.0",
+
     "gulp": "^5.0.0",
     "gulp-clean": "^0.4.0",
     "gulp-copy": "^5.0.0",
@@ -77,6 +78,6 @@
     "esm": "^3.2.25",
     "jquery": "^3.7.0",
     "lodash": "^4.17.21",
-    "sdc_client": "^0.57.10"
+    "sdc_client": "^0.57.11"
   }
 }

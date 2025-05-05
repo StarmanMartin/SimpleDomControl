@@ -4566,7 +4566,7 @@ schema-utils@^4.3.0:
     ajv-formats "^2.1.1"
     ajv-keywords "^5.1.0"
 
-sdc_client@^0.57.10:
+sdc_client@^0.57.11:
   version "0.57.10"
   resolved "https://registry.yarnpkg.com/sdc_client/-/sdc_client-0.57.10.tgz#3357b6200729ef64f1981f1f2248cec1c2652008"
   integrity sha512-xg5k0M0uW8CSwMy7JQeA2k9zGlhxfqQ7aWZjlwKpwDQ6/P2DWGaTDddOGLGCwXpAyVDF/Qgl+bcQ40nvBRuOlg==

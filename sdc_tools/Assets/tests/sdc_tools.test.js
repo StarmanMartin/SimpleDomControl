@@ -136,6 +136,25 @@ describe('SdcNavigator', () => {
 
 });
 
+describe('Sdc details', () => {
+    let controller;
+
+     beforeEach(async () => {
+         controller = (await test_utils.controllerFromTestHtml(<div>
+            <sdc-detail-view data-model="Book" data-pk={1}></sdc-detail-view>
+         </div>))[0];
+
+
+        await controller.noOpenModelRequests();
+        // Wait for DOM to be updated
+        await new Promise(resolve => setTimeout(resolve, 100))
+     });
+
+     test('test_details', () => {
+        expect(controller.$container.html()).toBe("<div class=\"detail-container\"><div class=\"container-fluid\">\n\n<h3>Book object (1)</h3></div></div>");
+     });
+});
+
 describe('SdcDummy', () => {
     let controller;
 

@@ -8,6 +8,7 @@ class MainViewController extends AbstractSDC {
         this.contentUrl = "/sdc_view/main_test/main_view"; //<main-view></main-view>
         this.headerText = "test";
         this.flow_test = ["constructor"];
+        this.number = 5;
 
         /**
          * Events is an array of dom events.
@@ -55,8 +56,18 @@ class MainViewController extends AbstractSDC {
 
     test_view_func(args) {
         return <div>
-            <button className="func_view_button" onClick={this.updateHeader.bind(this)}></button>
+            <button className="func_view_button" onClick={this.updateHeader.bind(this)}>BB</button>
             <h1 className="test-header">{this.headerText} {args['arg']}</h1></div>
+    }
+
+    listview() {
+        const listItems = [];
+        console.log('listview');
+        for (let i = 0; i < this.number; i++) {
+            listItems.push(`<test-item data-idx="${i}"></test-item>`);
+        }
+
+        return `<div>${listItems.join('\n')}</div>`;
     }
 
     async_test_view_func() {
@@ -68,6 +79,7 @@ class MainViewController extends AbstractSDC {
     }
 
     updateHeader() {
+        this.number -= 1;
         this.headerText = 'Button Pressed!!';
         this.refresh();
     }
