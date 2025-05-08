@@ -41,7 +41,7 @@ class Command(BaseCommand):
         self._assume_yes = ops.get('assume_yes', False)
 
         sdc_settings = settings_manager.SettingsManager(manage_py_file_path)
-        sdc_settings.check_settings()
+        # sdc_settings.check_settings()
 
         sdc_settings.find_and_set_project_name()
         sdc_settings.find_and_set_whitespace_sep()
@@ -64,6 +64,7 @@ class Command(BaseCommand):
              self._yes_no_prompt)
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "templates"), main_templates, options.REPLACEMENTS,
              self._yes_no_prompt)
+        os.makedirs(os.path.join(main_static, 'static'), exist_ok=True)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "routing.py.txt"),
                          os.path.join(project_app_root, "routing.py"),

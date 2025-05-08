@@ -1,5 +1,7 @@
+from django.core import serializers
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.views import RedirectURLMixin
+from django.http import HttpResponse
 
 from sdc_core.sdc_extentions.views import SDCView
 from sdc_core.sdc_extentions.response import send_redirect, send_error
@@ -56,3 +58,13 @@ class SdcUserNavBtn(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class User(SDCView):
+
+    def get_user(self, request):
+        if request.user.is_authenticated:
+            return serializers.serialize('json', [request.user])
+        return []
+
+    def get_content(self, request, *args, **kwargs):
+        return HttpResponse('', content_type='text/html')

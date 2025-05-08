@@ -88,7 +88,6 @@ class SettingsManager:
 
     def find_and_set_project_name(self):
         options.setPROJECT(self.get_setting_vals().ROOT_URLCONF.split(".")[0])
-        print(options.PROJECT)
 
     @classmethod
     def balanced_pattern_factory(cls, prefix: str,  icon_start: str = r"\{", icon_end: str = r"\}") -> regex.regex:

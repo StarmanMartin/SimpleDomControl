@@ -221,7 +221,7 @@ export class SdcNavigatorController extends AbstractSDC {
         this.refresh();
         this.find('.header-loading').addClass('active');
         if (!$newElement.hasClass("_sdc_controller_")) {
-            viewObj.container.empty_container.empty().append(`<sdc-error_sdc-sdc-navigation-client data-code="${404}"></sdc-error_sdc-sdc-navigation-client>`);
+            viewObj.container.empty_container.empty().append(`<sdc-error_sdc-navigation-client data-code="${404}"></sdc-error_sdc-navigation-client>`);
             this.refresh();
 
         }
@@ -266,14 +266,14 @@ export class SdcNavigatorController extends AbstractSDC {
     }
 
     _RedirectOnView($btn) {
-        this._redirectAfterCurrentProcess = $($btn).attr('href');
+        this._redirectAfterCurrentProcess = $($btn).attr('href').replace('next=..', `next=${Array(this._history_path.length).fill('/*').join('')}`);
     }
 
     _updateBreadcrumb() {
         this._breadcrumb.splice(this._history_path.length);
-        const $breadcrumps = this.find('.breadcrumb');
+        const $breadcrumbs = this.find('.breadcrumb');
         const self = this;
-        $breadcrumps.each(function () {
+        $breadcrumbs.each(function () {
             const $breadcrumb = $(this);
             $breadcrumb.safeEmpty();
             let idx = $breadcrumb.data('offset');

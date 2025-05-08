@@ -188,7 +188,7 @@ class SDCModelConsumer(WebsocketConsumer):
         self.model_name = self.scope['url_route']['kwargs']['model_name']
         self.model = ALL_MODELS.get(self.model_name)
         if self.model is None or not hasattr(self.model, '__is_sdc_model__'):
-            return
+            raise ValueError(f'{self.model_name} is not a SDC model')
         self.scope["session"]["channel_name"] = self.channel_name
         self.scope["session"].save()
         self.accept()
@@ -442,14 +442,14 @@ class SDCModelConsumer(WebsocketConsumer):
         }))
 
     def _load_detail_view(self, json_data):
-        if self.model.html_detail_template is None:
+        if self.model.SdcMeta.html_detail_template is None:
             raise NotImplemented()
         instance = self._load_model().get(pk=json_data['args']['pk'])
         instance.scope = self.scope
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
-            'html': self._render(self.model.html_detail_template, {'instance': instance}, json_data),
+            'html': self._render(self.model.SdcMeta.html_detail_template, {'instance': instance}, json_data),
             'is_error': False
         }))
 

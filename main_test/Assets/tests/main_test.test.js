@@ -100,7 +100,7 @@ describe('MainView', () => {
     });
 
     test('Flow test', async () => {
-        expect(controller.flow_test).toStrictEqual(["constructor", "onInit", "onLoad", "willShow"]);
+        expect(controller.flow_test).toStrictEqual(["constructor", "onInit", "onLoad", "willShow", "onRefresh"]);
     });
 
     test('Load content', async () => {

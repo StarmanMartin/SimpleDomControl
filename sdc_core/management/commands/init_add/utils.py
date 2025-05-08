@@ -1,30 +1,31 @@
 import os
 import re
+import shutil
 from typing import Callable
 
 
 def copy_and_prepare(src, des, map_val, overwrite_handler: Callable[[str], bool] = None):
-    with open(src, "r", encoding='utf-8') as fin:
-        os.makedirs(os.path.dirname(des), exist_ok=True)
-        if os.path.exists(des) and (overwrite_handler is None or not overwrite_handler(f"Would you like to overwrite {des}?")):
-            return
-        with open(des, "w+", encoding='utf-8') as fout:
-            for line in fin:
-                for key in map_val:
-                    line = line.replace(key, map_val[key])
-                fout.write(line)
-
+    try:
+        with open(src, "r", encoding='utf-8') as fin:
+            os.makedirs(os.path.dirname(des), exist_ok=True)
+            if os.path.exists(des) and (overwrite_handler is None or not overwrite_handler(f"Would you like to overwrite {des}?")):
+                return
+            with open(des, "w+", encoding='utf-8') as fout:
+                for line in fin:
+                    for key in map_val:
+                        line = line.replace(key, map_val[key])
+                    fout.write(line)
+    except UnicodeDecodeError:
+        shutil.copy(src, des)
 
 def prepare_as_string(src, map_val):
-    fin = open(src, "rt", encoding='utf-8')
-    fout = ""
-    for line in fin:
-        for key in map_val:
-            line = line.replace(key, map_val[key])
-        fout += line
-
-    fin.close()
-    return fout
+    with open(src, "rt", encoding='utf-8') as fin:
+        out = ""
+        for line in fin:
+            for key in map_val:
+                line = line.replace(key, map_val[key])
+            out += line
+    return out
 
 
 def copy(src, dest, map_val, overwrite_handler: Callable[[str], bool] = None):

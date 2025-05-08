@@ -5,6 +5,7 @@ from . import sdc_views
 
 urlpatterns = [
     # scd view below
+    path('user', sdc_views.User.as_view(), name='scd_view_user'),
     path('sdc_user_nav_btn', sdc_views.SdcUserNavBtn.as_view(), name='scd_view_sdc_user_nav_btn'),
     path('sdc_logout', sdc_views.SdcLogout.as_view(), name='scd_view_sdc_logout'),
     path('sdc_login', sdc_views.SdcLogin.as_view(), name='scd_view_sdc_login'),

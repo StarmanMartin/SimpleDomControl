@@ -1,6 +1,5 @@
 import {AbstractSDC, app} from 'sdc_client';
 
-
 export class SdcListViewController extends AbstractSDC {
 
     constructor() {
@@ -74,10 +73,9 @@ export class SdcListViewController extends AbstractSDC {
     }
 
     onRefresh() {
-        const $tooltip = this.find('[data-bs-toggle="tooltip"]');
-        if ($tooltip.length > 0 && $tooltip.tooltip) {
-            $tooltip.tooltip();
-        }
+        this.find('[data-bs-toggle="tooltip"]').each(function() {
+            new Tooltip(this);
+        });
         return super.onRefresh();
     }
 
@@ -95,8 +93,7 @@ export class SdcListViewController extends AbstractSDC {
         const $div = this.model.listView(this.search_values, () => {
             const elems = $('.tooltip.fade.show');
             elems.remove();
-            this.find('.list-container').safeEmpty().append($div);
-            this.refresh();
+            app.reconcile(this, $div, this.find('.list-container .container-fluid').first());
         });
     }
 }

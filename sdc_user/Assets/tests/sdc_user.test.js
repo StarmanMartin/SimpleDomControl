@@ -35,3 +35,20 @@ describe('SdcUserNavBtn', () => {
     });
 
 });
+
+describe('User', () => {
+    let controller;
+
+    beforeEach(async () => {
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('user',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        const $div = $('body').find('user');
+        expect($div.length).toBeGreaterThan(0);
+    });
+
+});

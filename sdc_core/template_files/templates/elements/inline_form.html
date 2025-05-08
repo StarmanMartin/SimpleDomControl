@@ -1,0 +1,40 @@
+{% load i18n %}
+{% load sdc_filter %}
+{{ form.media }}
+
+<div class="hidden-form-fields">
+    {% for hidden in form.hidden_fields %}
+    {{ hidden }}
+    {% endfor %}
+</div>
+
+{% if form.non_field_errors %}
+<div class="alert alert-danger non-field-errors">
+    {{ form.non_field_errors }}
+</div>
+{% endif %}
+
+<div class="container-fluid">
+    <div class="row g-3 align-items-center">
+        {% for field in form.visible_fields %}
+        <div class="col-auto">
+            <label for="{{ field.auto_id }}" class="control-label">{{ field.label|safe }}</label>
+        </div>
+        <div class="col-auto">
+            {{ field | addformclass }}
+        </div>
+        {% if field.help_text %}
+        <div class="col-auto">
+            <span class="help help_for_{{ field.auto_id }}">{{ field.help_text|safe }}</span>
+        </div>
+        {% endif %}
+        {% if field.errors %}
+        <div class="col-auto">
+            {{ field.errors }}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+</div>
+</div>

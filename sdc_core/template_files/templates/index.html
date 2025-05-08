@@ -13,8 +13,19 @@
 {% block content %}
 
 
-<!--Here is the entrypoint to your HTML-->
-<h1>{% trans 'Loading' %}...</h1>
+<sdc-alert-messenger></sdc-alert-messenger>
+
+<!-- nav view controller ind sdc_tools -->
+<!-- TODO: data-default-controller sets the default view -->
+<sdc-navigator data-default-controller="">
+    <!-- .header-loading element will have an addition class .active while loading -->
+    <div class="header-loading">
+        <h1>{% trans 'loading...' %}</h1>
+    </div>
+
+    <!-- TODO: Here is the entrypoint to your Navigation HTML-->
+
+</sdc-navigator>
 
 
 

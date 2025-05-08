@@ -45,8 +45,12 @@ export class SdcDetailViewController extends AbstractSDC {
     }
 
     onRefresh() {
+        this.find('[data-bs-toggle="tooltip"]').each(function() {
+            new Tooltip(this);
+        });
         return super.onRefresh();
     }
+
 
     removeInstance($btn, e) {
         this.model.delete();

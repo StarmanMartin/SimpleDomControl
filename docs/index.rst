@@ -17,6 +17,7 @@ Welcome to Simple-Dom-Control`s documentation!
    Introduction
    Install
    getting_started
+   library
    core
    sdc_controller
    sdc_model
