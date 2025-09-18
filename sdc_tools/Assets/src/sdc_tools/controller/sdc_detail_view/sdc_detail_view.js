@@ -6,6 +6,7 @@ export class SdcDetailViewController extends AbstractSDC {
     constructor() {
         super();
         this.contentUrl = "/sdc_view/sdc_tools/sdc_detail_view"; //<sdc-detail-view></sdc-detail-view>
+        this.template_context = null;
 
         /**
          * Events is an array of dom events.
@@ -33,9 +34,9 @@ export class SdcDetailViewController extends AbstractSDC {
     }
 
     onLoad($html) {
-        const $elem = $html.filter('.detail-container').append(this.model.detailView());
+        const $elem = $html.filter('.detail-container').append(this.model.detailView(null, null, null, this.template_context));
         this.model.on_update = this.model.on_create = () => {
-            $elem.empty().append(this.model.detailView());
+            $elem.empty().append(this.model.detailView( null, null, null, this.template_context));
         };
         return super.onLoad($html);
     }

@@ -1,8 +1,10 @@
 First App
 =========
 
-Wir wollen eine Bücherrei app erstellen.
-Eine Bücherrei hat Bücherei hat bücher und
+We want to create a library app.
+A library has books that can be borrowed online. However, each book can only be borrowed once.
+
+First we need to create a new project. First cd into the development directory.
 
 .. code-block:: sh
 
@@ -17,11 +19,22 @@ Eine Bücherrei hat Bücherei hat bücher und
     python manage.py sdc_init
     npm install
 
+This creates a new folder named Library in your development directory. This directory is the new root project directory. It contains a Django project with all SDC extensions.
+
+In order not to forget it, we should carry out the migration right away and create a super user.
+
+.. code-block:: sh
+
+    python manage.py migrate
+    python manage.py createsuperuser
+
+In the next step we need to create a new Django app. We call it *main_app*:
+
 .. code-block:: sh
 
     python manage.py startapp main_app
 
-Add main_app to basic
+Do not forget to add *main_app* to the installed apps:
 
 .. code-block:: python
 
@@ -31,17 +44,13 @@ Add main_app to basic
 
 *./Library/Library/settings.py*
 
-.. code-block:: sh
-
-    python manage.py migrate
-    python manage.py createsuperuser
-
+Now that the *main_app* has been created, we can add a new SDC controller to the app. We call the controller *dashboard*:
 
 .. code-block:: sh
 
     python manage.py sdc_cc
 
-Output:
+This is followed by the following CLI prompts:
 
 .. code-block:: sh
 
@@ -49,6 +58,34 @@ Output:
     1 -> main_app
     Enter number: [1] 1
     Enter the name of the new controller (use snake_case): dashboard
+
+The sdc_cc command creates the following files and links:
+
+::
+
+    └─ your_chosen_directory/
+       └─ Library/
+          ├─ Assets/
+             ├─ src
+                ├─ main_app -> ../../main_app/Assets/src/main_app
+                └─ ...
+             └─ ...
+          ├─ main_app
+             ├─ Assets/
+                ├─ src
+                    └─ main_app
+                        ├─ controller
+                            └─ dashboard
+                                ├─ dashboard.html  -> ../../../../../templates/main_app/sdc/dashboard.html
+                                ├─ dashboard.js
+                                └─ dashboard.scss
+                        ├─ main_app.organizer.js
+                        └─ main_app.organizer.scss
+                 └─ ...
+          ├─ Library
+             └─ ...
+          └─ ...
+
 
 Add a background images to the static directory:
 
