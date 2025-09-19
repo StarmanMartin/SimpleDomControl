@@ -4566,10 +4566,10 @@ schema-utils@^4.3.0:
     ajv-formats "^2.1.1"
     ajv-keywords "^5.1.0"
 
-sdc_client@^0.57.14:
-  version "0.57.14"
-  resolved "https://registry.yarnpkg.com/sdc_client/-/sdc_client-0.57.14.tgz#408ea7d65f842ef10acb681d5c15921e4e6c6341"
-  integrity sha512-6BpzpHXm0QyZf/JfbOx8plHK5Jgi3PqCfQFwf6oUzdQSYPNXNEXvsxFSgte1D/bU9zVnU/LzRylJEG4PE7bCtg==
+sdc_client@^0.57.15:
+  version "0.57.15"
+  resolved "https://registry.yarnpkg.com/sdc_client/-/sdc_client-0.57.15.tgz#5487612f54c82932208243d6ae426b79d6dd3655"
+  integrity sha512-P890argXhhrV5rQYZpUeaj3RM2RRnU59/kz2EXgg2NWkxsr4EIiiPt8vU8G9UL+E69WnMq1mDXuRhn64fLJU5w==
   dependencies:
     "@popperjs/core" "^2.11.8"
     bootstrap "^5.3.2"

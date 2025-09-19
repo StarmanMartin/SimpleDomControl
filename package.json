@@ -1,6 +1,6 @@
 {
   "name": "sdc-test",
-  "version": "0.57.14",
+  "version": "0.57.15",
   "description": "",
   "private": true,
   "type": "module",
@@ -78,6 +78,6 @@
     "esm": "^3.2.25",
     "jquery": "^3.7.0",
     "lodash": "^4.17.21",
-    "sdc_client": "^0.57.14"
+    "sdc_client": "^0.57.15"
   }
 }
