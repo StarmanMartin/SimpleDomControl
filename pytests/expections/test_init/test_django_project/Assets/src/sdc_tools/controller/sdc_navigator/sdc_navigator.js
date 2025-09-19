@@ -221,7 +221,7 @@ export class SdcNavigatorController extends AbstractSDC {
         this.refresh();
         this.find('.header-loading').addClass('active');
         if (!$newElement.hasClass("_sdc_controller_")) {
-            viewObj.container.empty_container.empty().append(`<sdc-error_sdc-sdc-navigation-client data-code="${404}"></sdc-error_sdc-sdc-navigation-client>`);
+            viewObj.container.empty_container.empty().append(`<sdc-error_sdc-navigation-client data-code="${404}"></sdc-error_sdc-navigation-client>`);
             this.refresh();
 
         }

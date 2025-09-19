@@ -7,6 +7,7 @@ export class SdcListViewController extends AbstractSDC {
         this.contentUrl = "/sdc_view/sdc_tools/sdc_list_view"; //<sdc-list-view></sdc-list-view>
         this.search_values = {};
         this.model_name = null;
+        this.template_context = null;
 
         /**
          * Events is an array of dom events.
@@ -56,7 +57,7 @@ export class SdcListViewController extends AbstractSDC {
         if (lc.length === 0) {
             lc = $html.find('.list-container');
         }
-        lc.append(this.model.listView(this.search_values));
+        lc.append(this.model.listView(this.search_values, null, null, this.template_context));
         this.model.on_update = this.model.on_create = () => {
             if (this.on_update) {
                 this.model.load().then(() => {
@@ -94,7 +95,7 @@ export class SdcListViewController extends AbstractSDC {
             const elems = $('.tooltip.fade.show');
             elems.remove();
             app.reconcile(this, $div, this.find('.list-container .container-fluid').first());
-        });
+        }, null, this.template_context);
     }
 }
 

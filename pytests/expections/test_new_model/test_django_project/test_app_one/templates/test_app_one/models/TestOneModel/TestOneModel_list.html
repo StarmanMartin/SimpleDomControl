@@ -31,8 +31,8 @@
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete-model-modal-{{lid}}">
                 Remove
             </button>
-            <a class="btn btn-dark navigation-links" href="/~sdc-model-form~&model={{instance|to_class_name}}&pk={{instance.pk}}">Edit</a>
-            <a class="btn btn-dark navigation-links" href="/~sdc-detail-view~&model={{instance|to_class_name}}&pk={{instance.pk}}">Detail</a>
+            <a class="btn btn-dark navigation-links" href="/sdc-model-form&model={{instance|to_class_name}}&pk={{instance.pk}}">Edit</a>
+            <a class="btn btn-dark navigation-links" href="/sdc-detail-view&model={{instance|to_class_name}}&pk={{instance.pk}}">Detail</a>
             <!-- Modal -->
             <div class="modal fade" id="delete-model-modal-{{lid}}" tabindex="-1" aria-label="Delete model {{instance.pk}}" aria-hidden="true">
                 <div class="modal-dialog">
