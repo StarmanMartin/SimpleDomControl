@@ -136,7 +136,7 @@ describe('MainView Logged out', () => {
     });
 
     test('Flow test', async () => {
-        expect(controller.flow_test).toStrictEqual(["constructor", "onInit"])
+        expect(controller.flow_test).toStrictEqual(["constructor", "onInit", "onRefresh"])
     });
 
     test('Load Content', async () => {
@@ -181,7 +181,7 @@ describe('MainView events', () => {
         };
 
         controller.find('.func_view_button').trigger('click');
-        await new Promise((resolve) => setTimeout(resolve, 30));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
 
     });
 

@@ -206,7 +206,7 @@ describe('Controller controlflow [logged out]', () => {
     });
 
     test('Flow test', async () => {
-        expect(controller.flow_test).toStrictEqual(["constructor", "onInit"])
+        expect(controller.flow_test).toStrictEqual(["constructor", "onInit", "onRefresh"])
     });
 
     test('Load Content', async () => {
