@@ -90,7 +90,7 @@ For example, assuming we have a Django project called *mysite* with an app calle
 
 *./mysite/myapp/sdc_views.py*
 
-.. code-block:: js
+.. code-block:: JavaScript
 
     ...
     class MainViewController extends AbstractSDC {
@@ -134,7 +134,7 @@ After running:
 
 The client will automatically update its contentUrl property:
 
-.. code-block:: js
+.. code-block:: JavaScript
 
     ...
     class MainViewController extends AbstractSDC {
@@ -209,6 +209,9 @@ It is responsible for:
 * Server communication
 * Registering the html TAG
 
+
+.. _sdc-controller-label-live:
+
 Live cycle
 __________
 
@@ -252,9 +255,9 @@ Permissions are managed through abstracted classes (mixins) within the views, en
 
 2) **onInit**
 
-The onInit handler is called before the content is loaded. This handler can be used to pass information from the parent controller on to the child.
-To pass on information the *data* attributes of the HTML tag is used. The parameter of the the onInit function are populated with the on data attributes of the
-tag with the same name.
+The onInit handler is called before the content loads. This handler can be used to pass parameters from the parent controller to the child.
+Information is passed on using the data attributes of the HTML tag. The parameters of the onInit function are populated
+with the tag's data attributes with the same name.
 Let
 
 .. code-block:: JavaScript
@@ -377,7 +380,7 @@ A redirect can be simplly triggered from the server side by returning *sdc_core.
 
 *./mysite/myapp/sdc_views.py*
 
-.. code-block:: js
+.. code-block:: JavaScript
 
     ...
     class MainViewController extends AbstractSDC {

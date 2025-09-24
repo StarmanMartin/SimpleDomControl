@@ -59,6 +59,12 @@ def make_app_links(app_name):
 
 
 def make_link(app_name, controller_name):
+    global ALL_LINKS
+    ALL_LINKS = []
+    _make_link(app_name, controller_name)
+    make_git_ignore()
+
+def _make_link(app_name, controller_name):
     make_app_links(app_name)
     app_root = get_app_path(app_name)
 
@@ -105,7 +111,7 @@ class Command(BaseCommand):
             sdc_controller_list_dir = str(os.path.join(get_app_path(app_name), "Assets/src", app_name, "controller"))
             if os.path.exists(sdc_controller_list_dir):
                 for file in os.listdir(sdc_controller_list_dir):
-                    make_link(app_name, file)
+                    _make_link(app_name, file)
             for model in apps.get_app_config(app_name).get_models():
                 make_model_link(app_name, model.__name__)
 

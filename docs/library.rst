@@ -4,7 +4,7 @@ First App
 We want to create a library app.
 A library has books that can be borrowed online. However, each book can only be borrowed once.
 
-First we need to create a new project. First cd into the development directory.
+First we need to create a new project. Therefore, cd into the development directory.
 
 .. code-block:: sh
 
@@ -50,6 +50,8 @@ Now that the *main_app* has been created, we can add a new SDC controller to the
 
     python manage.py sdc_cc
 
+New Controller
+--------------
 This is followed by the following CLI prompts:
 
 .. code-block:: sh
@@ -71,6 +73,10 @@ The sdc_cc command creates the following files and links:
                 └─ ...
              └─ ...
           ├─ main_app
+            ├─ templates
+                └─ main_app
+                    └─ sdc
+                        └─ dashboard.html
              ├─ Assets/
                 ├─ src
                     └─ main_app
@@ -87,7 +93,65 @@ The sdc_cc command creates the following files and links:
           └─ ...
 
 
-Add a background images to the static directory:
+Next, we will add two more controllers: the 'catalog' controller and the 'my_list' controller.
+
+.. code-block:: sh
+
+    python manage.py sdc_cc -a main_app -c catalog
+    python manage.py sdc_cc -a main_app -c my_list
+
+These two commands are equivalent to the dashboard controller and generate JS, SCSS and HTML files for both controllers.
+Before we work with the two two controllers we set up the in app navigation.
+
+Basic Navigation
+----------------
+
+Let us fist add the dashboard controller as default view to the main navigation.
+
+.. code-block:: html
+
+    ...
+    <!-- nav view controller ind sdc_tools -->
+    <!-- TODO: data-default-controller sets the default view -->
+    <sdc-navigator data-default-controller="dashboard">
+    ...
+
+*./Library/templates/index.html*
+
+Next we need to edit the HTML file of the *dashboard* controller:
+
+.. code-block:: html
+
+    <h2>Dashboard</h2>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-3">
+                <h3>Menu</h3>
+                <p><a class="navigation-links" href="/*/catalog">Catalog</a></p>
+                <p><a class="navigation-links" href="/*/my-list">My List</a></p>
+            </div>
+            <div class="col">
+                    <!-- Add a new sub container for navigation controller -->
+                 <div class="sdc_detail_view" data-default-controller="catalog"></div>
+            </div>
+        </div>
+    </div>
+
+*./Library/main_app/templates/main_app/sdc/dashboard.html*
+
+If you reload the page now, you will see that there is a basic navigation bar on the left-hand side of the page, containing two links and a main view of the catalog controller content.
+
+
+.. include:: basic_navigation.rst
+
+see more: :ref:`sdc-how-to-nav`
+
+
+General styling and HTML header
+-------------------------------
+
+Let us now add a background images and a favicon to the static directory:
 
 ::
 
@@ -102,7 +166,11 @@ Add a background images to the static directory:
              └─ ...
           └─ ...
 
-edit the *index.style.scss*
+.. raw:: html
+
+    (<a href="_static/lib.png" target="_blank">lib</a>, <a href="_static/favicon.png" target="_blank">favicon</a>)
+
+Then you need to add the background image to the *index.style.scss*
 
 .. code-block:: scss
 
@@ -120,10 +188,25 @@ edit the *index.style.scss*
         }
     }
 
+*./Library/Assets/src/index.style.scss*
 
-Add a catalog controller and a my_list controller:
+and the favicon image to the *template/base.html*
 
-.. code-block:: sh
+.. code-block:: html
 
-    python manage.py sdc_cc -a main_app -c catalog
-    python manage.py sdc_cc -a main_app -c my_list
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+        ...
+
+        <link href="{% static '/img/favicon.png' %}" rel="shortcut icon">
+
+        ...
+        {% block scripts %}{% endblock %}
+    </head>
+
+*./Library/template/base.html*
+
+
+
+
