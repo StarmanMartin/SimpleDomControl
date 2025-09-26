@@ -122,7 +122,17 @@ Next we need to edit the HTML file of the *dashboard* controller:
 
 .. code-block:: html
 
-    <h2>Dashboard</h2>
+    <div class="d-flex">
+        <h2>Dashboard</h2>
+        <div class="ms-auto">
+            {% if user.is_authenticated %}
+                <p class="mb-1">Hello: {{ user.get_username }}</p>
+                <sdc-logout></sdc-logout>
+            {% else %}
+                <a class="btn btn-info navigation-links" href="/sdc-login">Login</a>
+            {% endif %}
+        </div>
+    </div>
 
     <div class="container-fluid">
         <div class="row">
@@ -132,11 +142,12 @@ Next we need to edit the HTML file of the *dashboard* controller:
                 <p><a class="navigation-links" href="/*/my-list">My List</a></p>
             </div>
             <div class="col">
-                    <!-- Add a new sub container for navigation controller -->
-                 <div class="sdc_detail_view" data-default-controller="catalog"></div>
+                <!-- Add a new sub container for navigation controller -->
+                <div class="sdc_detail_view" data-default-controller="catalog"></div>
             </div>
         </div>
     </div>
+
 
 *./Library/main_app/templates/main_app/sdc/dashboard.html*
 
@@ -146,6 +157,107 @@ If you reload the page now, you will see that there is a basic navigation bar on
 .. include:: basic_navigation.rst
 
 see more: :ref:`sdc-how-to-nav`
+
+
+DB Model
+--------
+
+Now that navigation through the available pages has been implemented, the next step is to fill the pages with content. To do this,
+ First, we need to create a new database table. For this, we will use an extension of the Django ORM (Object-Relational Mapper).
+In SDC, these model classes do not need to be created manually. This can be done with a simple SDC command.
+
+.. code-block:: sh
+
+    python manage.py sdc_new_model -a main_app -m Book
+
+This command generates the following:
+
+1. A new model class named Book in:
+
+    - ./Library/main_app/models.py
+
+2. A new form class named BookForm in:
+
+    - ./Library/main_app/forms.py
+
+3. Two new HTML view templates for the Book model:
+
+    - ./Library/Assets/src/main_app/models/Book/Book_details.html
+    - ./Library/Assets/src/main_app/models/Book/Book_list.html
+
+see more: :ref:`new-model-label`
+
+Now, we need to populate. In this example, a book has a title, an author, text and a user relation field called 'borrowed by'.
+
+.. code-block:: python
+
+    ...
+    class Book(models.Model, SdcModel):
+        title = models.CharField(max_length=100)
+        author = models.CharField(max_length=100)
+        text = models.CharField(max_length=255, default=default_text)
+        borrowed_by = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+
+        class SearchForm(AbstractSearchForm):
+            """A default search form used in the list view. You can delete it if you dont need it"""
+            CHOICES = (("title", "Title"), ("author", "Author"),)
+            PLACEHOLDER = "Title or Author"
+            DEFAULT_CHOICES = CHOICES[0][0]
+            SEARCH_FIELDS = ("title", "author")
+
+        class _SdcMeta:
+            """Meta data information needed to manage all SDC operations."""
+            edit_form = "main_app.forms.BookForm"
+            create_form = "main_app.forms.BookForm"
+            html_list_template = "main_app/models/Book/Book_list.html"
+            html_detail_template = "main_app/models/Book/Book_details.html"
+
+        @classmethod
+        def render(cls, template_name, context=None, request=None, using=None):
+            if template_name == cls.SdcMeta.html_list_template:
+                sf = cls.SearchForm(data=context.get("filter", {}))
+                context = context | handle_search_form(context["instances"], sf, range=3)
+            return render_to_string(template_name=template_name, context=context, request=request, using=using)
+
+        @classmethod
+        def is_authorised(cls, user, action, obj):
+                return True
+
+        @classmethod
+        def get_queryset(cls, user, action, obj):
+            return cls.objects.all()
+
+
+*./Library/main_app/models.py*
+
+In SDC, the model is responsible for managing its own access rights. To ensure secure authorisation, edit the 'is_authorised' method.
+
+.. code-block:: python
+
+    ...
+    class Book(models.Model, SdcModel):
+        ...
+        @classmethod
+        def is_authorised(cls, user, action, obj):
+            match action:
+                case 'connect':
+                    return True
+                case 'list_view':
+                    return True
+                case 'detail_view':
+                    return True
+                case _: # edit_form, named_form, create_form, list_view, detail_view, save, create, upload, delete, load
+                    return False
+    ...
+
+*./Library/main_app/models.py*
+
+Since we do not need the forms for the books, this object can be ignored in this case. First, we should take care of the representation in the client.
+
+Client-Side Data Models
+-----------------------
+
+The user should be able to browse the books as a list and view a detailed view of the individual books. SDC offers a ListView and a DetailView for the client for this purpose.
 
 
 General styling and HTML header

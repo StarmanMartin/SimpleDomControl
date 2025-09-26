@@ -8,3 +8,6 @@ SDC model
 New model
 -------------
 
+.. code-block:: sh
+
+    python manage.py sdc_new_model -a <django_app_name> -m <DjangoModel>

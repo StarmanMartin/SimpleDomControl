@@ -1,8 +1,11 @@
+import json
 import uuid
 
 from django import template
 import datetime
 import random
+
+from sdc_core.sdc_extentions.models import SDCSerializer
 
 register = template.Library()
 
@@ -48,3 +51,8 @@ def indexfilter(list_instance, i):
 @register.filter(name='in_list')
 def in_list(i, list_instance):
     return i in list_instance
+
+@register.filter(name='serialize')
+def serialize(instance):
+    a = SDCSerializer().serialize([instance])
+    return f'SDC_JSON_MODEL={a}'
