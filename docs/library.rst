@@ -154,7 +154,7 @@ Next we need to edit the HTML file of the *dashboard* controller:
 If you reload the page now, you will see that there is a basic navigation bar on the left-hand side of the page, containing two links and a main view of the catalog controller content.
 
 
-.. include:: basic_navigation.rst
+.. include:: snippets/basic_navigation.rst
 
 see more: :ref:`sdc-how-to-nav`
 
@@ -189,46 +189,7 @@ see more: :ref:`new-model-label`
 
 Now, we need to populate. In this example, a book has a title, an author, text and a user relation field called 'borrowed by'.
 
-.. code-block:: python
-
-    ...
-    class Book(models.Model, SdcModel):
-        title = models.CharField(max_length=100)
-        author = models.CharField(max_length=100)
-        text = models.CharField(max_length=255, default=default_text)
-        borrowed_by = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
-
-        class SearchForm(AbstractSearchForm):
-            """A default search form used in the list view. You can delete it if you dont need it"""
-            CHOICES = (("title", "Title"), ("author", "Author"),)
-            PLACEHOLDER = "Title or Author"
-            DEFAULT_CHOICES = CHOICES[0][0]
-            SEARCH_FIELDS = ("title", "author")
-
-        class _SdcMeta:
-            """Meta data information needed to manage all SDC operations."""
-            edit_form = "main_app.forms.BookForm"
-            create_form = "main_app.forms.BookForm"
-            html_list_template = "main_app/models/Book/Book_list.html"
-            html_detail_template = "main_app/models/Book/Book_details.html"
-
-        @classmethod
-        def render(cls, template_name, context=None, request=None, using=None):
-            if template_name == cls.SdcMeta.html_list_template:
-                sf = cls.SearchForm(data=context.get("filter", {}))
-                context = context | handle_search_form(context["instances"], sf, range=3)
-            return render_to_string(template_name=template_name, context=context, request=request, using=using)
-
-        @classmethod
-        def is_authorised(cls, user, action, obj):
-                return True
-
-        @classmethod
-        def get_queryset(cls, user, action, obj):
-            return cls.objects.all()
-
-
-*./Library/main_app/models.py*
+.. include:: snippets/book_model.rst
 
 In SDC, the model is responsible for managing its own access rights. To ensure secure authorisation, edit the 'is_authorised' method.
 
@@ -246,18 +207,83 @@ In SDC, the model is responsible for managing its own access rights. To ensure s
                     return True
                 case 'detail_view':
                     return True
+                case 'load':
+                    return True
                 case _: # edit_form, named_form, create_form, list_view, detail_view, save, create, upload, delete, load
                     return False
     ...
 
 *./Library/main_app/models.py*
 
-Since we do not need the forms for the books, this object can be ignored in this case. First, we should take care of the representation in the client.
+Since we do not need the forms for the books (User can not alter or create books),
+the Form classes can be ignored in this case. First, we should take care of the
+representation in the client.
 
 Client-Side Data Models
 -----------------------
 
-The user should be able to browse the books as a list and view a detailed view of the individual books. SDC offers a ListView and a DetailView for the client for this purpose.
+The user should be able to browse the books as a list and read a details of the individual books. SDC offers a ListView and a DetailView for the client for this purpose.
+
+.. code-block:: html
+
+    {% load sdc_filter %}
+
+    <div class="search-view-container">
+        <sdc-search-view
+                data-range-size="{{ range_size }}"
+                data-range-start="{{ range|indexfilter:0 }}"
+                data-range-end="{{ range|indexfilter:1 }}"
+                data-total-count="{{ total_count }}"
+                data-remove-labels="true">
+            {% csrf_token %}
+            {% include "elements/inline_form.html" with form=search_form %}
+        </sdc-search-view>
+    </div>
+
+    {% if template_context.my_list %}
+        <h3>All books you have borrowed!</h3>
+    {% endif %}
+    <table class="table">
+        <tbody>
+        {% for instance in instances %}
+            <td>
+                <this.borrow_btn data-instance="{{ instance|serialize }}" data-user="{{ user.id }}"></this.borrow_btn>
+            </td>
+            <td>
+                <b>{{ instance.title }}</b><br>
+                by: {{ instance.author }}
+            </td>
+            <td>
+                <a class="btn btn-info navigation-links"
+                   href="/*/*/sdc-detail-view&model={{ instance|to_class_name }}&pk={{ instance.pk }}">More</a>
+                <!-- Modal -->
+
+            </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+*./Library/Assets/src/main_app/models/Books/Books_list.html*
+
+.. code-block:: html
+
+    {% load sdc_filter %}
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-4">
+                <h3>{{instance.title}}</h3>
+                <h3>by: {{instance.author}}</h3>
+            </div>
+            <div class="col-8">
+                <p>{{instance.text}}</p>
+            </div>
+        </div>
+    </div>
+
+*./Library/Assets/src/main_app/models/Books/Books_details.html*
+
 
 
 General styling and HTML header

@@ -9,7 +9,7 @@ This controller enables dynamic navigation between your controller views.
 Basic Navigation
 ----------------
 
-.. include:: basic_navigation.rst
+.. include:: snippets/basic_navigation.rst
 
 Parametrized Navigation
 -----------------------

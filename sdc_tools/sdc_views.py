@@ -52,3 +52,9 @@ class SdcDummy(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class SdcSearchSelect(SDCView):
+    template_name='sdc_tools/sdc/sdc_search_select.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)

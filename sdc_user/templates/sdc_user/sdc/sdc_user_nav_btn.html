@@ -1,5 +1,11 @@
-{% if user.is_authenticated %}
-<sdc-logout></sdc-logout>
-{% else %}
-<a class="nav-link navigation-links" href="/sdc-login">Login</a>
-{% endif %}
+{% load i18n %}
+<div class="d-flex gap-2">
+    {% if user.is_authenticated %}
+    <sdc-logout></sdc-logout>
+    <a class="nav-link navigation-links" href="/sdc-model-form?model=SdcUser&pk={{user.pk}}">{% trans 'Edit' %}
+        {{user.username}}</a>
+    {% else %}
+    <a class="nav-link navigation-links" href="/sdc-login">{% trans 'Login' %}</a>
+    <a class="nav-link navigation-links" href="/sdc-model-form?model=SdcUser&next=..">{% trans 'Register' %}</a>
+    {% endif %}
+</div>

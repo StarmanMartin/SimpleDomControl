@@ -29,6 +29,7 @@ User = get_user_model()
 importlist = []
 ALL_MODELS = all_models()
 
+
 class MsgManager:
     _messages = None
     _msg_filepath = os.path.abspath(settings.BASE_DIR / 'templates/sdc_strings.json')
@@ -195,7 +196,7 @@ class SDCModelConsumer(WebsocketConsumer):
 
     def websocket_disconnect(self, close_code):
         for group in self._group_names:
-            async_to_sync(self.channel_layer.group_discard( group, self.channel_name ))
+            async_to_sync(self.channel_layer.group_discard(group, self.channel_name))
         super().websocket_disconnect(close_code)
 
     def on_update(self, data):
@@ -238,6 +239,8 @@ class SDCModelConsumer(WebsocketConsumer):
                 self._load_edit_form(json_data)
             elif event_type == 'model_named_form':
                 self._load_named_form(json_data)
+            elif event_type == 'model_named_view':
+                self._load_named_view(json_data)
             elif event_type == 'model_create_form':
                 self._load_create_form(json_data)
             elif event_type == 'model_list_view':
@@ -253,14 +256,10 @@ class SDCModelConsumer(WebsocketConsumer):
             elif event_type == 'model_delete':
                 self._delete_element(json_data)
             elif event_type == 'model_load':
-                model_data = SDCSerializer().serialize(self._load_model())
                 self.send(text_data=json.dumps({
                     'type': json_data['event_type'],
                     'event_id': json_data['event_id'],
-                    'args': {
-                        'data': model_data,
-                        'media_url': settings.MEDIA_URL or '/'
-                    },
+                    'args': self._prepare_loaded_data(),
                     'is_error': False
                 }))
             else:
@@ -291,6 +290,15 @@ class SDCModelConsumer(WebsocketConsumer):
                 'event_id': json_data.get('event_id'),
                 'header': _f('Upps!!')
             })
+
+    def _prepare_loaded_data(self, data=None):
+        if data is None:
+            data = self._load_model()
+        model_data = SDCSerializer().serialize(data)
+        return {
+            'data': model_data,
+            'media_url': settings.MEDIA_URL or '/'
+        }
 
     def _add_to_class(self):
         self._group_names.append(self.model_name)
@@ -334,10 +342,10 @@ class SDCModelConsumer(WebsocketConsumer):
         instance = self._load_model().get(pk=json_data['args']['pk'])
         instance.scope = self.scope
         form_name = json_data['args']['form_name']
-        if not hasattr(self.model, 'forms'):
+        if not hasattr(self.model.SdcMeta, form_name):
             raise NotImplemented()
 
-        return self._load_form(json_data, self.model.forms.get(form_name), instance)
+        return self._load_form(json_data, getattr(self.model.SdcMeta, form_name), instance)
 
     def _load_form(self, json_data, form_attr, instance=None):
         if callable(form_attr):
@@ -353,7 +361,8 @@ class SDCModelConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
-            'html': self._render(self.model.SdcMeta.html_form_template, {'instance': instance, 'form': form(instance=instance)},
+            'html': self._render(self.model.SdcMeta.html_form_template,
+                                 {'instance': instance, 'form': form(instance=instance)},
                                  json_data),
             'is_error': False
         }))
@@ -366,7 +375,11 @@ class SDCModelConsumer(WebsocketConsumer):
     def _save_element(self, json_data):
         instance = self._load_model().get(pk=json_data['args']['data']['pk'])
         instance.scope = self.scope
-        return self._submit_element(json_data, self.model.SdcMeta.edit_form, instance)
+        key = str(json_data['args'].get('form_name', 'edit_form'))
+        if not hasattr(self.model.SdcMeta, key):
+            key = 'edit_form'
+        form_element = getattr(self.model.SdcMeta, key)
+        return self._submit_element(json_data, form_element, instance)
 
     def _upload_file(self, json_data):
         file_data = json_data['args']
@@ -433,11 +446,25 @@ class SDCModelConsumer(WebsocketConsumer):
     def _load_list_view(self, json_data):
         if self.model.SdcMeta.html_list_template is None:
             raise NotImplemented()
-
+        loaded_data = self._load_model()
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
-            'html': self._render(self.model.SdcMeta.html_list_template, {'instances': self._load_model()}, json_data),
+            'html': self._render(self.model.SdcMeta.html_list_template, {'instances': loaded_data}, json_data),
+            'args': self._prepare_loaded_data(loaded_data),
+            'is_error': False
+        }))
+
+    def _load_named_view(self, json_data):
+        loaded_data = self._load_model()
+        view_name = json_data['args']['view_name']
+        if not hasattr(self.model.SdcMeta, view_name):
+            raise NotImplemented()
+        self.send(text_data=json.dumps({
+            'type': json_data['event_type'],
+            'event_id': json_data['event_id'],
+            'html': self._render(getattr(self.model.SdcMeta, view_name), {'instances': loaded_data}, json_data),
+            'args': self._prepare_loaded_data(loaded_data),
             'is_error': False
         }))
 
@@ -450,6 +477,7 @@ class SDCModelConsumer(WebsocketConsumer):
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
             'html': self._render(self.model.SdcMeta.html_detail_template, {'instance': instance}, json_data),
+            'args': self._prepare_loaded_data([instance]),
             'is_error': False
         }))
 

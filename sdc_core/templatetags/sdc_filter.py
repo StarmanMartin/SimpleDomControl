@@ -4,6 +4,7 @@ import uuid
 from django import template
 import datetime
 import random
+from django.db import models
 
 from sdc_core.sdc_extentions.models import SDCSerializer
 
@@ -54,5 +55,8 @@ def in_list(i, list_instance):
 
 @register.filter(name='serialize')
 def serialize(instance):
-    a = SDCSerializer().serialize([instance])
+    if isinstance(instance, models.Model):
+        a = SDCSerializer().serialize([instance])
+    else:
+        a = json.dumps([{'fields': instance}])
     return f'SDC_JSON_MODEL={a}'

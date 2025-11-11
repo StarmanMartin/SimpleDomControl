@@ -32,61 +32,61 @@ describe('SdcNavigator', () => {
 
     test('Navigate same level [A]', async () => {
         trigger('goTo', '/sdc-dummy', {text: 'DUMMY A'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.0_sdc_sub_detail_container.active').text().trim()).toBe('DUMMY A');
     });
 
     test('Navigate same level [B]', async () => {
         trigger('goTo', ['/', 'sdc-dummy'], {text: 'DUMMY B'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.0_sdc_sub_detail_container.active').text().trim()).toBe('DUMMY B');
     });
 
     test('Navigate same level [C]', async () => {
         trigger('goTo', ['', 'sdc-dummy'], {text: 'DUMMY C'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.0_sdc_sub_detail_container.active').text().trim()).toBe('DUMMY C');
     });
 
     test('Navigate next level [A]', async () => {
         trigger('goTo', '/sdc-dummy/sdc-dummy', {text: 'SUB DUMMY A'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('SUB DUMMY A');
     });
 
     test('Navigate next level [A.1]', async () => {
         trigger('goTo', 'sdc-dummy', {text: 'SUB DUMMY A.1'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('SUB DUMMY A.1');
     });
 
     test('Navigate next level [A.2]', async () => {
         trigger('goTo', './sdc-dummy', {text: 'SUB DUMMY A.2'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         let idx = controller._origin_target.length - 1
         expect(controller.find(`.${idx}_sdc_sub_detail_container.active`).text().trim()).toBe('SUB DUMMY A.2');
     });
 
     test('Navigate next level [B]', async () => {
         trigger('goTo', ['/', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY B'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('SUB DUMMY B');
     });
 
     test('Navigate next level [C]', async () => {
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY C'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('SUB DUMMY C');
     });
 
     test('Navigate back level [A]', async () => {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         trigger('goTo', ['/', 'sdc-dummy'], {text: 'DUMMY A'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY A'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         trigger('goTo', ['..']);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.0_sdc_sub_detail_container.active').text().trim()).toBe('DUMMY A');
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('');
     });
@@ -103,7 +103,7 @@ describe('SdcNavigator', () => {
 
     test('Navigate deep level', async () => {
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY B'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.sdc_sub_detail_container.active').data('nav-idx')).toBe(3);
         expect(controller.find('.sdc_sub_detail_container.empty').length).toBe(4);
     });
@@ -111,14 +111,14 @@ describe('SdcNavigator', () => {
     test('Navigate deep level & back [A]', async () => {
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY A'});
         trigger('goTo', ['..', '..']);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         expect(controller.find('.sdc_sub_detail_container.active').data('nav-idx')).toBe(1);
         expect(controller.find('.sdc_sub_detail_container.empty').length).toBe(2);
     });
 
     test('Navigate deep level & back [B]', async () => {
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY B'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         let state = controller._handleUrl('..~..~sdc-dummy');
         controller._origin_target = state.path;
         let viewObj = controller._getSubViewObj(state.args);
@@ -127,7 +127,7 @@ describe('SdcNavigator', () => {
 
     test('Navigate deep level & false back', async () => {
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY B'});
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
         let state = controller._handleUrl('..~..~sdc-dummy~&text=DUMMY XXX');
         controller._origin_target = state.path;
         let viewObj = controller._getSubViewObj(state.args);
@@ -147,7 +147,7 @@ describe('Sdc details', () => {
 
         await controller.noOpenModelRequests();
         // Wait for DOM to be updated
-        await new Promise(resolve => setTimeout(resolve, 100))
+        await new Promise(resolve => setTimeout(resolve, 300))
      });
 
      test('test_details', () => {
@@ -169,6 +169,23 @@ describe('SdcDummy', () => {
         const $div = $('body').find('sdc-dummy');
         expect($div.length).toBeGreaterThan(0);
         expect($div.text()).toBe("\n    Test 1\n    \n        Controller Loaded\n    \n");
+    });
+
+});
+
+describe('SdcSearchSelect', () => {
+    let controller;
+
+    beforeEach(async () => {
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('sdc-search-select',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        const $div = $('body').find('sdc-search-select');
+        expect($div.length).toBeGreaterThan(0);
     });
 
 });

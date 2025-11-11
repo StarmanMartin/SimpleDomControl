@@ -7,6 +7,7 @@ export class SdcDetailViewController extends AbstractSDC {
         super();
         this.contentUrl = "/sdc_view/sdc_tools/sdc_detail_view"; //<sdc-detail-view></sdc-detail-view>
         this.template_context = null;
+        this.model = null;
 
         /**
          * Events is an array of dom events.
@@ -27,10 +28,13 @@ export class SdcDetailViewController extends AbstractSDC {
     //-------------------------------------------------//
 
     onInit(model, pk) {
-        if (!model || typeof pk === 'undefined') {
-            console.error("You have to set data-model and data-pk in the <sdc-detail-view> tag!");
+        if(!this.model) {
+            if (!model || typeof pk === 'undefined') {
+                console.error("You have to set data-model and data-pk in the <sdc-detail-view> tag!");
+            }
+
+            this.model = this.newModel(model, {pk: pk});
         }
-        this.model = this.newModel(model, {pk: pk});
     }
 
     onLoad($html) {

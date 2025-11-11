@@ -24,8 +24,6 @@ Let us first list all important commands:
     $ python manage.py sdc_new_model
 
 
-
-
 A brief summary of the terminal commands:
 
 .. _sdc-init-core:
@@ -65,8 +63,34 @@ name. See  for more details.
     Enter number: [2] 1
     Enter the name of the new controller (use snake_case): about_me
 
+.. _sdc-new_model-core:
 
-3 - sdc_update_url
+3 - sdc_new_model
+*****************
+
+The command *sdc_new_model* creates a new SDC Model. A short introduction can be found here: :ref:`new-model-label`.
+Make sure that you are in the same directory as the *manage.py* and run:
+
+.. code-block:: sh
+
+    $ python manage.py sdc_new_model
+
+You will need two answer two questions in the terminal to finish the process.
+Firstly, it needs to know in witch Django app (we choose  *mypage* in the example below)
+the Model has to be created. Secondly, you have to give the new Model a name
+(in the example the name is *BookCover*). Importante, only use CamelCase for the Model
+name. See  for more details.
+
+.. code-block:: sh
+
+    Enter number to select a Django app:
+    1 -> mypage
+    2 -> ...
+    Enter number: [2] 1
+    Enter the name of the new Model class name (use CamelCase): BookCover
+
+
+4 - sdc_update_url
 ******************
 
 The *sdc_update_url* updated the *contentUrl* property of the sdc controller.
@@ -109,17 +133,17 @@ It automatically checks the content URL paths of each controller. If a path has 
 
 *mysite/mypage/static/mypage/js/sdc/about_me.js*
 
-4 - sdc_update_links
+5 - sdc_update_links
 ********************
 
 The *sdc_update_links* command organizes client files by rearranging them. All client files are typically organized within their respective Django apps. However, for the sake of convenience, all client-related files are also linked in a global Asset directory. This directory also contains all build scripts for the client.
 
-5 - sdc_get_model_infos
+6 - sdc_get_model_infos
 ***********************
 
 The *sdc_get_model_infos* command returns a JSON object containing all the necessary information for IDEs to connect with all files related to a certain model.
 
-6 - sdc_get_controller_infos
+7 - sdc_get_controller_infos
 ****************************
 
 The *sdc_get_controller_infos* command returns a JSON object containing all the necessary information for IDEs to connect with all files related to a certain sdc-controller.

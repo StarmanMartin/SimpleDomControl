@@ -48,20 +48,19 @@ class BookSearchForm(AbstractSearchForm):
 
 class Book(models.Model, SdcModel):
 
-    edit_form = "main_test.forms.BookForm"
-    create_form = "main_test.forms.BookForm"
-    html_list_template = "main_test/models/Book/Book_list.html"
-    html_detail_template = "main_test/models/Book/Book_details.html"
-    forms = {
-        'test': "main_test.forms.SmallBookForm"
-    }
+    class _SdcMeta:
+        edit_form = "main_test.forms.BookForm"
+        create_form = "main_test.forms.BookForm"
+        html_list_template = "main_test/models/Book/Book_list.html"
+        html_detail_template = "main_test/models/Book/Book_details.html"
+        test = "main_test.forms.SmallBookForm"
 
     title = models.CharField(max_length=255)
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
 
     @classmethod
     def render(cls, template_name, context=None, request=None, using=None):
-        if template_name == cls.html_list_template:
+        if template_name == cls.SdcMeta.html_list_template:
             sf = BookSearchForm(data=context.get("filter", {}))
             context = context | handle_search_form(context["instances"], sf,  range=20)
         return render_to_string(template_name=template_name, context=context, request=request, using=using)

@@ -6,6 +6,7 @@ export class SdcNavigationClientController extends AbstractSDC {
         super();
         //<sdc-navigation-client></sdc-navigation-client>
         this.menu_id = 0;
+        this._navController = null;
 
         /**
          * Events is an array of dom events.
@@ -45,6 +46,18 @@ export class SdcNavigationClientController extends AbstractSDC {
 
     onResize() {
 
+    }
+
+    get navController() {
+        return this._navController?.deref();
+    }
+
+    get activeController() {
+        return this._navController?.deref().activeController;
+    }
+
+    get navControllerPath() {
+        return this._navController?.deref()._origin_target;
     }
 
 }

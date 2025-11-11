@@ -1,0 +1,23 @@
+{# templates/widgets/searchable_select.html #}
+{% load sdc_filter %}
+
+<div class="searchable-select-wrapper">
+    <sdc-search-select data-name="{{ widget.name }}"
+                   data-required="{{ widget.required }}"
+                   data-multiple="{{ widget.multiple }}"
+                   data-value="{{ widget.value }}"
+                   data-ids="{{ widget.ids }}"
+                   data-model-name="{{ model_name }}">
+        {% if model_name == None %}
+            {% if widget.option_template_name %}
+                {% include widget.option_template_name with choices=widget.selectable_choices %}
+            {% else %}
+                {% for c in widget.selectable_choices %}
+                    <div data-value="{{ c }}" data-search="{{ c }}" class="option-container">
+                        <p>{{ c }}</p>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+    </sdc-search-select>
+</div>

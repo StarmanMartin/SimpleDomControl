@@ -175,12 +175,12 @@ The whole client is organized in the *Assets* directory
 Let's first look at the dependencies in the package.json
 file. The following list presents all the development dependencies.
 
-.. include:: js_dev_deps.rst
+.. include:: snippets/js_dev_deps.rst
 
 All development dependencies are necessary for the build process.
 The remaining dependencies need to be installed for the error-free application of SDC
 
-.. include:: js_deps.rst
+.. include:: snippets/js_deps.rst
 
 Please run the following to initialize the client.
 

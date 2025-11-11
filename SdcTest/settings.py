@@ -85,10 +85,12 @@ MODEL_FORM_TEMPLATE = "elements/form.html"
 LOGIN_CONTROLLER = 'sdc-login'
 LOGIN_SUCCESS = '/'
 
-# EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_HOST =''
-# EMAIL_PORT = 587
-# EMAIL_HOST_USER = ''
-# DEFAULT_FROM_EMAIL = ''
-# EMAIL_HOST_PASSWORD = ''
-# EMAIL_USE_TLS = True
+JWT = {'secret': SECRET_KEY, 'algorithm': 'HS256'}
+
+EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST ='smtp.1und1.de'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'noreplay@sport.martin-starman.com'
+DEFAULT_FROM_EMAIL = 'noreplay@sport.martin-starman.com'
+EMAIL_HOST_PASSWORD = '(#KN6E29{c.BsZzB' #This is not your gmail password.
+EMAIL_USE_TLS = True

@@ -3,9 +3,10 @@ import os
 
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.files import File
 from django.test import TestCase
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group
 from django.test.client import Client
 from django.test.utils import override_settings
 
@@ -15,6 +16,7 @@ from main_test.test_utils import AuthWebsocketCommunicator, WithMockedElementTes
 
 from sdc_core.sdc_extentions.search import handle_search_form
 
+User = get_user_model()
 
 # Create your tests here.
 class AccessRightsTest(TestCase):
@@ -363,7 +365,7 @@ class ServerModelTest(TestCase, WithMockedElementTest):
         })
         message = json.loads(await communicator.receive_from())
         self.assertTrue('html' in message)
-        self.assertListEqual(list(message.keys()), ['type', 'event_id', 'html', 'is_error'])
+        self.assertListEqual(list(message.keys()), ['type', 'event_id', 'html', 'args', 'is_error'])
 
     async def test_detail_view(self):
         communicator = AuthWebsocketCommunicator(application, "/sdc_ws/model/Author", user=self.user)
@@ -381,7 +383,7 @@ class ServerModelTest(TestCase, WithMockedElementTest):
         })
         message = json.loads(await communicator.receive_from())
         self.assertTrue('html' in message)
-        self.assertListEqual(list(message.keys()), ['type', 'event_id', 'html', 'is_error'])
+        self.assertListEqual(list(message.keys()), ['type', 'event_id', 'html', 'args', 'is_error'])
 
     async def test_create(self):
         communicator = AuthWebsocketCommunicator(application, "/sdc_ws/model/Author", user=self.user)

@@ -54,3 +54,11 @@ sdc.zip
 /sdc_user/Assets/src/sdc_user/controller/sdc_user_nav_btn/sdc_user_nav_btn.html
 /sdc_user/Assets/src/sdc_user/controller/sdc_login/sdc_login.html
 /sdc_user/Assets/src/sdc_user/controller/sdc_logout/sdc_logout.html
+/sdc_tools/Assets/src/sdc_tools/controller/sdc_search_select/sdc_search_select.html
+/sdc_user/Assets/src/sdc_user/controller/sdc_confirm_email/sdc_confirm_email.html
+/sdc_user/Assets/src/sdc_user/controller/sdc_user/sdc_user.html
+/sdc_user/Assets/src/sdc_user/models/SdcUser/SdcUser_list.html
+/sdc_user/Assets/src/sdc_user/models/SdcUser/SdcUser_details.html
+/sdc_user/Assets/src/sdc_user/controller/sdc_change_password/sdc_change_password.html
+/sdc_user/Assets/src/sdc_user/controller/sdc_password_forgotten/sdc_password_forgotten.html
+/sdc_user/Assets/src/sdc_user/controller/sdc_reset_password/sdc_reset_password.html

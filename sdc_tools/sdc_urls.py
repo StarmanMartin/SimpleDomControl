@@ -6,6 +6,7 @@ from . import sdc_views
 
 urlpatterns = [
     # scd view below
+    path('sdc_search_select', sdc_views.SdcSearchSelect.as_view(), name='scd_view_sdc_search_select'),
     path('sdc_dummy', sdc_views.SdcDummy.as_view(), name='scd_view_sdc_dummy'),
     path('sdc_error/<int:code>', sdc_views.SdcError.as_view(), name='scd_view_sdc_error'),
     path('sdc_alert_messenger', sdc_views.SdcAlertMessenger.as_view(), name='scd_view_sdc_alert_messenger'),

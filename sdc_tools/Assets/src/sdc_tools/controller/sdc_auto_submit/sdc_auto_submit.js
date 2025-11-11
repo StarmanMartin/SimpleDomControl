@@ -1,4 +1,4 @@
-import {AbstractSDC, clearErrorsInForm, setErrorsInForm, app} from 'sdc_client';
+import {AbstractSDC, clearErrorsInForm, setErrorsInForm, app, trigger} from 'sdc_client';
 
 
 export class SdcAutoSubmitController extends AbstractSDC {
@@ -19,7 +19,7 @@ export class SdcAutoSubmitController extends AbstractSDC {
                     const form = $form[0];
                     this.submitForm(form).then((res) => {
                         if (res.msg || res.header) {
-                            app.Global.sdcAlertMessenger.pushMsg(res.header || '', res.msg || '');
+                            trigger('pushMsg', res.header || '', res.msg || '');
                         }
                         clearErrorsInForm($(form));
                         this.onSubmit(res);
@@ -30,7 +30,7 @@ export class SdcAutoSubmitController extends AbstractSDC {
                                 setErrorsInForm($form, $(data.html));
                             }
                             if (data.msg || data.header) {
-                                app.Global.sdcAlertMessenger.pushErrorMsg(data.header || '', data.msg || '');
+                                trigger('pushErrorMsg', data.header || '', data.msg || '');
                             }
                         }
                         this.onErrorSubmit(res);

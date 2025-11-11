@@ -20,8 +20,8 @@ if __name__ == '__main__':
             elif found_deps:
                 deps.append("* " + " = ".join([x.strip(' ",\n') for x in line.split(':')]))
 
-        with open('js_deps.rst', 'w+') as f:
+        with open('snippets/js_deps.rst', 'w+') as f:
             f.write("\n".join(deps))
 
-        with open('js_dev_deps.rst', 'w+') as f:
+        with open('snippets/js_dev_deps.rst', 'w+') as f:
             f.write("\n".join(dev_deps))

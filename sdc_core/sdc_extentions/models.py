@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 
 from django.conf import settings
 from django.db.models import QuerySet
@@ -6,12 +8,12 @@ from django.core.serializers.json import Serializer
 from django.db.models import FileField
 from django.apps import apps
 
-from channels.layers import get_channel_layer
 from django.contrib.auth import get_user_model
 
 from sdc_core.sdc_extentions.forms import AbstractSearchForm
 
-User = get_user_model()
+if TYPE_CHECKING:
+    UserType = get_user_model()
 
 _ALL_MODELS = None
 
@@ -36,6 +38,9 @@ class SDCSerializer(Serializer):
     The SDCSerializer serializes SdcModels for the API and websocket communication
 
     """
+
+    def handle_fk_field(self, obj, field):
+        super().handle_fk_field(obj, field)
 
     def handle_m2m_field(self, obj, field):
         super().handle_m2m_field(obj, field)
@@ -133,13 +138,13 @@ class SdcModel():
         return render_to_string(template_name=template_name, context=context, request=request, using=using)
 
     @classmethod
-    def is_authorised(cls, user: User, action: str, obj: dict[str: any]) -> bool:
+    def is_authorised(cls, user: UserType, action: str, obj: dict[str: any]) -> bool:
         return True
 
     @classmethod
-    def get_queryset(cls, user: User, action: str, obj: dict[str: any]) -> QuerySet:
+    def get_queryset(cls, user: UserType, action: str, obj: dict[str: any]) -> QuerySet:
         raise NotImplemented
 
     @classmethod
-    def data_load(cls, user: User, action: str, obj: dict[str: any]) -> QuerySet | None:
+    def data_load(cls, user: UserType, action: str, obj: dict[str: any]) -> QuerySet | None:
         return None

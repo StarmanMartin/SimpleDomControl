@@ -211,3 +211,5 @@ LOGGING = {
         "level": "DEBUG",
     },
 }
+
+AUTH_USER_MODEL = "sdc_user.SdcUser"

@@ -1,0 +1,7 @@
+{% load i18n %}
+
+{% if error %}
+<p class="alert alert-danger">{{ msg }}</p>
+{% else %}
+<p>{% trans 'E-Mail successfully confirmed' %}</p>
+{% endif%}

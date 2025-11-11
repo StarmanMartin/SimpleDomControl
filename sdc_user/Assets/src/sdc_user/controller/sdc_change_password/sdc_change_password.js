@@ -1,11 +1,11 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
-class UserController extends AbstractSDC {
+class SdcChangePasswordController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/user"; //<user></user>
+        this.contentUrl = "/sdc_view/sdc_user/sdc_change_password"; //<sdc-change-password></sdc-change-password>
 
         /**
          * Uncomment the following line to make sure the HTML template
@@ -27,7 +27,6 @@ class UserController extends AbstractSDC {
          * Uncomment the following line to add events;
          */
         // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}});
-        this._data = null;
     }
 
     //-------------------------------------------------//
@@ -40,24 +39,11 @@ class UserController extends AbstractSDC {
     // - onRemove                                      //
     //-------------------------------------------------//
 
-    get data() {
-        return this._data;
-    }
-
     onInit() {
     }
 
     onLoad($html) {
-        return this.serverCall('get_user').then((user) => {
-            const userList = JSON.parse(user);
-            if (userList.length > 0) {
-                const {fields, pk} = JSON.parse(user)[0];
-                this._data = {...fields, pk};
-            } else {
-                this._data = null;
-            }
-            return super.onLoad($html);
-        });
+        return super.onLoad($html);
     }
 
     willShow() {
@@ -65,10 +51,9 @@ class UserController extends AbstractSDC {
     }
 
     onRefresh() {
-
         return super.onRefresh();
     }
 
 }
 
-app.registerGlobal(UserController);
+app.register(SdcChangePasswordController);
