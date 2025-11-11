@@ -48,6 +48,7 @@ class Command(BaseCommand):
 
         project_app_root = os.path.join(options.PROJECT_ROOT, options.PROJECT)
         main_static = os.path.join(options.PROJECT_ROOT, "Assets")
+        dev_container = os.path.join(options.PROJECT_ROOT, ".devcontainer")
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
 
         if 'sdc_tools' in sdc_settings.get_setting_vals().INSTALLED_APPS:
@@ -60,6 +61,8 @@ class Command(BaseCommand):
                               options.REPLACEMENTS))
 
         os.makedirs(main_templates, exist_ok=True)
+        copy(os.path.join(options.SCRIPT_ROOT, "template_files", ".devcontainer"), dev_container, options.REPLACEMENTS,
+             self._yes_no_prompt)
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "Assets"), main_static, options.REPLACEMENTS,
              self._yes_no_prompt)
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "templates"), main_templates, options.REPLACEMENTS,

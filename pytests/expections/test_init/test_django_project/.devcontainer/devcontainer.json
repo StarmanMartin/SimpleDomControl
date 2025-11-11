@@ -1,0 +1,30 @@
+{
+  "name": "PyCharm Dev Container (Python 3.13 + Node.js)",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "root",
+  "postStartCommand": "sh .devcontainer/.on_startup.sh",
+  "customizations": {
+    "jetbrains": {
+      "settings": {
+        "com.intellij:app:HttpConfigurable.use_proxy_pac": true,
+        "com.intellij:app:BaseRefactoringSettings.safe_delete_when_delete": false,
+        "com.intellij:app:BaseRefactoringSettings.rename_search_in_comments_for_file": false,
+        "com.intellij:app:BaseRefactoringSettings.rename_search_for_references_for_file": false,
+        "com.intellij:app:BaseRefactoringSettings.rename_search_for_references_for_directory": false,
+        "com.intellij:app:BaseRefactoringSettings.move_search_for_references_for_file": false
+      }
+    },
+    "vscode": {
+      "settings": {},
+      "extensions": []
+    }
+  },
+  "forwardPorts": [
+    8000
+  ],
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/app,type=bind",
+  "workspaceFolder": "/workspace/app",
+}

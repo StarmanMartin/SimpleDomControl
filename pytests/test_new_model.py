@@ -22,7 +22,7 @@ def test_model_list(init_project_with_app):
     text = re.sub('}[^}]+$', '}', result.stdout.decode("utf-8"))
     result = json.loads(text)['sdc_models']
 
-    assert len(result) == 2
+    assert len(result) == 3
     assert result[0]['model_file_line'] == 11
     assert result[1]['model_file_line'] == 43
     assert result[0]['name'] == 'TestOneModel'

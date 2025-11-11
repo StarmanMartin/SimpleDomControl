@@ -41,11 +41,11 @@ export class SdcUpdateOnChangeController extends AbstractSDC {
     }
 
     willShow() {
+        this._isNotReady = true;
         return super.willShow();
     }
 
     onRefresh() {
-        this._isNotReady = true;
         setTimeout(()=> {
             this._isNotReady = false;
         }, 500);

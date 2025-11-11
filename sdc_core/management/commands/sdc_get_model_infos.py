@@ -1,3 +1,4 @@
+import inspect
 import json
 import os
 
@@ -6,6 +7,7 @@ from django.apps import apps
 from django.template.loader import get_template
 
 from sdc_core.management.commands.init_add import options
+from sdc_core.sdc_extentions.import_manager import import_function
 
 
 class Command(BaseCommand):
@@ -14,36 +16,28 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         pass
 
-    def _get_class_line_number(self, file_path, class_name):
-        line_number = None
-
-        with open(file_path, 'r') as file:
-            for i, line in enumerate(file, start=1):
-                # Check if the line contains the class definition
-                if f"class {class_name}(" in line:
-                    return i
-
-        return line_number
+    def _get_class_line_number(self, class_or_function):
+        return inspect.getsourcelines(class_or_function)[1]
 
     def _separate_file_class(self, class_path):
         if class_path is None: return None
-        class_path = class_path.replace('.', os.path.sep)
-        class_path = os.path.join(options.PROJECT_ROOT, class_path)
-        file_path = os.path.dirname(class_path) + '.py'
-        class_name = os.path.basename(class_path)
+        try:
+            model = import_function(class_path)
+        except ImportError or NameError as e:
+            return None
+        file_path = inspect.getfile(model)
         return {
             'file': file_path,
-            'class': class_name,
-            'line': self._get_class_line_number(file_path, class_name)
+            'class': model.__name__,
+            'line': self._get_class_line_number(model)
         }
 
     def _parse_model_to_info_json(self, model):
         mi = {
             'name': model.__name__,
             'app': model.__module__.split('.')[0],
-            'model_file': os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'),
-            'model_file_line': self._get_class_line_number(
-                os.path.join(options.PROJECT_ROOT, model.__module__.replace('.', os.path.sep) + '.py'), model.__name__),
+            'model_file': inspect.getfile(model),
+            'model_file_line': self._get_class_line_number(model),
             'create_form': self._separate_file_class(model.SdcMeta.create_form),
             'edit_form': self._separate_file_class(model.SdcMeta.edit_form)
 
