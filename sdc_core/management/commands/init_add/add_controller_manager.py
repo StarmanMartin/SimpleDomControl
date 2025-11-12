@@ -145,8 +145,10 @@ class AddControllerManager:
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
         self.reps['§TAG§'] = convert_to_tag_name(self.controller_name_cc)
-        self.reps['§MIXIN§'] = '"%s"' % '", "'.join(self.mixins)
-
+        if self.mixins:
+            self.reps['§MIXIN§'] = '.addMixin("%s")' % '", "'.join(self.mixins)
+        else:
+            self.reps['§MIXIN§'] = ''
         copy_and_prepare(
             os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_controller.js.txt"),
             os.path.join(main_static, self.controller_name_sc + ".js"),

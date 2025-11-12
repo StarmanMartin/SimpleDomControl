@@ -56,4 +56,4 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
 
 }
 
-app.register(§CONTROLLERNAMETITLE§Controller).addMixin(§MIXIN§);
+app.register(§CONTROLLERNAMETITLE§Controller)§MIXIN§;
