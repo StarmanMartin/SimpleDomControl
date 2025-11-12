@@ -62,3 +62,6 @@ sdc.zip
 /sdc_user/Assets/src/sdc_user/controller/sdc_change_password/sdc_change_password.html
 /sdc_user/Assets/src/sdc_user/controller/sdc_password_forgotten/sdc_password_forgotten.html
 /sdc_user/Assets/src/sdc_user/controller/sdc_reset_password/sdc_reset_password.html
+/Assets/src/SdcTest
+/Assets/tests/SdcTest.test.js
+/SdcTest/Assets/src/SdcTest/controller/matins_app/matins_app.html

@@ -1,11 +1,15 @@
+import io
+import json
 import sys
 import re
 
 from django.core.management.base import BaseCommand, CommandError
-
+from django.core.management import call_command
 from sdc_core.management.commands.init_add import settings_manager
 from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
+from sdc_core.management.commands.init_add.utils import convert_snake_case_to_tag_name
 from sdc_core.management.commands.sdc_update_links import make_link
+from sdc_core.management.commands.utils import cli_select, multi_cli_select
 
 
 class Command(BaseCommand):
@@ -20,7 +24,7 @@ class Command(BaseCommand):
         all_apps = self.sdc_settings.get_apps()
         parser.add_argument('-c', '--controller_name', type=str, help='The name of the new controller as snake_case')
         parser.add_argument('-a', '--app_name', type=str, help='The name of the django app: [%s]' % ', '.join(all_apps))
-
+        parser.add_argument('-m', '--mixin_apps', nargs='?', const=True, default=None, type=str, help=f'Comma-separated list of django app names (empty to avoid user interaction): (e.g. sdc_auto_submit,sdc_update_on_change)] ')
 
     def check_snake_name(self, name):
         x = re.search("[A-Z]", name)
@@ -41,19 +45,10 @@ class Command(BaseCommand):
 
         self.sdc_settings.find_and_set_project_name()
         all_apps = self.sdc_settings.get_apps()
-
-        text = "Enter number to select an django App:"
-        for idx in range(1, len(all_apps)):
-            text += "\n%d -> %s" % (idx, all_apps[idx])
         app_name = ops.get('app_name')
         if app_name is None or not app_name in all_apps:
-            try:
-                idx = int(input(text + "\nEnter number: [%d]" % (len(all_apps) - 1)) or (len(all_apps) - 1))
-            except Exception as ex:
-                print(ex)
-                raise  CommandError("Input has to be a number between 1 and %d" % (len(all_apps) - 1), 4)
+            app_name = cli_select("Select an django App:", all_apps)
 
-            app_name = all_apps[idx]
         controller_name = ops.get('controller_name')
         if controller_name is None:
             text = "Enter the name of the new controller (use snake_case):"
@@ -61,8 +56,22 @@ class Command(BaseCommand):
 
         if not self.check_snake_name(controller_name):
             exit(1)
+        mixin_apps = ops.get('mixin_apps')
+        print(mixin_apps)
+        if mixin_apps is True:
+            mixin_apps = []
+        else:
+            buffer = io.StringIO()
+            call_command('sdc_get_controller_infos', stdout=buffer)
+            res = buffer.getvalue()
+            options = [c['tag_name'] for app_name, apps in json.loads(res)['sdc_controller'].items() for c in apps]
+            if mixin_apps is None:
+                mixin_apps = multi_cli_select(f"Select mixins {controller_name}", options)
+            else:
+                mixin_apps = [convert_snake_case_to_tag_name(mixin.strip()) for mixin in mixin_apps.split(',')]
+                mixin_apps = [app for app in mixin_apps if app in options]
 
-        add_sdc_core = AddControllerManager(app_name, controller_name)
+        add_sdc_core = AddControllerManager(app_name, controller_name, mixin_apps)
         if len(controller_name) == 0:
             raise CommandError("Controller name must not be empty!", 5)
         elif not add_sdc_core.check_if_url_is_unique():

@@ -52,9 +52,9 @@ class SdcSearchSelectController extends AbstractSDC {
   // - onRemove                                      //
   //-------------------------------------------------//
 
-  onInit(name, required, value, modelName, multiple, ids) {
-    this.required = required.toLocaleLowerCase() === 'true';
-    this.multi = multiple.toLocaleLowerCase() === 'true';
+  onInit(name = 'unknown', required, value = [''], modelName, multiple, ids) {
+    this.required = Boolean(required?.toLocaleLowerCase() === 'true');
+    this.multi = Boolean(multiple?.toLocaleLowerCase() === 'true');
     this._allowDelete = !this.required || this.multi;
     if (value instanceof Array) {
       this.startValues = value;

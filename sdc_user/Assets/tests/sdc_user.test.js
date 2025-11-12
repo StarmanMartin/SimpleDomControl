@@ -4,6 +4,7 @@
 
 import {test_utils} from 'sdc_client';
 import '../src/sdc_user/sdc_user.organizer.js'
+import '#root/src/sdc_tools/sdc_tools.organizer.js'
 
 
 describe('SdcNavigator', () => {
@@ -127,7 +128,7 @@ describe('SdcResetPassword', () => {
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
         controller = await test_utils.get_controller('sdc-reset-password',
-                                                  {},
+                                                  {token: 'Test'},
                                                   '<div><h1>Controller Loaded</h1></div>');
     });
 

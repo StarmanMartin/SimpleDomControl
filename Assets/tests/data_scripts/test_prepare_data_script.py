@@ -1,6 +1,10 @@
+from django.contrib.auth import get_user_model
+
 from main_test.models import Author, Book
 from django.test import Client
-from django.contrib.auth.models import User
+
+
+User = get_user_model()
 
 auther_list = []
 book_list = []

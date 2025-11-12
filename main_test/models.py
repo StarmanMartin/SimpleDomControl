@@ -84,7 +84,7 @@ class BookContent(models.Model, SdcModel):
     edit_form = "main_test.forms.BookContentForm"
     create_form = "main_test.forms.BookContentForm"
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, blank=True, on_delete=models.CASCADE)
     text = models.FileField()
 
     @classmethod
@@ -101,3 +101,8 @@ class BookContent(models.Model, SdcModel):
     @classmethod
     def get_queryset(cls, user, action, obj):
         return cls.objects.filter(user=user)
+
+    def save(self, *args, **kwargs):
+        if self.user_id is None:
+            self.user = self.scope['user']
+        super().save(*args, **kwargs)

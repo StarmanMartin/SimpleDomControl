@@ -2,6 +2,7 @@ import os
 import re
 import subprocess
 import sys
+from typing import Optional
 
 from django.urls import get_resolver
 
@@ -12,8 +13,11 @@ from sdc_core.management.commands.init_add.utils import convert_to_snake_case, c
 
 
 class AddControllerManager:
-    def __init__(self, app_name: str, controller_name: str):
+    def __init__(self, app_name: str, controller_name: str, mixins:  Optional[list[str]]=None):
+        if mixins is None:
+            self.mixins = []
         self.app_name = app_name
+        self.mixins = mixins
         self.controller_name_sc = convert_to_snake_case(controller_name)
         self.controller_name_cc = convert_to_camel_case(controller_name)
         self.controller_name_tcc = convert_to_title_camel_case(controller_name)
@@ -141,6 +145,7 @@ class AddControllerManager:
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
         self.reps['§TAG§'] = convert_to_tag_name(self.controller_name_cc)
+        self.reps['§MIXIN§'] = '"%s"' % '", "'.join(self.mixins)
 
         copy_and_prepare(
             os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_controller.js.txt"),

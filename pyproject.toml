@@ -28,6 +28,7 @@ attrs = "^25.3.0"
 regex = "^2024.7.24"
 click = "^8.1.7"
 pyjwt = "^2.10.1"
+inquirerpy = "^0.3.4"
 
 [tool.pytest.ini_options]
 pythonpath = [

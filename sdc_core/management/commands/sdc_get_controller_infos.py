@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from sdc_core.management.commands.init_add import options, settings_manager
 from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
-from sdc_core.management.commands.init_add.utils import convert_to_camel_case
+from sdc_core.management.commands.init_add.utils import convert_to_camel_case, convert_snake_case_to_tag_name
 
 
 class Command(BaseCommand):
@@ -45,6 +45,7 @@ class Command(BaseCommand):
         view_class_name = convert_to_camel_case(controller_name)
 
         info =  {
+            'tag_name': convert_snake_case_to_tag_name(controller_name),
             'name': controller_name,
             'controller_asset_dir': app_asset_path,
             'sdc_view_file': app_view_path,

@@ -6,6 +6,7 @@ from sdc_core.management.commands.init_add.add_model_manager import AddModelMana
 
 from sdc_core.management.commands.init_add import options, settings_manager
 from sdc_core.management.commands.sdc_update_links import make_model_link
+from sdc_core.management.commands.utils import cli_select
 
 
 class Command(BaseCommand):
@@ -32,18 +33,7 @@ class Command(BaseCommand):
 
         app_name = ops.get('app_name')
         if app_name is None or not app_name in all_apps:
-            text = "Enter number to select an django App:"
-            for idx in range(1, len(all_apps)):
-                text += "\n%d -> %s" % (idx, all_apps[idx])
-            idx = 1
-            try:
-                idx = int(input(text + "\nEnter number: [%d]" % (len(all_apps) - 1)) or (len(all_apps) - 1))
-            except Exception as ex:
-                print(ex)
-                print(options.CMD_COLORS.as_error("Input has to be a number between 1 and %d" % (len(all_apps) - 1)))
-                exit(1)
-
-            app_name = all_apps[idx]
+            app_name = cli_select("Select an django App:", all_apps)
         model_name = ops.get('model_name')
         if model_name is None:
             text = "Enter the name of the new Model class name (use CamelCase):"

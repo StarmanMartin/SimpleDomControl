@@ -67,3 +67,7 @@ def convert_to_tag_name(name):
     s1 = re.sub(' ', r'', name)
     s2 = re.sub('(.)([A-Z][a-z]+)', r'\1-\2', s1)
     return re.sub('([a-z0-9])([A-Z])', r'\1-\2', s2).lower()
+
+
+def convert_snake_case_to_tag_name(name):
+    return re.sub(r'_', r'-', name).lower()
