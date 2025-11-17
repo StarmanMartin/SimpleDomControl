@@ -18,21 +18,11 @@ ENV POETRY_VIRTUALENVS_CREATE=false
 ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
 RUN curl -sSL https://install.python-poetry.org | python3 -
-RUN npm install -g yarn
 
 # ===== Create workspace and non-root user =====
 RUN corepack enable
+RUN corepack prepare yarn@stable --activate
 RUN poetry config virtualenvs.create false
 
 
 WORKDIR /workspace/app
-
-
-
-# ===== Copy dependency files =====
-COPY pyproject.toml poetry.lock* package*.json* ./
-
-# ===== Preinstall dependencies if available =====
-RUN poetry install --no-root || true
-# RUN npm install -g yarn
-RUN if [ -f "package.json" ]; then yarn install; fi

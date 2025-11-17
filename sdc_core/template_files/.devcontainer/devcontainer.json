@@ -1,11 +1,12 @@
 {
-  "name": "PyCharm Dev Container (Python 3.13 + Node.js)",
+  "name": "§PROJECT§: PyCharm Dev Container (Python 3.13 + Node.js)",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
   "remoteUser": "root",
-  "postStartCommand": "sh .devcontainer/.on_startup.sh",
+  "postCreateCommand": "sh .devcontainer/on_create.sh",
+  "postStartCommand": "sh .devcontainer/on_startup.sh",
   "customizations": {
     "jetbrains": {
       "settings": {
