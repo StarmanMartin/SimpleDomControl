@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "SimpleDomControl"
-version = "0.57.16"
+version = "0.57.17"
 authors = [ "Martin Starman <private@martin-starman.com>", ]
 description = "Simple DOM control -> a django MVC framework"
 readme = "README.md"
@@ -26,9 +26,10 @@ django = "^5.2.8"
 psycopg2-binary = "^2.9.11"
 attrs = "^25.4.0"
 regex = "^2025.11.3"
-click = "^8.3.1"
+click = ">=8.1.0"
 pyjwt = "^2.10.1"
 inquirerpy = "^0.3.4"
+poetry-core = "^2.2.1"
 
 [tool.pytest.ini_options]
 pythonpath = [

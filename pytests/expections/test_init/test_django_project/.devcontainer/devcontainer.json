@@ -26,6 +26,6 @@
   "forwardPorts": [
     8000
   ],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/app,type=bind",
-  "workspaceFolder": "/workspace/app",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/test_django_project,type=bind",
+  "workspaceFolder": "/workspace/test_django_project",
 }
