@@ -56,4 +56,4 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
 
 }
 
-app.register(§CONTROLLERNAMETITLE§Controller)§MIXIN§;
+app.register(§CONTROLLERNAMETITLE§Controller, §OVERWRITING§)§MIXIN§;

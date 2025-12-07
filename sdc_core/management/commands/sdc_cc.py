@@ -74,8 +74,6 @@ class Command(BaseCommand):
         add_sdc_core = AddControllerManager(app_name, controller_name, mixin_apps)
         if len(controller_name) == 0:
             raise CommandError("Controller name must not be empty!", 5)
-        elif not add_sdc_core.check_if_url_is_unique():
-            raise CommandError("%s already exists. Controller name has to be unique!" % controller_name, 6)
 
 
         add_sdc_core.add_url_to_url_pattern(self.sdc_settings.get_main_url_path())

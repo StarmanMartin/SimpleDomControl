@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "remoteUser": "root",
+  "remoteUser": "dev",
   "postCreateCommand": "sh .devcontainer/on_create.sh",
   "postStartCommand": "sh .devcontainer/on_startup.sh",
   "customizations": {
@@ -26,6 +26,6 @@
   "forwardPorts": [
     8000
   ],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/test_django_project,type=bind",
-  "workspaceFolder": "/workspace/test_django_project",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/test_django_project,type=bind",
+  "workspaceFolder": "/home/dev/test_django_project",
 }

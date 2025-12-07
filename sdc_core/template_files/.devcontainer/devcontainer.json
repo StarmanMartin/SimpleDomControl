@@ -4,7 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "remoteUser": "root",
+  "remoteUser": "dev",
   "postCreateCommand": "sh .devcontainer/on_create.sh",
   "postStartCommand": "sh .devcontainer/on_startup.sh",
   "customizations": {
@@ -26,6 +26,6 @@
   "forwardPorts": [
     8000
   ],
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace/§PROJECT§,type=bind",
-  "workspaceFolder": "/workspace/§PROJECT§",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/§PROJECT§,type=bind",
+  "workspaceFolder": "/home/dev/§PROJECT§",
 }

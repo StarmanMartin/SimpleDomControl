@@ -50,7 +50,7 @@ class Command(BaseCommand):
             'controller_asset_dir': app_asset_path,
             'sdc_view_file': app_view_path,
             'sdc_view_file_number': self._get_class_line_number(app_view_path, view_class_name),
-            'url': AddControllerManager.get_url(controller_name),
+            'url': AddControllerManager.get_url(app_name, controller_name),
         }
 
         for extention in ['js', 'scss']:

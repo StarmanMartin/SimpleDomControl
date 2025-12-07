@@ -45,8 +45,9 @@ def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
     html_content = render_to_string(email_template_name, context=context)
 
     msg = EmailMessage(_('Confirmation'), html_content, from_email=settings.DEFAULT_FROM_EMAIL, to=[user.email])
-    msg.content_subtype = "html"  # Main content is now text/html
-    msg.send(fail_silently=False)
+    msg.content_subtype = "html"
+    msg.send(fail_silently=True)
+
 
 def send_email_reet_email(user: SdcModel, home_url: Optional[str] = None):
     email_template_name = 'email/reset_password.html'
@@ -67,4 +68,4 @@ def send_email_reet_email(user: SdcModel, home_url: Optional[str] = None):
 
     msg = EmailMessage(_('Reset Password'), html_content, from_email=settings.DEFAULT_FROM_EMAIL, to=[user.email])
     msg.content_subtype = "html"  # Main content is now text/html
-    msg.send(fail_silently=False)
+    msg.send(fail_silently=True)

@@ -2,63 +2,68 @@ import {AbstractSDC, app, trigger, on} from 'sdc_client';
 
 export class SdcNavigationClientController extends AbstractSDC {
 
-    constructor() {
-        super();
-        //<sdc-navigation-client></sdc-navigation-client>
-        this.menu_id = 0;
-        this._navController = null;
+  constructor() {
+    super();
+    //<sdc-navigation-client></sdc-navigation-client>
+    this.menu_id = 0;
+    this._navController = null;
 
-        /**
-         * Events is an array of dom events.
-         * The pattern is {'event': {'dom_selector': handler}}
-         * Uncommend the following line to add events;
-         */
-        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
-    }
+    /**
+     * Events is an array of dom events.
+     * The pattern is {'event': {'dom_selector': handler}}
+     * Uncommend the following line to add events;
+     */
+    // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
+  }
 
-    //-------------------------------------------------//
-    // Lifecycle handler                               //
-    // - onInit (tag parameter)                        //
-    // - onLoad (DOM not set)                          //
-    // - willShow  (DOM set)                           //
-    // - onRefresh  (recalled on reload)              //
-    //-------------------------------------------------//
-    // - onRemove                                      //
-    //-------------------------------------------------//
+  //-------------------------------------------------//
+  // Lifecycle handler                               //
+  // - onInit (tag parameter)                        //
+  // - onLoad (DOM not set)                          //
+  // - willShow  (DOM set)                           //
+  // - onRefresh  (recalled on reload)              //
+  //-------------------------------------------------//
+  // - onRemove                                      //
+  //-------------------------------------------------//
 
-    onInit() {
-    }
+  onInit() {
+  }
 
-    onLoad($html) {
-        on('_onResize', this);
-        return super.onLoad($html);
-    }
+  onLoad($html) {
+    on('_onResize', this);
+    return super.onLoad($html);
+  }
 
-    willShow() {
-        trigger('navLoaded', this);
-        trigger('changeMenu', this.menu_id);
-        return super.willShow();
-    }
+  willShow() {
+    this.confirmPageLoaded();
+    return super.willShow();
+  }
 
-    _onResize() {
-        this.onResize();
-    }
+  _onResize() {
+    this.onResize();
+  }
 
-    onResize() {
+  onResize() {
 
-    }
+  }
 
-    get navController() {
-        return this._navController?.deref();
-    }
+  confirmPageLoaded() {
+    trigger('navLoaded', this);
+    trigger('changeMenu', this.menu_id);
 
-    get activeController() {
-        return this._navController?.deref().activeController;
-    }
+  }
 
-    get navControllerPath() {
-        return this._navController?.deref()._origin_target;
-    }
+  get navController() {
+    return this._navController?.deref();
+  }
+
+  get activeController() {
+    return this._navController?.deref().activeController;
+  }
+
+  get navControllerPath() {
+    return this._navController?.deref()._origin_target;
+  }
 
 }
 

@@ -56,4 +56,4 @@ class TestSdcTwoController extends AbstractSDC {
 
 }
 
-app.register(TestSdcTwoController);
+app.register(TestSdcTwoController, false);

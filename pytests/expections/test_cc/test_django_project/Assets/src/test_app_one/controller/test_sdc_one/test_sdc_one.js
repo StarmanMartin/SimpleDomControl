@@ -56,4 +56,4 @@ class TestSdcOneController extends AbstractSDC {
 
 }
 
-app.register(TestSdcOneController);
+app.register(TestSdcOneController, false);

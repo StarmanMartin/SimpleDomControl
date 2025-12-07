@@ -13,7 +13,7 @@ from sdc_core.management.commands.init_add.utils import convert_to_snake_case, c
 
 
 class AddControllerManager:
-    def __init__(self, app_name: str, controller_name: str, mixins:  Optional[list[str]]=None):
+    def __init__(self, app_name: str, controller_name: str, mixins: Optional[list[str]] = None):
         if mixins is None:
             self.mixins = []
         self.app_name = app_name
@@ -30,25 +30,23 @@ class AddControllerManager:
                                                 '§APPNAME§': self.app_name
                                                 }}
 
-    @staticmethod
-    def check_controller_name(c_name_sc):
-        url_name = "scd_view_" + c_name_sc
-
-        for i in get_resolver().reverse_dict.keys():
-            if str(i).endswith(url_name):
-                return True
-
-        return False
+    @classmethod
+    def check_controller_name(cls, app_name, c_name_sc):
+        url_name = cls.get_url(app_name, c_name_sc)
+        return url_name != ''
 
     @staticmethod
-    def get_url(c_name_sc):
-        url_name = "scd_view_" + c_name_sc
-
+    def get_url(app_name, c_name_sc):
+        url_name_old = "scd_view_" + c_name_sc
+        url_name = f"scd_view_{app_name}_{c_name_sc}"
+        old_url_to_sdc = ''
         for i in get_resolver().reverse_dict.keys():
+            if str(i).endswith(url_name_old):
+                old_url_to_sdc = "/" + get_resolver().reverse_dict[i][0][0][0]
             if str(i).endswith(url_name):
                 url_to_sdc = "/" + get_resolver().reverse_dict[i][0][0][0]
                 return url_to_sdc
-        return ''
+        return old_url_to_sdc
 
     @classmethod
     def add_js_app_to_organizer(cls, app_name):
@@ -65,12 +63,12 @@ class AddControllerManager:
         cls._add_scss_to_src(org_file_path_root, line)
 
     def check_if_url_is_unique(self):
-        return not self.check_controller_name(self.controller_name_sc)
+        return not self.check_controller_name(self.app_name, self.controller_name_sc)
 
     def get_template_url(self):
         if self._template_url is not None:
             return self._template_url
-        cmd = '%s manage.py sdc_get_controller_url %s' % (sys.executable, self.controller_name_sc)
+        cmd = f'{sys.executable} manage.py sdc_get_controller_url {self.app_name} {self.controller_name_sc}'
         p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
         out = str(p.communicate()[0], encoding="utf-8")
         out = re.sub(r'\\r?\\n.*$', r'', out)
@@ -81,13 +79,13 @@ class AddControllerManager:
     def get_template_url_sync(self):
         if self._template_url is not None:
             return self._template_url
-        out = self.get_url(self.controller_name_sc)
+        out = self.get_url(self.app_name, self.controller_name_sc)
         self._template_url = re.sub(r'^b\'([^\']*)\'$', r'\g<1>', out)
         return self._template_url
 
     def get_url_params(self):
         url = self.get_template_url()
-        return re.findall('%\(([^)]+)\)\w', url)
+        return re.findall(r'%\(([^)]+)\)\w', url)
 
     def get_params_as_string(self):
         params_list = self.get_url_params()
@@ -122,8 +120,7 @@ class AddControllerManager:
 
     def _add_sdc_views_to_main_urls(self, main_urls_path):
         return self._add_to_urls(main_urls_path, self.controller_name_sc,
-                                 "sdc_views.%s.as_view(), name='scd_view_%s'" % (
-                                     self.controller_name_tcc, self.controller_name_sc))
+                                 f"sdc_views.{self.controller_name_tcc}.as_view(), name='scd_view_{self.app_name}_{self.controller_name_sc}'")
 
     def add_view_class_to_sdc_views(self):
         fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at", encoding='utf-8')
@@ -145,18 +142,18 @@ class AddControllerManager:
         self.reps['§TEMPLATEURL§'] = self.get_template_url()
         self.reps['§TAGNAME§'] = self.prepare_tag_name()
         self.reps['§TAG§'] = convert_to_tag_name(self.controller_name_cc)
+        self.reps['§OVERWRITING§'] = 'true' if not self.check_if_url_is_unique() else 'false'
         if self.mixins:
             self.reps['§MIXIN§'] = '.addMixin("%s")' % '", "'.join(self.mixins)
         else:
             self.reps['§MIXIN§'] = ''
         copy_and_prepare(
             os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_controller.js.txt"),
-            os.path.join(main_static, self.controller_name_sc + ".js"),
+            os.path.join(str(main_static), self.controller_name_sc + ".js"),
             self.reps)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_css.scss"),
-                         os.path.join(main_static,
-                                      self.controller_name_sc + ".scss"),
+                         os.path.join(str(main_static), self.controller_name_sc + ".scss"),
                          self.reps)
 
         copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "templade_view.html"),
