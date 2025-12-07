@@ -5,6 +5,6 @@ from . import sdc_views
 
 urlpatterns = [
     # scd view below
-    path('test_sdc_two', sdc_views.TestSdcTwo.as_view(), name='scd_view_test_sdc_two'),
-    path('test_sdc_one', sdc_views.TestSdcOne.as_view(), name='scd_view_test_sdc_one'),
+    path('test_sdc_two', sdc_views.TestSdcTwo.as_view(), name='scd_view_test_app_one_test_sdc_two'),
+    path('test_sdc_one', sdc_views.TestSdcOne.as_view(), name='scd_view_test_app_one_test_sdc_one'),
 ]
