@@ -167,3 +167,10 @@ class SdcResetPassword(SDCView):
         token = request.GET.get("token")
         form = PasswordResetConfirmForm(initial={"token": token})
         return render(request, self.template_name, {"form": form})
+
+
+class Register(SDCView):
+    template_name='sdc_user/sdc/register.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)

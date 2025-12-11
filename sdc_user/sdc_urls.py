@@ -5,6 +5,7 @@ from . import sdc_views
 
 urlpatterns = [
     # scd view below
+    path('register', sdc_views.Register.as_view(), name='scd_view_sdc_user_register'),
     path('sdc_reset_password', sdc_views.SdcResetPassword.as_view(), name='scd_view_sdc_reset_password'),
     path('sdc_password_forgotten', sdc_views.SdcPasswordForgotten.as_view(), name='scd_view_sdc_password_forgotten'),
     path('sdc_change_password', sdc_views.SdcChangePassword.as_view(), name='scd_view_sdc_change_password'),

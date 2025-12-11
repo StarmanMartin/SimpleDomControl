@@ -6,7 +6,7 @@ from django.template.loader import render_to_string
 from sdc_core.sdc_extentions.search import handle_search_form
 from django.db import models
 
-User = get_user_model()
+
 # Create your models here.
 
 class AuthorSearchForm(AbstractSearchForm):
@@ -84,7 +84,7 @@ class BookContent(models.Model, SdcModel):
     edit_form = "main_test.forms.BookContentForm"
     create_form = "main_test.forms.BookContentForm"
 
-    user = models.ForeignKey(User, blank=True, on_delete=models.CASCADE)
+    user = models.ForeignKey(get_user_model(), blank=True, on_delete=models.CASCADE)
     text = models.FileField()
 
     @classmethod

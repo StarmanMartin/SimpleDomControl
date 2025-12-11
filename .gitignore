@@ -65,3 +65,5 @@ sdc.zip
 /Assets/src/SdcTest
 /Assets/tests/SdcTest.test.js
 /SdcTest/Assets/src/SdcTest/controller/matins_app/matins_app.html
+/sdc_user/Assets/src/sdc_user/controller/register/register.html
+/sdc_user/Assets/src/sdc_user/controller/test_a/test_a.html

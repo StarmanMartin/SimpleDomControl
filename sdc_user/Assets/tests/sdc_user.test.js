@@ -6,6 +6,7 @@ import {test_utils} from 'sdc_client';
 import '../src/sdc_user/sdc_user.organizer.js'
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 
+window.gettext = (x) => x;
 
 describe('SdcNavigator', () => {
     let controller;
@@ -134,6 +135,23 @@ describe('SdcResetPassword', () => {
 
     test('Load Content', async () => {
         const $div = $('body').find('sdc-reset-password');
+        expect($div.length).toBeGreaterThan(0);
+    });
+
+});
+
+describe('Register', () => {
+    let controller;
+
+    beforeEach(async () => {
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('register',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        const $div = $('body').find('register');
         expect($div.length).toBeGreaterThan(0);
     });
 
