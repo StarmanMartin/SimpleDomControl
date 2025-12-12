@@ -23,11 +23,14 @@ class SettingsManager:
         self.settings_file_path = None
         self.setting_vals = None
 
+    def get_settings_import_path(self):
+        return os.environ.get('DJANGO_SETTINGS_MODULE')
+
     def get_settings_file_path(self):
         if self.settings_file_path is not None:
             return self.settings_file_path
 
-        settings_file_path = os.environ.get('DJANGO_SETTINGS_MODULE').replace(".", "/") + ".py"
+        settings_file_path = self.get_settings_import_path().replace(".", "/") + ".py"
         self.settings_file_path = os.path.join(options.PROJECT_ROOT, settings_file_path)
         return self.settings_file_path
 
@@ -51,15 +54,12 @@ class SettingsManager:
             print(options.CMD_COLORS.as_error("SDC only works if '%s' is in  TEMPLATES -> DIRS" % temp_dir))
             exit(1)
 
-    def update_settings(self, settings_extension):
+    def update_settings(self):
         settings_path = self.get_settings_file_path()
         settings_dir = os.path.dirname(settings_path)
         base_settingd_path = os.path.join(settings_dir, 'base_settings.py')
         if not os.path.exists(base_settingd_path):
             os.rename(settings_path, base_settingd_path)
-
-        with open(self.get_settings_file_path(), "w+", encoding='utf-8') as fout:
-            fout.write(settings_extension)
 
     def get_apps(self):
         self.find_and_set_project_name()

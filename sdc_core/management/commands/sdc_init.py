@@ -1,13 +1,17 @@
 import os
 import sys
+import json
+from pathlib import Path
 
 from django.core.management.base import BaseCommand, CommandError
-
+from django.core import serializers
+from django.utils import timezone
 from sdc_core.management.commands.init_add import options, settings_manager
 from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
 from sdc_core.management.commands.init_add.sdc_core_manager import add_sdc_to_main_urls
 from sdc_core.management.commands.init_add.utils import copy, copy_and_prepare, prepare_as_string
 from sdc_core.management.commands.sdc_update_links import make_app_links
+from sdc_core.management.commands.sdc_db_tools import update_to_sdc_user
 
 
 class Command(BaseCommand):
@@ -19,18 +23,23 @@ class Command(BaseCommand):
         parser.add_argument('-y', '--assume-yes',
                             action='store_true',
                             help="Automatically assume 'yes' for all prompts.")
+        parser.add_argument('-n', '--assume-no',
+                            action='store_true',
+                            help="Automatically assume 'no' for all prompts.")
 
     def _yes_no_prompt(self, question: str) -> bool:
-        self.stdout.write(f"{question} (y/n) [default=y]")
+        self.stdout.write(f"{question} (y/n) [default=n]")
         if self._assume_yes:
             return True
+        if self._assume_no:
+            return False
 
         # Get user input
         while True:
             answer = input().strip().lower()
             if answer in ["yes", "y"]:
                 return True
-            elif answer in ["no", "n"]:
+            elif answer in ["no", "n", ""]:
                 return False
             else:
                 self.stdout.write("Invalid input. Please enter 'yes' or 'no'.")
@@ -39,6 +48,7 @@ class Command(BaseCommand):
         manage_py_file_path = sys.argv[0] if len(sys.argv) > 0 else 'manage.py'
         update = ops.get('update', False)
         self._assume_yes = ops.get('assume_yes', False)
+        self._assume_no = ops.get('assume_no', False)
 
         sdc_settings = settings_manager.SettingsManager(manage_py_file_path)
         # sdc_settings.check_settings()
@@ -50,17 +60,22 @@ class Command(BaseCommand):
         main_static = os.path.join(options.PROJECT_ROOT, "Assets")
         dev_container = os.path.join(options.PROJECT_ROOT, ".devcontainer")
         main_templates = os.path.join(options.PROJECT_ROOT, "templates")
+        formatted_now = timezone.now().strftime("%Y_%m_%d_%H_%M_%S")
+        backup_directory = Path(f'./backup/{formatted_now}')
 
         if 'sdc_tools' in sdc_settings.get_setting_vals().INSTALLED_APPS:
             if not update:
                 raise CommandError("SimpleDomControl has initialized already! run sdc_init -u", 2)
         else:
             update = False
-        sdc_settings.update_settings(
-            prepare_as_string(os.path.join(options.SCRIPT_ROOT, "template_files", "settings_extension.py.txt"),
-                              options.REPLACEMENTS))
+        sdc_settings.update_settings()
 
         os.makedirs(main_templates, exist_ok=True)
+
+        copy(os.path.join(options.SCRIPT_ROOT, "template_files", "settings_extension.py.txt"),
+                          sdc_settings.get_settings_file_path(),
+                          options.REPLACEMENTS, self._yes_no_prompt)
+
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", ".devcontainer"), dev_container, options.REPLACEMENTS,
              self._yes_no_prompt)
         copy(os.path.join(options.SCRIPT_ROOT, "template_files", "Assets"), main_static, options.REPLACEMENTS,
@@ -94,4 +109,5 @@ class Command(BaseCommand):
 
         make_app_links('sdc_tools')
         make_app_links('sdc_user')
+
 
