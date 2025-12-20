@@ -10,13 +10,20 @@
     display: none!important;
   }
 
+  .sdc_detail_view {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+
+  }
+
   .sdc_sub_detail_container {
     transition: opacity 1s ease, height 1s ease;
     opacity: 0;
 
   }
   .sdc_sub_detail_container.active {
-    flex: 1 0 auto;
+    flex: 1 0 0;
     position: relative;
     opacity: 1;
   }

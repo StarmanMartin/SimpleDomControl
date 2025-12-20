@@ -21,7 +21,7 @@ def handle_search_form(query_set: QuerySet, search_form: AbstractSearchForm, fil
     else:
         data = search_form.cleaned_data
 
-    key_word = data.get('search', None)
+    key_word = data.get('search', '')
     does_order = len(search_form.CHOICES) > 0
     order_by = None
     if(does_order):
@@ -32,13 +32,14 @@ def handle_search_form(query_set: QuerySet, search_form: AbstractSearchForm, fil
     else:
         pass#query_set = query_set.all()
     query_set_count = 0
-    if key_word is not None and key_word != '':
-        q_list = None
-        for key in search_form.SEARCH_FIELDS:
-            if q_list is None:
-                q_list = _generate_q_key_value_request(key, key_word)
-            else:
-                q_list = q_list | _generate_q_key_value_request(key, key_word)
+    q_list = Q()
+    for single_word in key_word.split(' '):
+        if single_word != '':
+            q_group = Q()
+            for key in search_form.SEARCH_FIELDS:
+                q_group |= _generate_q_key_value_request(key, single_word)
+            q_list &= q_group
+    if q_list != Q():
         query_set = query_set.filter(q_list).distinct()
         query_set_count = query_set.count()
     elif(search_form.NO_RESULTS_ON_EMPTY_SEARCH):

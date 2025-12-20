@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc_client';
+import {AbstractSDC, app, on} from 'sdc_client';
 
 
 class SdcUserController extends AbstractSDC {
@@ -41,6 +41,7 @@ class SdcUserController extends AbstractSDC {
     //-------------------------------------------------//
 
     onInit() {
+      on('getUser', this);
     }
 
     onLoad($html) {
@@ -62,6 +63,10 @@ class SdcUserController extends AbstractSDC {
         return super.onRefresh();
     }
 
+    getUser() {
+      return this.user;
+    }
+
 }
 
-app.register(SdcUserController);
+app.registerGlobal(SdcUserController);

@@ -1,1 +1,0 @@
-../../sdc_tools/Assets/tests/sdc_tools.test.js

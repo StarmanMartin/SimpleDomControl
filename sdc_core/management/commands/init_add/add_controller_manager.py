@@ -7,6 +7,7 @@ from typing import Optional
 from django.urls import get_resolver
 
 from sdc_core.management.commands.init_add import options
+from sdc_core.management.commands.init_add.settings_manager import get_app_path
 from sdc_core.management.commands.init_add.utils import convert_to_snake_case, copy_and_prepare, \
     convert_to_camel_case, \
     convert_to_title_camel_case, convert_to_tag_name, prepare_as_string
@@ -52,14 +53,20 @@ class AddControllerManager:
     def add_js_app_to_organizer(cls, app_name):
         org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
                                           "index.organizer.js")
-        line = 'import {} from "./%s/%s.organizer.js";\n' % (app_name, app_name)
+        if  get_app_path(app_name).startswith(options.PROJECT_ROOT):
+            line = 'import {} from "./%s/%s.organizer.js";\n' % (app_name, app_name)
+        else:
+            line = 'import {} from "#lib/%s/%s.organizer.js";\n' % (app_name, app_name)
         cls._add_js_to_src(org_file_path_root, line)
 
     @classmethod
     def add_css_app_to_organizer(cls, app_name):
         org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
                                           "index.style.scss")
-        line = '@use "%s/%s.style";\n' % (app_name, app_name)
+        if  get_app_path(app_name).startswith(options.PROJECT_ROOT):
+            line = f'@use "{app_name}/{app_name}.style";\n'
+        else:
+            line = f'@use "../libs/{app_name}/{app_name}.style";\n'
         cls._add_scss_to_src(org_file_path_root, line)
 
     def check_if_url_is_unique(self):

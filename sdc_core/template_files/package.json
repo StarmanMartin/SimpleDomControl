@@ -6,7 +6,8 @@
   "type": "module",
   "module": "esnext",
   "imports": {
-    "#root/*.js": "./Assets/*.js"
+    "#root/*.js": "./Assets/*.js",
+    "#lib/*": "./Assets/libs/*"
   },
   "scripts": {
     "build": "gulp --gulpfile=Assets/gulpfile.jsx --mode=production",

@@ -27,7 +27,7 @@ class SdcUser(AbstractUser, SdcModel):
         SEARCH_FIELDS = ("username", 'first_name', 'last_name', 'email')
 
     class Meta:
-        abstract = settings.AUTH_USER_MODEL != "sdc_user.SdcUser"
+        swappable = "AUTH_USER_MODEL"
 
     class _SdcMeta:
         """Meta data information needed to manage all SDC operations."""

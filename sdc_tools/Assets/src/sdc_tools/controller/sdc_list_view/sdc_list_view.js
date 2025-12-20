@@ -91,6 +91,7 @@ export class SdcListViewController extends AbstractSDC {
     }
 
     _updateView() {
+
         const $div = this.model.listView(this.search_values, () => {
             const elems = $('.tooltip.fade.show');
             elems.remove();

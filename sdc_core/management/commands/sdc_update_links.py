@@ -5,6 +5,7 @@ from pathlib import Path
 from django.core.management.base import BaseCommand
 
 from sdc_core.management.commands.init_add import options, settings_manager
+from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
 from django.apps import apps
 
 from sdc_core.management.commands.init_add.settings_manager import get_app_path
@@ -45,17 +46,20 @@ def relative_symlink(src, dst):
 
 def make_app_links(app_name):
     app_root = get_app_path(app_name)
-    sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/src", app_name)
+    if not app_root.startswith(options.PROJECT_ROOT):
+        sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/libs", app_name)
+    else:
+        sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/src", app_name)
+
+        sdc_test_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/tests")  # , f"{app_name}.test.js")
+        sdc_test_file_dir = os.path.join(app_root, "Assets/tests")  # , f"{app_name}.test.js")
+        for file in os.listdir(sdc_test_file_dir):
+            if file.endswith('.test.js'):
+                relative_symlink(os.path.join(sdc_test_file_dir, file), os.path.join(sdc_test_link_dir, file))
     sdc_controller_dir = os.path.join(app_root, "Assets/src", app_name)
     if os.path.exists(sdc_controller_link_dir):
         os.remove(sdc_controller_link_dir)
     relative_symlink(sdc_controller_dir, sdc_controller_link_dir)
-
-    sdc_test_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/tests")  # , f"{app_name}.test.js")
-    sdc_test_file_dir = os.path.join(app_root, "Assets/tests")  # , f"{app_name}.test.js")
-    for file in os.listdir(sdc_test_file_dir):
-        if file.endswith('.test.js'):
-            relative_symlink(os.path.join(sdc_test_file_dir, file), os.path.join(sdc_test_link_dir, file))
 
 
 def make_link(app_name, controller_name):
@@ -112,6 +116,8 @@ class Command(BaseCommand):
             if os.path.exists(sdc_controller_list_dir):
                 for file in os.listdir(sdc_controller_list_dir):
                     _make_link(app_name, file)
+                AddControllerManager.add_js_app_to_organizer(sdc_app)
+                AddControllerManager.add_css_app_to_organizer(sdc_app)
             for model in apps.get_app_config(app_name).get_models():
                 make_model_link(app_name, model.__name__)
 
