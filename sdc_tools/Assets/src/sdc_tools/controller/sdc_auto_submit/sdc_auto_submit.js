@@ -79,6 +79,4 @@ export class SdcAutoSubmitController extends AbstractSDC {
 
 }
 
-        console.log(app)
-        console.log(app.register)
 app.register(SdcAutoSubmitController);
