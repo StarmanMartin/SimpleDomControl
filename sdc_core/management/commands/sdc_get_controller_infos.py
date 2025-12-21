@@ -13,6 +13,7 @@ from sdc_core.management.commands.init_add.utils import convert_to_camel_case, c
 class Command(BaseCommand):
     help = 'This function returns all infos to all models'
     src_path = ''
+    libs_path = ''
 
     def __init__(self, *args, **kwargs):
         super(Command, self).__init__(*args, **kwargs)
@@ -66,21 +67,25 @@ class Command(BaseCommand):
 
     def handle(self, *args, **ops):
         self.src_path = os.path.join(options.PROJECT_ROOT, 'Assets', 'src')
+        self.libs_path = os.path.join(options.PROJECT_ROOT, 'Assets', 'libs')
         controller_results = {'sdc_controller': {}}
         if(not os.path.exists(self.src_path)):
             raise CommandError('SDC not installed: Assets/src not found', 3)
+        if(not os.path.exists(self.libs_path)):
+            raise CommandError('SDC not installed: Assets/src not found', 3)
 
-        for app_name in os.listdir(self.src_path):
-            app_asset_dir = os.path.join(self.src_path, app_name, 'controller')
-            if os.path.isdir(app_asset_dir) and app_name in self.sdc_settings.INSTALLED_APPS:
-                app_controllers = []
-                controller_results['sdc_controller'][app_name] = (app_controllers)
-                for controller_name in os.listdir(app_asset_dir):
-                    controller_asset_dir = os.path.join(app_asset_dir, controller_name)
-                    if os.path.isdir(controller_asset_dir):
-                        info_json = self._parse_controller_to_info_json(app_name, controller_name)
-                        if info_json is not None:
-                            app_controllers.append(info_json)
+        for p in (self.libs_path, self.src_path):
+            for app_name in os.listdir(p):
+                app_asset_dir = os.path.join(p, app_name, 'controller')
+                if os.path.isdir(app_asset_dir) and app_name in self.sdc_settings.INSTALLED_APPS:
+                    app_controllers = []
+                    controller_results['sdc_controller'][app_name] = (app_controllers)
+                    for controller_name in os.listdir(app_asset_dir):
+                        controller_asset_dir = os.path.join(app_asset_dir, controller_name)
+                        if os.path.isdir(controller_asset_dir):
+                            info_json = self._parse_controller_to_info_json(app_name, controller_name)
+                            if info_json is not None:
+                                app_controllers.append(info_json)
 
 
 

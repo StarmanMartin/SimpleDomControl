@@ -46,7 +46,7 @@ def relative_symlink(src, dst):
 
 def make_app_links(app_name):
     app_root = get_app_path(app_name)
-    if not app_root.startswith(options.PROJECT_ROOT):
+    if not app_root.startswith(os.path.join(options.PROJECT_ROOT, app_name)):
         sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/libs", app_name)
     else:
         sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/src", app_name)
@@ -116,8 +116,8 @@ class Command(BaseCommand):
             if os.path.exists(sdc_controller_list_dir):
                 for file in os.listdir(sdc_controller_list_dir):
                     _make_link(app_name, file)
-                AddControllerManager.add_js_app_to_organizer(sdc_app)
-                AddControllerManager.add_css_app_to_organizer(sdc_app)
+                AddControllerManager.add_js_app_to_organizer(app_name)
+                AddControllerManager.add_css_app_to_organizer(app_name)
             for model in apps.get_app_config(app_name).get_models():
                 make_model_link(app_name, model.__name__)
 

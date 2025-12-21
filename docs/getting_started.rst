@@ -167,7 +167,7 @@ The whole client is organized in the *Assets* directory
              ├─ webpack.development.config.js
              ├─ webpack.production.config.js
              └─ webpack.default.config.js
-          ├─ .babelrc
+          ├─ babel.config.json
           └─ gulpfile.js
        ├─ package.json
        └─ ...

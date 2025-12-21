@@ -53,7 +53,7 @@ class AddControllerManager:
     def add_js_app_to_organizer(cls, app_name):
         org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
                                           "index.organizer.js")
-        if  get_app_path(app_name).startswith(options.PROJECT_ROOT):
+        if  get_app_path(app_name).startswith(os.path.join(options.PROJECT_ROOT, app_name)):
             line = 'import {} from "./%s/%s.organizer.js";\n' % (app_name, app_name)
         else:
             line = 'import {} from "#lib/%s/%s.organizer.js";\n' % (app_name, app_name)
@@ -63,7 +63,7 @@ class AddControllerManager:
     def add_css_app_to_organizer(cls, app_name):
         org_file_path_root = os.path.join(options.PROJECT_ROOT, "Assets/src",
                                           "index.style.scss")
-        if  get_app_path(app_name).startswith(options.PROJECT_ROOT):
+        if  get_app_path(app_name).startswith(os.path.join(options.PROJECT_ROOT, app_name)):
             line = f'@use "{app_name}/{app_name}.style";\n'
         else:
             line = f'@use "../libs/{app_name}/{app_name}.style";\n'

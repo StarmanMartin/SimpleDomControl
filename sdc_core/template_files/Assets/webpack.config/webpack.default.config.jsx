@@ -1,40 +1,53 @@
 const path = require('path');
 const outputDir = path.resolve(__dirname, '../build');
 
+const libs = path.resolve(__dirname, "../libs");
+const override = path.resolve(__dirname, "../overwrite_libs");
+
 module.exports = {
-    entry: {
-        'index.organizer': path.resolve(__dirname, '../_build/index.organizer.js'),
+  resolve: {
+    alias: {
+      "libs": override
     },
-    output: {
-        path: outputDir,
-        filename: '[name].js'
-    },
-    module: {
-        rules: [
-            {
-                test: /\.js$/,
-                exclude: /node_modules/,
-                use: ['babel-loader']
-            },
-            {
-                test: /\.s[ac]ss$/i,
-                use: [{
-                    loader: 'style-loader', // inject CSS to page
-                }, {
-                    loader: 'css-loader', // translates CSS into CommonJS modules
-                }, {
-                    loader: 'postcss-loader', // Run post css actions
-                    options: {
-                        plugins: function () { // post css plugins, can be exported to postcss.config.js
-                            return [
-                                require('precss'),
-                                require('autoprefixer')
-                            ];
-                        }
-                    }
-                }, {
-                    loader: 'sass-loader' // compiles Sass to CSS
-                }]
-            }]
-    }
+    modules: [
+      path.resolve(__dirname, "../../node_modules"),
+      "node_modules"
+    ],
+    symlinks: false
+  },
+  entry: {
+    'index.organizer': path.resolve(__dirname, '../_build/index.organizer.js'),
+  },
+  output: {
+    path: outputDir,
+    filename: '[name].js'
+  },
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: ['babel-loader']
+      },
+      {
+        test: /\.s[ac]ss$/i,
+        use: [{
+          loader: 'style-loader', // inject CSS to page
+        }, {
+          loader: 'css-loader', // translates CSS into CommonJS modules
+        }, {
+          loader: 'postcss-loader', // Run post css actions
+          options: {
+            plugins: function () { // post css plugins, can be exported to postcss.config.js
+              return [
+                require('precss'),
+                require('autoprefixer')
+              ];
+            }
+          }
+        }, {
+          loader: 'sass-loader' // compiles Sass to CSS
+        }]
+      }]
+  }
 };

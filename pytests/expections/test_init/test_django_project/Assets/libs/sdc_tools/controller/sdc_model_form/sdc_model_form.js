@@ -131,8 +131,6 @@ export class SdcModelFormController extends AbstractSDC {
       this.reconcile(newForm, oldForm);
     }).addClass('container-fluid');
     fc.append(newFormContent);
-
-
   }
 
   submitModelForm($form, e) {

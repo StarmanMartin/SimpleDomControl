@@ -35,7 +35,7 @@ is optional, and you have the flexibility to choose whether or not to utilize th
              ├─ utils/
                 └─ test_utils.js
              └─ ...
-          ├─ .babelrc
+          ├─ babel.config.json
           ├─ gulpfile.js
           └─ package.json
        └─ ...
