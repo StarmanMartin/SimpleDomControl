@@ -117,20 +117,7 @@ export class SdcNavigatorController extends AbstractSDC {
   }
 
   goTo(controller_path_as_array, args = null) {
-    if (Array.isArray(controller_path_as_array)) {
-      controller_path_as_array = controller_path_as_array.join('~');
-    }
-
-    let c_list = controller_path_as_array.split('~').map((x) => x.split('/')).flat().filter((x, i) => i < 1 || x.length > 0);
-    if (!c_list[0].startsWith('.') && c_list[0] !== '*' && c_list[0] !== '') {
-      for (let i = 0; i < this._history_path.length; ++i) {
-        c_list.unshift('*');
-      }
-      c_list.unshift('');
-    }
-
-    controller_path_as_array = c_list.join('~').split('~~').join('~');
-
+    controller_path_as_array = this._prepareUrl(controller_path_as_array);
     return this.onNavigateToController(controller_path_as_array, args);
   }
 
@@ -259,6 +246,22 @@ export class SdcNavigatorController extends AbstractSDC {
     }
   }
 
+  _prepareUrl(controller_path_as_array) {
+    if (Array.isArray(controller_path_as_array)) {
+      controller_path_as_array = controller_path_as_array.join('~');
+    }
+
+    let c_list = controller_path_as_array.split('~').map((x) => x.split('/')).flat().filter((x, i) => i < 1 || x.length > 0);
+    if (!c_list[0].startsWith('.') && c_list[0] !== '*' && c_list[0] !== '') {
+      for (let i = 0; i < this._history_path.length; ++i) {
+        c_list.unshift('*');
+      }
+      c_list.unshift('');
+    }
+
+    return c_list.join('~').split('~~').join('~');
+  }
+
   _checkProcessQueue() {
     let next = this._process_queue.shift();
     this._current_process = null;
@@ -296,7 +299,7 @@ export class SdcNavigatorController extends AbstractSDC {
         href.pop();
       }
 
-      $breadcrumb.append(`<li class="breadcrumb-item active">${self._breadcrumb.at(-1)}</li>`);
+      $breadcrumb.append(`<li class="breadcrumb-item">${self._breadcrumb.at(-1)}</li>`);
     });
   }
 
@@ -395,14 +398,19 @@ export class SdcNavigatorController extends AbstractSDC {
 
   _setupButton() {
     let self = this;
-    this.find('.navigation-links:not(._link-done)').each(function () {
+    this.find('.navigation-links').each(function () {
       let $button = $(this);
-      $button.addClass(`_link-done`);
       if (!this.hasAttribute('href')) {
         return;
       }
+      if (!$button.hasClass(`_link-done`)) {
+        $button.data('_origin_href', self._prepareUrl($button.attr('href')));
+        $button.addClass(`_link-done`);
+      }
+      $button.addClass(`_link-done`);
 
-      let data = self._handleUrl($button.attr('href'));
+      let data = self._handleUrl($button.data('_origin_href'));
+      $button.attr('href', data.href);
       $button.addClass(`nav-family-${data.path.at(-1)}`);
     });
   }
@@ -503,7 +511,8 @@ export class SdcNavigatorController extends AbstractSDC {
       args: args,
       path: last_path_array,
       buttonSelector: button_selector,
-      url: url
+      url: url,
+      href: location_path_str
     }
 
   }
@@ -557,6 +566,7 @@ export class SdcNavigatorController extends AbstractSDC {
   }
 
   login() {
+    console.log(location);
     location.reload();
   }
 

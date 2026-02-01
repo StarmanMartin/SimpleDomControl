@@ -40,9 +40,12 @@ class SdcLoginController extends AbstractSDC {
         return super.onRefresh();
     }
 
-    onSubmit() {
-        socketReconnect();
-        trigger('login');
+    onSubmit(serverRes) {
+         if(serverRes.status ==="redirect" ) {
+           location.assign(serverRes.url);
+         } else {
+            trigger('login');
+         }
     }
 
 }

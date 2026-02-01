@@ -76,6 +76,14 @@
 
       .selected-option {
         margin: 5px;
+        display: inline-block;
+        padding: 0px 41px 0 0;
+        background: rgb(100 188 221 / 45%);
+      }
+
+      .delete-btn {
+    top: -1px;
+    right: 9px;
       }
     }
 
@@ -107,6 +115,8 @@
       .oc-style {
         border-top: 1px solid #6c757d;
       }
+    top: -1px;
+    right: 9px;
 
       .oc-style:not(.found) {
         display: none;

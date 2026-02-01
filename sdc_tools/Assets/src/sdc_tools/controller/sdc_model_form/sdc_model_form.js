@@ -11,6 +11,7 @@ export class SdcModelFormController extends AbstractSDC {
     this.model_name = null;
     this.isKeepEditing = null;
     this.isReset = null;
+    this._isLoaded = false;
     this.autoSave = null;
     this.model = null;
     this.formHeader = null;
@@ -41,7 +42,7 @@ export class SdcModelFormController extends AbstractSDC {
     if (this.buttonText === null && button_text) {
       this.buttonText = button_text;
     } else {
-      this.buttonText = gettext('Save')
+      this.buttonText = gettext('Save');
     }
 
     if (this.formHeader === null) {
@@ -78,30 +79,29 @@ export class SdcModelFormController extends AbstractSDC {
     this.form_name ||= form_name;
 
     if (this.form_name) {
-      this.isAutoChange = this.autoSave
+      this.isAutoChange = this.autoSave;
       this.pk = pk;
       this.type = 'edit';
       this.model ??= this.newModel(model, {pk: pk});
-      this.form_generator = () => this.model.namedForm(pk, this.form_name);
+      this.form_generator = () => this.model.namedForm(pk, this.form_name, this._onFormLoaded.bind(this));
     } else if (typeof (pk) !== "undefined") {
       this.pk = pk;
       this.type = 'edit';
       this.model ??= this.newModel(model, {pk: pk});
-      this.form_generator = this.model.editForm.bind(this.model);
+      this.form_generator = () => this.model.editForm(-1, this._onFormLoaded.bind(this));
     } else {
       this.isAutoChange = false;
       this.type = 'create';
       this.model ??= this.newModel(model);
-      this.form_generator = this.model.createForm.bind(this.model);
+      this.form_generator = () => this.model.createForm(this._onFormLoaded.bind(this));
     }
     if (typeof filter === 'object') {
       this.model.filter(filter);
     }
+
   }
 
   onLoad($html) {
-    this.model.on_update = () => {
-    }
     this.form = this.form_generator().addClass('container-fluid');
     $html.find('.form-container').append(this.form);
     // $html.find(`.not-${this.type}`).remove();
@@ -118,6 +118,13 @@ export class SdcModelFormController extends AbstractSDC {
 
   onRefresh() {
     return super.onRefresh();
+  }
+
+  _onFormLoaded() {
+    if(!this._isLoaded) {
+      this.refresh();
+    }
+    this._isLoaded = true;
   }
 
   _createFormToEditForm() {
@@ -163,6 +170,9 @@ export class SdcModelFormController extends AbstractSDC {
   }
 
   save_btn() {
+    if(!this._isLoaded) {
+      return <h3>{gettext('Loading...')}</h3>;
+    }
     if (!this.autoSave && this.type === 'edit') {
       return <button className="btn btn-success">{this.buttonText}</button>;
 
