@@ -56,7 +56,10 @@ class SDCSerializer(Serializer):
             return {'pk': super()._value_from_field(obj, field), 'model': field.related_model.__name__,
                     '__is_sdc_model__': True}
         if issubclass(field.__class__, FileField):
-            return field.value_from_object(obj).url
+            try:
+                return field.value_from_object(obj).url
+            except (ValueError, TypeError):
+                return None
         return super()._value_from_field(obj, field)
 
 
