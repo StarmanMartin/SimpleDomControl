@@ -85,6 +85,7 @@ export class SdcModelFormController extends AbstractSDC {
       this.model ??= this.newModel(model, {pk: pk});
       this.form_generator = () => this.model.namedForm(pk, this.form_name, this._onFormLoaded.bind(this));
     } else if (typeof (pk) !== "undefined") {
+      this.isAutoChange = true;
       this.pk = pk;
       this.type = 'edit';
       this.model ??= this.newModel(model, {pk: pk});
