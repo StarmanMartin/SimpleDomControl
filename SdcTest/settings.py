@@ -42,16 +42,6 @@ STATICFILES_DIRS = [BASE_DIR / "static", BASE_DIR / "node_modules"]
 
 ASGI_APPLICATION = 'SdcTest.asgi.application'
 
-# Add jest database for SDC tests
-
-DATABASES_AVAILABLE = {
-                          'jest': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'test_db.sqlite3', },
-                      } | DATABASES
-
-database = os.environ.get('DJANGO_DATABASE', 'default')
-
-DATABASES = {'default': DATABASES_AVAILABLE[database]}
-
 # Setup necessary template settings for SDC
 
 TEMPLATES[0]["APP_DIRS"] = True

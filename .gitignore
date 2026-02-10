@@ -68,3 +68,6 @@ sdc.zip
 /sdc_user/Assets/src/sdc_user/controller/register/register.html
 /sdc_user/Assets/src/sdc_user/controller/test_a/test_a.html
 /backup/
+/Assets/bin/main_test
+/Assets/bin/sdc_tools
+/Assets/bin/sdc_user

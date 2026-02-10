@@ -65,7 +65,7 @@
     "sass-loader": "^16.0.5",
     "style-loader": "^4.0.0",
     "terser-webpack-plugin": "^5.3.14",
-    "webpack": "^5.98.0",
+    "webpack": "^5.104.1",
     "webpack-stream": "^7.0.0"
   },
   "overrides": {
@@ -77,7 +77,7 @@
     "bootstrap": "^5.3.3",
     "esm": "^3.2.25",
     "jquery": "^3.7.0",
-    "lodash": "^4.17.21",
+    "lodash": "^4.17.23",
     "sdc_client": "^0.57.22"
   }
 }

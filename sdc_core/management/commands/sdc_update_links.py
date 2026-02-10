@@ -48,15 +48,26 @@ def make_app_links(app_name):
     app_root = get_app_path(app_name)
     if not app_root.startswith(os.path.join(options.PROJECT_ROOT, app_name)):
         sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/libs", app_name)
+        sdc_controller_dir = os.path.join(app_root, "Assets/bin", app_name)
     else:
         sdc_controller_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/src", app_name)
-
+        sdc_controller_dir = os.path.join(app_root, "Assets/src", app_name)
         sdc_test_link_dir = os.path.join(options.PROJECT_ROOT, "Assets/tests")  # , f"{app_name}.test.js")
         sdc_test_file_dir = os.path.join(app_root, "Assets/tests")  # , f"{app_name}.test.js")
         for file in os.listdir(sdc_test_file_dir):
             if file.endswith('.test.js'):
                 relative_symlink(os.path.join(sdc_test_file_dir, file), os.path.join(sdc_test_link_dir, file))
-    sdc_controller_dir = os.path.join(app_root, "Assets/src", app_name)
+
+        sdc_controller_link_bin_dir = os.path.join(options.PROJECT_ROOT, "Assets/bin")
+        os.makedirs(sdc_controller_link_bin_dir, exist_ok=True)
+        sdc_controller_link_bin_dir = os.path.join(sdc_controller_link_bin_dir, app_name)
+
+        sdc_controller_bin_dir = os.path.join(app_root, "Assets/bin", app_name)
+        if os.path.exists(sdc_controller_link_bin_dir):
+            os.remove(sdc_controller_link_bin_dir)
+        os.makedirs(sdc_controller_bin_dir, exist_ok=True)
+        relative_symlink(sdc_controller_bin_dir, sdc_controller_link_bin_dir)
+
     if os.path.exists(sdc_controller_link_dir):
         os.remove(sdc_controller_link_dir)
     relative_symlink(sdc_controller_dir, sdc_controller_link_dir)

@@ -55,9 +55,10 @@ class AddControllerManager:
                                           "index.organizer.js")
         if  get_app_path(app_name).startswith(os.path.join(options.PROJECT_ROOT, app_name)):
             line = 'import {} from "./%s/%s.organizer.js";\n' % (app_name, app_name)
+            cls._add_js_to_src(org_file_path_root, line)
         else:
-            line = 'import {} from "#lib/%s/%s.organizer.js";\n' % (app_name, app_name)
-        cls._add_js_to_src(org_file_path_root, line)
+            line = '  import("#lib/%s/%s.organizer.js"),\n' % (app_name, app_name)
+            cls._add_js_to_src(org_file_path_root, line, '// SDC APP import')
 
     @classmethod
     def add_css_app_to_organizer(cls, app_name):
@@ -196,16 +197,25 @@ class AddControllerManager:
         fout.close()
 
     @staticmethod
-    def _add_js_to_src(org_file_path, new_line: str):
+    def _add_js_to_src(org_file_path, new_line: str, after_line=None):
         text = []
         new_line = new_line.strip('\n')
+        in_text = False
+        line_idx = 0
         if os.path.exists(org_file_path):
             with  open(org_file_path, 'r', encoding='utf-8') as fin:
+                line_counter = -1 if after_line else 0
                 for line in fin:
+                    in_text |= new_line.strip() == line.strip()
+                    line_counter += 1
+                    if after_line and line_idx == 0 and after_line in line:
+                        line_idx = line_counter + 1
                     text.append(line.strip('\n'))
 
-        if new_line not in text:
-            text.insert(0, new_line)
+        if line_idx == -1:
+            raise TypeError('The Assets/src/index.organizer.js does not contain the import comment: "// SDC APP import" (run ./manage.py sdc_init -u')
+        if not in_text:
+            text.insert(line_idx, new_line)
         with open(org_file_path, "w+", encoding='utf-8') as fout:
             fout.write('\n'.join(text))
 

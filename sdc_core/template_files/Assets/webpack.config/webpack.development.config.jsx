@@ -11,4 +11,4 @@ let dev_conf = {
     ]
 };
 
-module.exports = _.merge(default_conf, dev_conf);
+module.exports = (filepath) => _.merge(default_conf(filepath), dev_conf);

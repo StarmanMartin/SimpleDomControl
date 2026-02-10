@@ -20,4 +20,4 @@ const prod_conf = {
     }
 };
 
-module.exports = _.merge(default_conf, prod_conf);
+module.exports =  (filepath) => _.merge(default_conf(filepath), prod_conf);
