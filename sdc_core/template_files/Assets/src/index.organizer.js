@@ -2,11 +2,11 @@ import {app} from 'sdc_client';
 
 window['sdc_client'] = sdc_client;
 
-await (async () => Promise.all(
+await (async () => Promise.all([
   // SDC APP import
   import("#lib/sdc_user/sdc_user.organizer.js"),
-  import("#lib/sdc_tools/sdc_tools.organizer.js")
-))();
+  import("#lib/sdc_tools/sdc_tools.organizer.js"),
+]))();
 
 
 Promise.all([
