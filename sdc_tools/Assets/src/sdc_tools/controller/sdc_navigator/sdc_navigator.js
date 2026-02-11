@@ -146,10 +146,8 @@ export class SdcNavigatorController extends AbstractSDC {
     _state && this._updateButton(_state.buttonSelector);
     this._is_processing = true;
     this._origin_target = target;
-    console.log(target);
     let viewObj = this._getSubViewObj(args);
     this._previous_args = args;
-    console.log({ht: this._history_path});
     if (viewObj.container.container.data('modal')) {
       if (!this._currentModal) {
 
@@ -569,7 +567,6 @@ export class SdcNavigatorController extends AbstractSDC {
   }
 
   login() {
-    console.log(location);
     location.reload();
   }
 
