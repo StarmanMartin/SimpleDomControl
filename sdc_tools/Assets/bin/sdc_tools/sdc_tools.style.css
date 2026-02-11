@@ -124,9 +124,9 @@
   background-color: black;
 }
 [sdc-search-view] .page-number-control {
-  position: absolute;
-  bottom: -20px;
-  left: 200px;
+  position: relative;
+  bottom: 0;
+  left: 0;
 }
 [sdc-search-view] .form-group {
   white-space: nowrap;
