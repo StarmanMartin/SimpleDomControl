@@ -1,4 +1,4 @@
-import {app} from 'sdc_client';
+import * as sdc_client from 'sdc_client';
 
 window['sdc_client'] = sdc_client;
 
@@ -17,7 +17,7 @@ Promise.all([
   window['Tooltip'] = bootstrap.Tooltip;
   window['jQuery'] = window['$'] = jquery.default;
   window['_'] = lodash.default;
-  app.init_sdc()
+  sdc_client.app.init_sdc()
     .then(() => {
     });
 });

@@ -65,7 +65,7 @@ class SdcUserNavBtn(SDCView):
     template_name = 'sdc_user/sdc/sdc_user_nav_btn.html'
 
     def get_content(self, request, *args, **kwargs):
-        return render(request, self.template_name)
+        return render(request, self.template_name, {'login_controller': settings.LOGIN_CONTROLLER})
 
 
 class SdcConfirmEmail(SDCView):
