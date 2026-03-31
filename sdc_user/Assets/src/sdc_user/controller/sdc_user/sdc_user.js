@@ -47,8 +47,8 @@ class SdcUserController extends AbstractSDC {
     onLoad($html) {
         return this.serverCall('get_user_id').then((user_id) => {
             if (user_id !== null) {
-                this.user = this.newModel('SdcUser', {'id': user_id});
-                return this.user.load().then(() => {
+                this.querySet('SdcUser', {'id': user_id}).get().then((user) => {
+                  this.user = user;
                     return super.onLoad($html);
                 });
             }

@@ -27,24 +27,24 @@ export class SdcDetailViewController extends AbstractSDC {
   // - onRemove                                      //
   //-------------------------------------------------//
 
-  onInit(model, pk) {
+  async onInit(model, pk) {
     if (!this.model) {
       if (!model || typeof pk === 'undefined') {
         console.error("You have to set data-model and data-pk in the <sdc-detail-view> tag!");
       }
 
-      this.model = this.newModel(model, {pk: pk});
+      this.model = await this.querySet(model, {pk: pk}).get();
     }
   }
 
   onLoad($html) {
-    const $dt = this.model.detailView(null, () => {
+    const $dt = this.model.detailView({cb_resolve: () => {
       let $lc = this.find('.detail-container');
       $lc.append($dt);
       this.refresh();
       this._onUpdate.bind(this);
 
-    }, null, this.template_context);
+    }, template_context: this.template_context});
     this.model.on_update = this.model.on_create = async () => {
       await this._updateView();
       this._onUpdate();

@@ -34,7 +34,7 @@ export class SdcModelFormController extends AbstractSDC {
   //-------------------------------------------------//
   // - onRemove                                      //
   //-------------------------------------------------//
-  async onInit(model, pk, next, filter, on_update, on_error, form_header, button_text, form_name = false, reset_on_save = false, editing_after_save = false, auto_save = true) {
+  async onInit(model, pk, next, filter = null, on_update, on_error, form_header, button_text, form_name = false, reset_on_save = false, editing_after_save = false, auto_save = true) {
     !this.on_update && (this.on_update = on_update);
     !this.on_error && (this.on_error = on_error);
     !this.next && (this.next = next);
@@ -76,28 +76,29 @@ export class SdcModelFormController extends AbstractSDC {
       model = this.model_name;
     }
 
+    const querySet = this.querySet(model, filter);
     this.form_name ||= form_name;
 
     if (this.form_name) {
       this.isAutoChange = this.autoSave;
       this.pk = pk;
       this.type = 'edit';
-      this.model ??= this.newModel(model, {pk: pk});
-      this.form_generator = () => this.model.namedForm(pk, this.form_name, this._onFormLoaded.bind(this));
+      this.model ??= await querySet.get({pk});
+      this.form_generator = () => this.model.namedForm({
+        formName: this.form_name,
+        cb_resolve: this._onFormLoaded.bind(this)
+      });
     } else if (typeof (pk) !== "undefined") {
       this.isAutoChange = true;
       this.pk = pk;
       this.type = 'edit';
-      this.model ??= this.newModel(model, {pk: pk});
-      this.form_generator = () => this.model.editForm(-1, this._onFormLoaded.bind(this));
+      this.model ??= await querySet.get({pk});
+      this.form_generator = () => this.model.form({cb_resolve: this._onFormLoaded.bind(this)});
     } else {
       this.isAutoChange = false;
       this.type = 'create';
-      this.model ??= this.newModel(model);
-      this.form_generator = () => this.model.createForm(this._onFormLoaded.bind(this));
-    }
-    if (typeof filter === 'object') {
-      this.model.filter(filter);
+      this.model ??= querySet.new();
+      this.form_generator = () => this.model.form({cb_resolve: this._onFormLoaded.bind(this)});
     }
 
   }
@@ -122,7 +123,7 @@ export class SdcModelFormController extends AbstractSDC {
   }
 
   _onFormLoaded() {
-    if(!this._isLoaded) {
+    if (!this._isLoaded) {
       this.refresh();
     }
     this._isLoaded = true;
@@ -171,7 +172,7 @@ export class SdcModelFormController extends AbstractSDC {
   }
 
   save_btn() {
-    if(!this._isLoaded) {
+    if (!this._isLoaded) {
       return <h3>{gettext('Loading...')}</h3>;
     }
     if (!this.autoSave && this.type === 'edit') {

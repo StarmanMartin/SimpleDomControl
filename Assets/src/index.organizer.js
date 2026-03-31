@@ -2,6 +2,7 @@ import {} from "./main_test/main_test.organizer.js";
 import {} from "./sdc_tools/sdc_tools.organizer.js";
 import {} from "./sdc_user/sdc_user.organizer.js";
 import {app} from 'sdc_client';
+import {} from "./models/src.js";
 
 
 Promise.all([

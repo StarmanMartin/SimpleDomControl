@@ -71,3 +71,8 @@ sdc.zip
 /Assets/bin/main_test
 /Assets/bin/sdc_tools
 /Assets/bin/sdc_user
+/Assets/src/models/Author.js
+/Assets/src/models/Book.js
+/Assets/src/models/BookContent.js
+/Assets/src/models/SdcUser.js
+/Assets/src/models/src.js
