@@ -17,6 +17,7 @@ def generate_field_config(field):
         "many_to_one": field["many_to_one"],
         "one_to_one": field["one_to_one"],
         "related_model": field["related_model"],
+        "remote_field": field["remote_field"],
     }
 
     if field["type"] == "FileField":
@@ -39,8 +40,8 @@ def _generate_js_class(schema):
     class_name = schema["model"]
 
     lines = ["import {SdcModel, SdcQuerySet} from 'sdc_client';", "", f"export default class {class_name} extends SdcModel {{", ""]
-    constructor_line = ["  constructor(data = {}) {", f'    super("{class_name}");']
-    setter_line = ["  setValues(data = {}) {"]
+    constructor_line = ["  constructor(data = {}) {", f'    super("{class_name}");', f'    this._toManyFields = [];']
+    setter_line = ["  setValues(data = {}) {", f'    data.id ??= data.pk ?? null;']
     getter = []
     setter = []
 
@@ -49,24 +50,33 @@ def _generate_js_class(schema):
 
     for field in schema["fields"]:
         name = field["name"]
-        constructor_line.append(f"    this._{name} = null;")
         setter.append(f"  set {name}(value){{")
         setter.append(f"    this.validate(value, {class_name}.fields.{name});")
-        setter.append(f"    this._{name} = this.parseValue(value, {class_name}.fields.{name});")
-        setter.append("  }\n")
         getter.append(f"  get {name}(){{")
-        getter.append(f"    return this._{name};")
-        getter.append("  }\n")
-        setter_line.append("    try {")
-        if field["is_relation"] and field["related_model"]:
-            if field["many_to_many"] or field["one_to_many"]:
-                setter_line.append(f"      this.{name} = data.{name} || [];")
-            else:
-                setter_line.append(f"      this.{name} = data.{name} ? new {field['related_model']}(data.{name}) : null;")
-        else:
-            setter_line.append(f"      this.{name} = data.{name} ?? null;")
-        setter_line.append("    } catch {} ")
+        if name == 'id':
+            setter.append("    this._toManyFields.forEach((x) => x.setFilter({id: value}));")
 
+        if field["is_relation"] and field["related_model"]:
+            constructor_line.append(f"    this._{name} = new SdcQuerySet('{field['related_model']}');")
+            if field["many_to_many"] or field["one_to_many"]:
+                constructor_line.append(f"    this._toManyFields.push(this._{name});")
+                setter_line.append(f"    this.{name}.setFilter({{ {field['remote_field']}:  data.id }});")
+                setter_line.append(f"    this.{name}.setIds(data.{name} || [])")
+                setter.append(f"    this._{name}.setIds(this.parseValue(value, {class_name}.fields.{name}));")
+                getter.append(f"    return this._{name};")
+            else:
+                setter_line.append(f"    this.{name}.filter({{ id: data.{name} }});")
+                setter.append(f"    this._{name}.setIds(this.parseValue(value, {class_name}.fields.{name}));")
+                getter.append(f"    return this._{name}.length > 0 ? this._{name}[0] : this._{name}.new();")
+        else:
+            constructor_line.append(f"    this._{name} = null;")
+            setter_line.append("    try {")
+            setter_line.append(f"      this.{name} = data.{name} ?? null;")
+            setter_line.append("    } catch {} ")
+            getter.append(f"    return this._{name};")
+            setter.append(f"    this._{name} = this.parseValue(value, {class_name}.fields.{name});")
+        setter.append("  }\n")
+        getter.append("  }\n")
     constructor_line.append("    this.setValues(data);")
     constructor_line.append("  }")
     setter_line.append("  }")
@@ -80,7 +90,8 @@ def _get_model_schema(model):
 
     for field in model._meta.get_fields():
         field_info = {
-            "name": field.name,
+            # "name": field.name,
+            "name": field.accessor_name if hasattr(field, 'accessor_name') else field.name,
             "type": field.get_internal_type() if hasattr(field, "get_internal_type") else "Unknown",
             "null": getattr(field, "null", False),
             "blank": getattr(field, "blank", False),
@@ -91,6 +102,7 @@ def _get_model_schema(model):
             "one_to_many": field.one_to_many,
             "one_to_one": field.one_to_one,
             "related_model": field.related_model.__name__ if field.related_model else None,
+            "remote_field": field.remote_field.name if field.related_model else None,
         }
         fields.append(field_info)
 

@@ -34,7 +34,7 @@ export class SdcModelFormController extends AbstractSDC {
   //-------------------------------------------------//
   // - onRemove                                      //
   //-------------------------------------------------//
-  async onInit(model, pk, next, filter = null, on_update, on_error, form_header, button_text, form_name = false, reset_on_save = false, editing_after_save = false, auto_save = true) {
+  onInit(model, pk, next, filter = null, on_update, on_error, form_header, button_text, form_name = false, reset_on_save = false, editing_after_save = false, auto_save = true) {
     !this.on_update && (this.on_update = on_update);
     !this.on_error && (this.on_error = on_error);
     !this.next && (this.next = next);
@@ -63,7 +63,7 @@ export class SdcModelFormController extends AbstractSDC {
     }
 
     if (model instanceof Promise) {
-      model = await model;
+      model = model;
     }
 
     if (typeof model === 'object' && model.constructor.name === 'Model') {
@@ -83,22 +83,22 @@ export class SdcModelFormController extends AbstractSDC {
       this.isAutoChange = this.autoSave;
       this.pk = pk;
       this.type = 'edit';
-      this.model ??= await querySet.get({pk});
+      this.model ??= querySet.setIds(pk)[0];
       this.form_generator = () => this.model.namedForm({
         formName: this.form_name,
-        cb_resolve: this._onFormLoaded.bind(this)
+        cbResolve: this._onFormLoaded.bind(this)
       });
     } else if (typeof (pk) !== "undefined") {
       this.isAutoChange = true;
       this.pk = pk;
       this.type = 'edit';
-      this.model ??= await querySet.get({pk});
-      this.form_generator = () => this.model.form({cb_resolve: this._onFormLoaded.bind(this)});
+      this.model ??= querySet.setIds(pk)[0];
+      this.form_generator = () => this.model.form({cbResolve: this._onFormLoaded.bind(this)});
     } else {
       this.isAutoChange = false;
       this.type = 'create';
       this.model ??= querySet.new();
-      this.form_generator = () => this.model.form({cb_resolve: this._onFormLoaded.bind(this)});
+      this.form_generator = () => this.model.form({cbResolve: this._onFormLoaded.bind(this)});
     }
 
   }
@@ -168,7 +168,7 @@ export class SdcModelFormController extends AbstractSDC {
   }
 
   controller_name() {
-    return `${this.type.replace(/^./g, letter => letter.toUpperCase())} ${this.model.model_name.replace(/[A-Z]/g, letter => " " + letter).replace(/^./g, letter => letter.toUpperCase())}`
+    return `${this.type.replace(/^./g, letter => letter.toUpperCase())} ${this.model.constructor.name.replace(/[A-Z]/g, letter => " " + letter).replace(/^./g, letter => letter.toUpperCase())}`
   }
 
   save_btn() {

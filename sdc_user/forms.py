@@ -71,7 +71,7 @@ class SdcUserPassword(forms.ModelForm):
 
 
 class SdcUserChangeForm(forms.ModelForm):
-    password = forms.Field(widget=ReadOnlyPassword())
+    password = forms.Field(widget=ReadOnlyPassword(), required=False)
 
     class Meta:
         model = SdcUser
@@ -81,6 +81,8 @@ class SdcUserChangeForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['password'].widget.user = self.instance
 
+    def clean_password(self):
+        return self.initial["password"]
 
 class PasswordResetConfirmForm(forms.Form):
     password = forms.CharField(

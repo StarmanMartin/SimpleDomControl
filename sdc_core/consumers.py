@@ -373,7 +373,7 @@ class SDCModelConsumer(WebsocketConsumer):
         return self._submit_element(json_data, self.model.SdcMeta.create_form, instance)
 
     def _save_element(self, json_data):
-        instance = self._load_model().get(pk=json_data['args']['data']['pk'])
+        instance = self._load_model().get(pk=json_data['args']['pk'])
         instance.scope = self.scope
         key = str(json_data['args'].get('form_name', 'edit_form'))
         if not hasattr(self.model.SdcMeta, key):
