@@ -1,7 +1,7 @@
 'use strict'
 
-const {src, dest, series, parallel} = require('gulp');
-const {sync} = require("glob");
+const { src, dest, series, parallel } = require('gulp');
+const { sync } = require("glob");
 const webpack = require('webpack-stream');
 const copy = require('gulp-copy');
 const through = require('through2');
@@ -16,7 +16,7 @@ const {
   sdc_watch_webpack_factory,
   sdc_watch_scss,
   sdc_default_build_factory,
-  sdc_default_bundle_factory
+  sdc_default_bundle_factory, sdc_pre_compile_javascript
 } = require('sdc_client/gulp/gulp.jsx');
 
 function webpack_bundle() {
@@ -24,12 +24,22 @@ function webpack_bundle() {
   const filename = [];
 
   sync("./_build/*/*.js").forEach(file => {
-    -filename.push(file);
+    if (!file.startsWith("./_build/models/")) {
+      filename.push(file);
+    }
   });
 
   return through.obj()
     .pipe(webpack(webpack_config(filename)))
     .pipe(dest('./bin'));
+}
+
+function copy_js_dev_bundle() {
+  return src('./_build/**/*.js')
+    .pipe(copy('./bin', { prefix: 1 }))
+    .on('end', () => {
+      console.log('DEv bundle copied successfully!');
+    });
 }
 
 function webpack_javascript() {
@@ -43,7 +53,7 @@ function webpack_javascript() {
 
 function copy_statics() {
   return src('./static/**/*')
-    .pipe(copy('../static', {prefix: 1}))
+    .pipe(copy('../static', { prefix: 1 }))
     .on('end', () => {
       console.log('Contents copied successfully!');
     });
@@ -56,6 +66,7 @@ exports.clean = sdc_clean;
 exports.copy_statics = copy_statics;
 exports.default = series(copy_statics, sdc_default_build_factory(webpack_javascript));
 exports.bundle = series(copy_statics, sdc_default_bundle_factory(webpack_bundle));
+exports.bundle_dev = series(copy_statics, sdc_clean, sdc_pre_compile_javascript, copy_js_dev_bundle, sdc_clean);
 exports.watch_scss = sdc_watch_scss;
 exports.watch_webpack = sdc_watch_webpack_factory(webpack_javascript);
 

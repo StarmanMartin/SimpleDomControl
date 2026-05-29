@@ -4,6 +4,7 @@ const _ = require("lodash");
 
 
 const bundle_conf = {
+  mode: "production",
   externals: {
     jquery: "jquery",
     lodash: "lodash",
@@ -16,6 +17,19 @@ const bundle_conf = {
       const appName = name.replace(/\.organizer$/, '')
       return `${appName}/[name].js`
     }
+  },
+
+  optimization: {
+    minimize: true,
+    minimizer: [
+      new TerserPlugin({
+        test: /\.js(\?.*)?$/i,
+        terserOptions: {
+          keep_classnames: true,
+          keep_fnames: true
+        }
+      })
+    ]
   }
 };
 

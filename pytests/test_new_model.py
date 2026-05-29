@@ -24,7 +24,7 @@ def test_model_list(init_project_with_app):
 
     assert len(result) == 3
     assert result[0]['model_file_line'] == 11
-    assert result[1]['model_file_line'] == 43
+    assert result[1]['model_file_line'] == 45
     assert result[0]['name'] == 'TestOneModel'
     assert result[0]['app'] == 'test_app_one'
     assert result[0]['create_form']['class'] == 'TestOneModelForm'

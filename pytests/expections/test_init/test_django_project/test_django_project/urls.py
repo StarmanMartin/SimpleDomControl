@@ -18,10 +18,14 @@ from django.urls import path, re_path, include
 from django.shortcuts import render
 from django.conf import settings
 from django.views.i18n import JavaScriptCatalog
+from sdc_core.rest_api import AdcApi, get_api_token
 
 urlpatterns = [
     re_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),
     re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),
+    path('sdc_api/<str:model>/<int:id>', AdcApi.as_view()),
+    path('sdc_api/<str:model>', AdcApi.as_view()),
+    path('sdc_api/login', get_api_token),
     # scd view below
 
     path("admin/", admin.site.urls),

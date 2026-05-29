@@ -16,9 +16,11 @@ class TestOneModel(models.Model, SdcModel):
         DEFAULT_CHOICES = CHOICES[0][0]
         SEARCH_FIELDS = ("id",)
 
-    class _SdcMeta:
+    class SdcMeta:
         """Meta data information needed to manage all SDC operations."""
         edit_form = "test_app_one.forms.TestOneModelForm"
+        fields = "__all__"
+        exclude = None
         create_form = "test_app_one.forms.TestOneModelForm"
         html_list_template = "test_app_one/models/TestOneModel/TestOneModel_list.html"
         html_detail_template = "test_app_one/models/TestOneModel/TestOneModel_details.html"
@@ -48,9 +50,11 @@ class TestTwoModel(models.Model, SdcModel):
         DEFAULT_CHOICES = CHOICES[0][0]
         SEARCH_FIELDS = ("id",)
 
-    class _SdcMeta:
+    class SdcMeta:
         """Meta data information needed to manage all SDC operations."""
         edit_form = "test_app_one.forms.TestTwoModelForm"
+        fields = "__all__"
+        exclude = None
         create_form = "test_app_one.forms.TestTwoModelForm"
         html_list_template = "test_app_one/models/TestTwoModel/TestTwoModel_list.html"
         html_detail_template = "test_app_one/models/TestTwoModel/TestTwoModel_details.html"
