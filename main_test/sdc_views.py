@@ -83,3 +83,9 @@ class TestItem(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class BookEdit(SDCView):
+    template_name='main_test/sdc/book_edit.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)

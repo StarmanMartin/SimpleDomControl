@@ -1,6 +1,7 @@
+:orphan:
+
 .. code-block:: python
 
-    from main_app.models import Review
     from main_app.models import Book
     from django.forms.models import ModelForm
 

@@ -8,14 +8,14 @@
         borrowed_by = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
 
         class SearchForm(AbstractSearchForm):
-            """A default search form used in the list view. You can delete it if you dont need it"""
+            """Default search form for the list view."""
             CHOICES = (("title", "Title"), ("author", "Author"),)
             PLACEHOLDER = "Title or Author"
             DEFAULT_CHOICES = CHOICES[0][0]
             SEARCH_FIELDS = ("title", "author")
 
         class _SdcMeta:
-            """Meta data information needed to manage all SDC operations."""
+            """Metadata needed to manage SDC model operations."""
             edit_form = "main_app.forms.BookForm"
             create_form = "main_app.forms.BookForm"
             html_list_template = "main_app/models/Book/Book_list.html"

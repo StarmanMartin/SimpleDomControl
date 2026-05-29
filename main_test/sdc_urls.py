@@ -5,6 +5,7 @@ from . import sdc_views
 
 urlpatterns = [
     # scd view below
+    path('book_edit', sdc_views.BookEdit.as_view(), name='scd_view_main_test_book_edit'),
     path('test_item', sdc_views.TestItem.as_view(), name='scd_view_test_item'),
     path('error_404', sdc_views.Error404.as_view(), name='scd_view_error_404'),
     path('logged_in', sdc_views.LoggedIn.as_view(), name='scd_view_logged_in'),

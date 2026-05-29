@@ -4,7 +4,8 @@ from os import makedirs
 from pathlib import Path
 
 from django.core.management import BaseCommand
-from sdc_core.sdc_extentions.models import all_models
+from sdc_core.sdc_extentions.models import all_models, filter_model_fields
+
 
 def generate_field_config(field):
     config = {
@@ -44,6 +45,7 @@ def _generate_js_class(schema):
     setter_line = ["  setValues(data = {}) {", f'    data.id ??= data.pk ?? null;']
     getter = []
     setter = []
+    setter_functions = []
 
     field_settings = ["", generate_schema_js(schema["fields"]),""]
 
@@ -51,42 +53,46 @@ def _generate_js_class(schema):
     for field in schema["fields"]:
         name = field["name"]
         setter.append(f"  set {name}(value){{")
-        setter.append(f"    this.validate(value, {class_name}.fields.{name});")
+        setter.append(f"    this.set{name}(value);")
+        setter_functions.append(f"  set{name}(value){{")
+        setter_functions.append(f"    this.validate(value, {class_name}.fields.{name});")
         getter.append(f"  get {name}(){{")
         if name == 'id':
-            setter.append("    this._toManyFields.forEach((x) => x.setFilter({id: value}));")
+            setter_functions.append("    this._toManyFields.forEach(([x, fn]) => x.setFilter({[fn]: value}));")
+        setter_line.append("    try {")
 
         if field["is_relation"] and field["related_model"]:
             constructor_line.append(f"    this._{name} = new SdcQuerySet('{field['related_model']}');")
             if field["many_to_many"] or field["one_to_many"]:
-                constructor_line.append(f"    this._toManyFields.push(this._{name});")
+                constructor_line.append(f"    this._toManyFields.push([this._{name}, '{field['remote_field']}']);")
                 setter_line.append(f"    this.{name}.setFilter({{ {field['remote_field']}:  data.id }});")
-                setter_line.append(f"    this.{name}.setIds(data.{name} || [])")
-                setter.append(f"    this._{name}.setIds(this.parseValue(value, {class_name}.fields.{name}));")
+                setter_line.append(f"    this.{name} = data.{name} || [];")
+                setter_functions.append(f"    this._{name}.setIds(this.parseValue(value, {class_name}.fields.{name}));")
                 getter.append(f"    return this._{name};")
             else:
-                setter_line.append(f"    this.{name}.filter({{ id: data.{name} }});")
-                setter.append(f"    this._{name}.setIds(this.parseValue(value, {class_name}.fields.{name}));")
+                setter_line.append(f"      if (data.{name}) {{ this.{name} = data.{name}; }}")
+                setter_functions.append(f"    this._{name}.setIds(this.parseValue(value, {class_name}.fields.{name}));")
                 getter.append(f"    return this._{name}.length > 0 ? this._{name}[0] : this._{name}.new();")
         else:
             constructor_line.append(f"    this._{name} = null;")
-            setter_line.append("    try {")
             setter_line.append(f"      this.{name} = data.{name} ?? null;")
-            setter_line.append("    } catch {} ")
             getter.append(f"    return this._{name};")
-            setter.append(f"    this._{name} = this.parseValue(value, {class_name}.fields.{name});")
+            setter_functions.append(f"    this._{name} = this.parseValue(value, {class_name}.fields.{name});")
+        setter_line.append("    } catch {} ")
+        setter.append(f"    this._updateForm('{name}');")
         setter.append("  }\n")
+        setter_functions.append("  }\n")
         getter.append("  }\n")
     constructor_line.append("    this.setValues(data);")
     constructor_line.append("  }")
     setter_line.append("  }")
 
-    lines += field_settings + constructor_line + [""] + setter_line + [""] + setter + [""] + getter
+    lines += field_settings + constructor_line + [""] + setter_line + [""] + setter + [""] + setter_functions + [""] + getter
     lines.append("}")
     return "\n".join(lines)
 
 def _get_model_schema(model):
-    fields = []
+    fields = {}
 
     for field in model._meta.get_fields():
         field_info = {
@@ -104,12 +110,13 @@ def _get_model_schema(model):
             "related_model": field.related_model.__name__ if field.related_model else None,
             "remote_field": field.remote_field.name if field.related_model else None,
         }
-        fields.append(field_info)
+
+        fields[field_info['name']] = field_info
 
     return {
         "model": model.__name__,
         "app": model._meta.app_label,
-        "fields": fields,
+        "fields": filter_model_fields(model, fields).values(),
     }
 
 def _prepare_js_models():

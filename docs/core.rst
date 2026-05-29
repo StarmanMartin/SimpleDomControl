@@ -42,7 +42,7 @@ The command *sdc_init* initializes SDC in your project. The *sdc_init* command h
 2 - sdc_cc
 **********
 
-The command *sdc_cc* creates a new SDC controller. A short introduction can be found here: :ref:`new-controller-controller`.
+The command *sdc_cc* creates a new SDC controller. A short introduction can be found here: :ref:`sdc-controller-label`.
 Make sure that you are in the same directory as the *manage.py* and run:
 
 .. code-block:: sh
@@ -53,7 +53,7 @@ You will need two answer two questions in the terminal to finish the process.
 Firstly, it needs to know in witch Django app (we choose  *mypage* in the example below)
 the controller has to be created. Secondly, you have to give the new controller a name
 (in the example the name is *about_me*). Importante, only use snake case for the controller
-name. See  for more details.
+name. See :ref:`sdc-controller-label` for more details.
 
 .. code-block:: sh
 
@@ -68,7 +68,7 @@ name. See  for more details.
 3 - sdc_new_model
 *****************
 
-The command *sdc_new_model* creates a new SDC Model. A short introduction can be found here: :ref:`new-model-label`.
+The command *sdc_new_model* creates a new SDC Model. A short introduction can be found here: :ref:`sdc-model-label`.
 Make sure that you are in the same directory as the *manage.py* and run:
 
 .. code-block:: sh
@@ -79,7 +79,7 @@ You will need two answer two questions in the terminal to finish the process.
 Firstly, it needs to know in witch Django app (we choose  *mypage* in the example below)
 the Model has to be created. Secondly, you have to give the new Model a name
 (in the example the name is *BookCover*). Importante, only use CamelCase for the Model
-name. See  for more details.
+name. See :ref:`sdc-model-label` for more details.
 
 .. code-block:: sh
 

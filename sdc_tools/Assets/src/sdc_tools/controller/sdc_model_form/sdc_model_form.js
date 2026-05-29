@@ -62,17 +62,17 @@ export class SdcModelFormController extends AbstractSDC {
       filter = filter();
     }
 
-    if (model instanceof Promise) {
-      model = model;
-    }
-
     if (typeof model === 'object' && model.constructor.name === 'Model') {
       this.model = model;
+    } else if (model instanceof Promise) {
+      this.model = model;
+    }else if (model) {
+      this.model = null;
     }
 
-    if (this.model && this.model.values?.pk > 0) {
-      pk = this.model.values.pk;
-    } else if (this.model_name) {
+    if (this.model && this.model?.pk > 0) {
+      pk = this.model.pk;
+    } else if (!model && this.model_name) {
       model = this.model_name;
     }
 
@@ -84,7 +84,7 @@ export class SdcModelFormController extends AbstractSDC {
       this.pk = pk;
       this.type = 'edit';
       this.model ??= querySet.setIds(pk)[0];
-      this.form_generator = () => this.model.namedForm({
+      this.formGenerator = (modelObj) => modelObj.namedForm({
         formName: this.form_name,
         cbResolve: this._onFormLoaded.bind(this)
       });
@@ -93,18 +93,21 @@ export class SdcModelFormController extends AbstractSDC {
       this.pk = pk;
       this.type = 'edit';
       this.model ??= querySet.setIds(pk)[0];
-      this.form_generator = () => this.model.form({cbResolve: this._onFormLoaded.bind(this)});
+      this.formGenerator = (modelObj) => modelObj.form({cbResolve: this._onFormLoaded.bind(this)});
     } else {
       this.isAutoChange = false;
       this.type = 'create';
       this.model ??= querySet.new();
-      this.form_generator = () => this.model.form({cbResolve: this._onFormLoaded.bind(this)});
+      this.formGenerator = (modelObj) => modelObj.form({cbResolve: this._onFormLoaded.bind(this)});
     }
 
   }
 
-  onLoad($html) {
-    this.form = this.form_generator().addClass('container-fluid');
+  async onLoad($html) {
+    if (this.model instanceof Promise) {
+      this.model = await this.model;
+    }
+    this.form = this.formGenerator(this.model).addClass('container-fluid');
     $html.find('.form-container').append(this.form);
     // $html.find(`.not-${this.type}`).remove();
     return super.onLoad($html);

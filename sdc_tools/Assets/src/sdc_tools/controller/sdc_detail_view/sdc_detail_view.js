@@ -32,20 +32,23 @@ export class SdcDetailViewController extends AbstractSDC {
       if (!model || typeof pk === 'undefined') {
         console.error("You have to set data-model and data-pk in the <sdc-detail-view> tag!");
       }
+      this.querySetInstance = this.querySet(model, {pk: pk});
 
-      this.model = await this.querySet(model, {pk: pk}).get();
     }
   }
 
-  onLoad($html) {
-    const $dt = this.model.detailView({cb_resolve: () => {
-      let $lc = this.find('.detail-container');
-      $lc.append($dt);
-      this.refresh();
-      this._onUpdate.bind(this);
+  async onLoad($html) {
+    this.model ??= await this.querySetInstance.get();
+    const $dt = this.model.detailView({
+      cbResolve: () => {
+        let $lc = this.find('.detail-container');
+        $lc.append($dt);
+        this.refresh().then(r => null);
+        this._onUpdate.bind(this);
 
-    }, template_context: this.template_context});
-    this.model.on_update = this.model.on_create = async () => {
+      }, templateContext: this.template_context
+    });
+    this.querySetInstance.onUpdate = async () => {
       await this._updateView();
       this._onUpdate();
     };
@@ -70,20 +73,23 @@ export class SdcDetailViewController extends AbstractSDC {
 
   _onUpdate() {
     if (this.on_update) {
-      this.model.load().then(() => {
-        this.on_update(this.model.values_list);
+      this.model.update().then(() => {
+        this.on_update(this.model);
       });
     }
   }
 
   _updateView() {
     return new Promise((resolve) => {
-      const $div = this.model.listView(this.search_values, () => {
-        const elems = $('.tooltip.fade.show');
-        elems.remove();
-        app.reconcile(this, $div, this.find('.detail-container').children());
-        resolve();
-      }, null, this.template_context);
+      const $div = this.model.listView({
+        modelQuery: this.search_values,
+        cbResolve: () => {
+          const elems = $('.tooltip.fade.show');
+          elems.remove();
+          app.reconcile(this, $div, this.find('.detail-container').children());
+          resolve();
+        }, templateContext: this.template_context
+      });
     });
 
   }

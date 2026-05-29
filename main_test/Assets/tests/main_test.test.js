@@ -3,6 +3,7 @@
  */
 
 import {test_utils, socketReconnect} from 'sdc_client';
+import {} from "#root/src/models/src.js";
 import {} from "#root/src/main_test/main_test.organizer.js";
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 import '#root/src/sdc_user/sdc_user.organizer.js'
@@ -306,6 +307,23 @@ describe('TestItem', () => {
 
     test('Load Content', async () => {
         const $div = $('body').find('test-item');
+        expect($div.length).toBeGreaterThan(0);
+    });
+
+});
+
+describe('BookEdit', () => {
+    let controller;
+
+    beforeEach(async () => {
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('book-edit',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        const $div = $('body').find('book-edit');
         expect($div.length).toBeGreaterThan(0);
     });
 

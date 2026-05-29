@@ -1,3 +1,4 @@
+import {} from "./controller/book_edit/book_edit.js";
 import {} from "./controller/test_item/test_item.js";
 import {} from "./controller/error_404/error_404.js";
 import {} from "./controller/logged_in/logged_in.js";

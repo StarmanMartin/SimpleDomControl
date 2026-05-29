@@ -24,7 +24,9 @@ function webpack_bundle() {
   const filename = [];
 
   sync("./_build/*/*.js").forEach(file => {
-    -filename.push(file);
+    if(!file.startsWith("./_build/models/")) {
+      filename.push(file);
+    }
   });
 
   return through.obj()

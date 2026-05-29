@@ -429,6 +429,7 @@ class ServerModelTest(TestCase, WithMockedElementTest):
             "args": {
                 "model_name": "Author",
                 "data": new_autor_data,
+                "pk": 1,
                 "model_query": {}
             }
         })
@@ -545,7 +546,7 @@ class ServerModelTest(TestCase, WithMockedElementTest):
         })
         message = json.loads(await communicator.receive_from())
         self.assertListEqual(list(message.keys()), ['header', 'msg', 'type', 'event_id', 'data', 'html', 'is_error'])
-        self.assertTrue('media/TEST_FILE' in json.loads(message['data']['instance'])[0]['fields']['text'])
+        self.assertTrue('media/TEST_FILE' in json.loads(message['data']['instance'])[0]['fields']['text']['url'])
         with open(settings.BASE_DIR / 'test_media/TEST_FILE.txt', 'r') as f:
             self.assertEqual(f.read(), ''.join(file_content))
         os.remove(settings.BASE_DIR / 'test_media/TEST_FILE.txt')

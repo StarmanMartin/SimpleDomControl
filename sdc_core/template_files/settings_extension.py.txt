@@ -85,8 +85,27 @@ MODEL_FORM_TEMPLATE = "elements/form.html"
 LOGIN_CONTROLLER = 'sdc-login'
 LOGIN_SUCCESS = '/'
 
-JWT = {'secret': SECRET_KEY, 'algorithm': 'HS256'}
+JWT = {'secret': SECRET_KEY, 'algorithm': 'HS256' , 'exp_delta_seconds': 3600}
+
 AUTH_USER_MODEL = "sdc_user.SdcUser"
+
+
+"""
+def sdc_user_get_queryset(user, action, obj):
+    return user.is_authenticated
+"""
+SDC_USER_GET_QUERYSET = "sdc_user.models.sdc_user_get_queryset"
+
+""""
+def sdc_user_get_queryset(sdc_user_cls, user, action, ob
+    if user.is_superuser:
+        return sdc_user_cls.objects.all()
+    else:
+        return sdc_user_cls.objects.filter(pk=user.pk)
+"""
+SDC_USER_IS_AUTHORISED = "sdc_user.models.sdc_user_is_authorised"
+SDC_USER_FIELDS = "__all__"
+SDC_USER_FIELDS_EXCLUDE = None
 
 # EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST =''

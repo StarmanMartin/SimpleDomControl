@@ -3,6 +3,7 @@
  */
 
 import {test_utils, trigger} from 'sdc_client';
+import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js'
 
 
@@ -96,7 +97,7 @@ describe('SdcNavigator', () => {
         trigger('goTo', ['', 'sdc-dummy', 'sdc-dummy'], {text: 'SUB DUMMY B'});
         trigger('goTo', ['..']);
         await new Promise(resolve => setTimeout(resolve, 1000));
-        console.log(controller);
+
         expect(controller.find('.0_sdc_sub_detail_container.active').text().trim()).toBe('DUMMY B');
         expect(controller.find('.1_sdc_sub_detail_container.active').text().trim()).toBe('');
     });

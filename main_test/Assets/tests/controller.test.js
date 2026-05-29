@@ -1,4 +1,5 @@
 import {test_utils, on, socketReconnect, trigger} from 'sdc_client';
+import {} from "#root/src/models/src.js";
 import {} from "#root/src/main_test/main_test.organizer.js";
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 import '#root/src/sdc_user/sdc_user.organizer.js'

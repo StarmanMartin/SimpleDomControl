@@ -392,7 +392,7 @@ class SDCModelConsumer(WebsocketConsumer):
                              field_name=file_data['field_name'],
                              content_type=file_data['content_type'],
                              content_length=file_data['content_length'], )
-        handler.receive_data_chunk(bytes([ord(x) for x in file_data['chunk']]), int(file_data['idx']))
+        handler.receive_data_chunk(file_data['chunk'].encode(), int(file_data['idx']))
         number_of_chunks = number_of_chunks - 1
         self._upload_handler[json_data['event_id']] = (handler, number_of_chunks)
         if number_of_chunks == 0:

@@ -1,12 +1,11 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
-class RegisterController extends AbstractSDC {
+class BookEditController extends AbstractSDC {
 
     constructor() {
         super();
-        this.contentUrl = "/sdc_view/sdc_user/register"; //<register></register>
-        this.model_name = "SdcUser";
+        this.contentUrl = "/sdc_view/main_test/book_edit"; //<book-edit></book-edit>
 
         /**
          * Uncomment the following line to make sure the HTML template
@@ -41,6 +40,7 @@ class RegisterController extends AbstractSDC {
     //-------------------------------------------------//
 
     onInit() {
+      this.model_name = 'Book';
     }
 
     onLoad($html) {
@@ -55,6 +55,12 @@ class RegisterController extends AbstractSDC {
         return super.onRefresh();
     }
 
+    add_x() {
+      this.model.title ??= ' -> ';
+      this.model.title += ' X';
+      this.model.author = 1;
+    }
+
 }
 
-app.register(RegisterController, false).addMixin('sdc-model-form');
+app.register(BookEditController, false).addMixin("sdc-model-form");

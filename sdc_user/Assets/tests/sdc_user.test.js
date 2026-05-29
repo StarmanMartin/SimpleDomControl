@@ -3,6 +3,8 @@
  */
 
 import {test_utils} from 'sdc_client';
+import {} from "#root/src/models/src.js";
+import {} from "#root/src/models/src.js";
 import '../src/sdc_user/sdc_user.organizer.js'
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 

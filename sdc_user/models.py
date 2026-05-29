@@ -9,7 +9,20 @@ from sdc_core.sdc_extentions.search import handle_search_form
 from django.utils.translation import gettext_lazy as _
 
 from sdc_user.mails import send_confirm_email
+from django.utils.module_loading import import_string
 
+def sdc_user_is_authorised(user, action, obj):
+    return user.is_authenticated
+
+_sdc_user_is_authorised = import_string(settings.SDC_USER_IS_AUTHORISED)
+
+def sdc_user_get_queryset(sdc_user_cls, user, action, obj):
+    if user.is_superuser:
+        return sdc_user_cls.objects.all()
+    else:
+        return sdc_user_cls.objects.filter(pk=user.pk)
+
+_sdc_user_get_queryset = import_string(settings.SDC_USER_GET_QUERYSET)
 
 class SdcUser(AbstractUser, SdcModel):
     email_confirmed = models.BooleanField(default=False)
@@ -29,13 +42,15 @@ class SdcUser(AbstractUser, SdcModel):
     class Meta:
         swappable = "AUTH_USER_MODEL"
 
-    class _SdcMeta:
+    class SdcMeta:
         """Meta data information needed to manage all SDC operations."""
         edit_form = "sdc_user.forms.SdcUserChangeForm"
         create_form = "sdc_user.forms.SdcUserCreationForm"
         password_form = "sdc_user.forms.SdcUserPassword"
         html_list_template = "sdc_user/models/SdcUser/SdcUser_list.html"
         html_detail_template = "sdc_user/models/SdcUser/SdcUser_details.html"
+        fields = settings.SDC_USER_FIELDS
+        exclude = settings.SDC_USER_FIELDS_EXCLUDE
 
     @classmethod
     def render(cls, template_name, context=None, request=None, using=None):
@@ -46,11 +61,11 @@ class SdcUser(AbstractUser, SdcModel):
 
     @classmethod
     def is_authorised(cls, user, action, obj):
-        return True
+        return _sdc_user_is_authorised(user, action, obj)
 
     @classmethod
     def get_queryset(cls, user, action, obj):
-        return cls.objects.all()
+        return _sdc_user_get_queryset(cls, user, action, obj)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)

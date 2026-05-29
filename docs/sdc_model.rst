@@ -1,114 +1,256 @@
 .. _sdc-model-label:
 
-SDC model
-=========
+SDC Models
+==========
 
-Thanks to a sophisticated ORM system (Object–Relational Mapper), the models in Django enable simple database development.
-Thanks to the SDC extension, these models can also be used on the client side via a WebSockets-based system.
-All SDC models are generated with forms for creation and editing. The models also include a list and detail view.
-However, these are purely HTML-based and can only be used for the browser application.
+SDC extends Django models so they can also be used from the browser through the
+client runtime. The server remains authoritative, but the client gets typed
+model objects, queryset-style access, server-rendered forms and views, and live
+updates over WebSockets.
 
+Creating a model
+----------------
 
-.. _new-model-label:
-
-New model
----------
-
-We recommend delegating the creation of Models to the provided scripts designed for this purpose.
-To initiate the creation of a new Model, execute the following command within the project directory:
+Generate a model scaffold with:
 
 .. code-block:: sh
 
-    $ python manage.py sdc_new_model
+   python manage.py sdc_new_model -a <django_app_name> -m <ModelName>
 
-To complete the process, respond to two prompts in the terminal. First, specify the Django app
-in which the controller should be created (e.g., *main_app*). Second, provide a name for the new Model
-(for example, *Books*). It's important to note that only CamelCase should be used for the Model name.
-For additional details, refer to :ref:`sdc-new_model-core`.
+Use CamelCase for the model name.
 
-Alternatively, you can skip the prompts using the following command:
+The command generates:
 
+- a Django model class
+- a form class
+- default list/detail templates
+- the metadata and runtime hooks required by SDC
 
-.. code-block:: sh
+Server model metadata
+---------------------
 
-    $ python manage.py sdc_new_model -a <django_app_name> -c <DjangoModel>
+Generated models use SDC metadata to define the forms and templates used by the
+runtime.
 
-However, the *DjangoModel* must be specified in **CamelCase**. If the Django app is not listed in the installed_apps in the django settings, the provided parameter will be ignored.
+Typical fields on ``SdcMeta``:
 
-Server Model
-------------
+``edit_form``
+   Python import path to the form used for save/update operations.
 
-When a new model is created, only server code is generated initially. This includes a model class and a form class.
+``create_form``
+   Python import path to the form used for create operations.
 
-.. include:: snippets/book_model.rst
+``html_list_template``
+   Template used for server-rendered list views.
 
-and the from:
+``html_detail_template``
+   Template used for server-rendered detail views.
 
-.. include:: snippets/book_model_form.rst
+These templates are not only presentation helpers. They are part of the model
+workflow used by the client for list rendering, detail rendering, and form
+submission.
 
-The model is created with some properties. First the *_SdcMeta* subclass. The properties can then be accessed
-vie the public getter *SdcMeta*
+Authorization
+-------------
 
-.. code-block:: python
+Models are responsible for authorizing their own SDC actions. In practice,
+``is_authorised()`` is used to control whether a user may perform operations
+such as:
 
-    class _SdcMeta:
-        """Meta data information needed to manage all SDC operations."""
-        edit_form = "main_app.forms.BookForm"
-        create_form = "main_app.forms.BookForm"
-        html_list_template = "main_app/models/Book/Book_list.html"
-        html_detail_template = "main_app/models/Book/Book_details.html"
+- connect
+- load
+- list_view
+- detail_view
+- edit_form
+- create_form
+- save
+- create
+- upload
+- delete
 
+Client-side model architecture
+------------------------------
 
-- edit_form: The Python import path to the edit/update form class.
-  This form is not only used to generate an HTML view, but also serves as an intermediary class for every save operation from the client.
-  Hence, only properties handled in this form can be saved from the SDC client.
+The browser-side model layer is built around:
 
-- create_form: The Python import path to the create form class.
-  Like the edit form, it is not just an HTML form, but also acts as an intermediary class for every create operation from the client.
+``SdcModel``
+   One client-side model object.
 
-- html_list_template: The template path used to render the list view.
-  This template provides an HTML view for displaying a pre-filtered list of model entries. The entries can be server-rendered directly, or, if required, defined dynamically by the client.
+``SdcQuerySet``
+   A live collection wrapper used to load, update, create, save, delete, and
+   render models.
 
-- html_detail_template: The template path used to render the detail view.
-  This is a simple server-rendered page for displaying a model instance in more detail.
+Model classes must be registered on the client:
 
+.. code-block:: javascript
 
-.. code-block:: python
+   import { registerModel } from "sdc_client";
+   import Book from "./models/Book.js";
 
-    class SearchForm(AbstractSearchForm):
-        """A default search form used in the list view. You can delete it if you dont need it"""
-        CHOICES = (("title", "Title"), ("author", "Author"),)
-        PLACEHOLDER = "Title or Author"
-        DEFAULT_CHOICES = CHOICES[0][0]
-        SEARCH_FIELDS = ("title", "author")
+   registerModel("Book", Book);
 
-The 'SearchForm' property is used in the list view. It enables users to filter the list of elements and search for items.
-The Search Form is used in the SDC-search-view and filters the List View it is included in.
+Querysets in controllers
+------------------------
 
+Controllers usually create querysets through ``this.querySet(...)``:
 
-- CHOICES: is a list of tuples. Each element is selectable sort key. The first entry in the tuple is the property name th4 second the Human readable name.
+.. code-block:: javascript
 
-- PLACEHOLDER: is the placeholder in the search input.
+   class CatalogController extends AbstractSDC {
+     onInit() {
+       this.books = this.querySet("Book", { available: true });
+     }
 
-- DEFAULT_CHOICES: is the select default sort filter.
+     async onLoad(html) {
+       await this.books.load();
+       return super.onLoad(html);
+     }
+   }
 
-- SEARCH_FIELDS: is the properties included in the search process.
+``SdcQuerySet`` behavior
+------------------------
 
-.. code-block:: python
+Querysets behave like array-like collections:
 
-    @classmethod
-    def render(cls, template_name, context=None, request=None, using=None):
-        if template_name == cls.SdcMeta.html_list_template:
-            sf = cls.SearchForm(data=context.get("filter", {}))
-            context = context | handle_search_form(context["instances"], sf, range=3)
-        return render_to_string(template_name=template_name, context=context, request=request, using=using)
+- ``queryset.length``
+- ``queryset[0]``
+- iteration via ``for ... of``
+- ``getIds()``
+- ``byId(id)``
 
+Loading and re-synchronizing data
+---------------------------------
 
-The render methode renders the HTML from the model templates.
+``load(modelQuery = null)``
+   Clears the current queryset cache and fetches matching rows.
 
+``update({ modelQuery = null, item = null })``
+   Alternative to ``load()`` when an existing queryset should be synchronized
+   again. It can refresh the current filter, a supplied filter, or one specific
+   item.
 
-On the client side
-------------------
+Typical usage:
 
-Let us assume we have a model called Book. This model has
+- use ``load()`` for the initial fetch
+- use ``update()`` to re-sync an existing queryset
+- use ``update({ item })`` when one known model should be refreshed
 
+Other queryset methods
+----------------------
+
+``new()``
+   Creates a new empty model instance and attaches it to the queryset.
+
+``get(modelQuery = null)``
+   Loads and returns exactly one item. Raises if the result count is not one.
+
+``setFilter(modelQuery)`` / ``addFilter(modelQuery)``
+   Replace or merge queryset filters.
+
+``setIds(ids)``
+   Rebuild the queryset from ids, another queryset, or an existing model.
+
+``save({ pk = null, formName = "edit_form", data = null })``
+   Save one or more existing items.
+
+``create({ elem, data = null })``
+   Create a new backend item.
+
+``delete({ pk = null, elem = null })``
+   Delete an item by id or model object.
+
+Server-rendered views
+---------------------
+
+Querysets can render model-backed HTML fragments from the server:
+
+- ``listView(...)``
+- ``detailView(...)``
+- ``view(...)``
+
+The returned container is passed through the SDC refresh pipeline so nested
+controllers and events continue to work.
+
+Forms and ``SdcModel`` synchronization
+--------------------------------------
+
+The important rule for SDC model forms is:
+
+``SdcModel`` properties and form fields must stay synchronized.
+
+The form is not treated as an independent state store. It is a view of the
+model object.
+
+The synchronization happens in both directions:
+
+``syncModelToForm($form)``
+   Writes the model state into the form fields.
+
+``syncForm($form)``
+   Reads the form fields back into the model object and returns the submission
+   data.
+
+This is central to the framework because controller form submission works on the
+bound model instance, not on a detached raw payload.
+
+Practical consequences:
+
+- updating the model should be reflected in the form
+- editing the form should update the ``SdcModel`` object
+- hidden fields are converted back to native JavaScript types
+- file inputs are stored as ``File`` objects on the model until upload
+- relation fields are converted into related ids or queryset-backed relations
+
+The ``SdcModel`` object therefore remains the source of truth across:
+
+- edit flows
+- create flows
+- save flows
+- validation error flows
+- later refreshes of the same item
+
+How rendered forms are attached
+-------------------------------
+
+When the client requests a create or edit form, it attaches the metadata needed
+by the controller submit flow:
+
+- ``data("model", modelObj)``
+- ``data("model_pk", pk)``
+- ``data("form_name", formName)``
+- ``sdc_submit="submitModelFormDistributor"`` when absent
+
+The form is also registered on the model object so later sync operations know
+which forms belong to it.
+
+Validation errors
+-----------------
+
+When the backend returns validation errors, the client reconciles the returned
+form HTML back into the page rather than throwing away the whole subtree. This
+preserves controller structure while keeping the current ``SdcModel`` instance
+active.
+
+Relationships
+-------------
+
+Client-side model tests show two main serialization rules:
+
+- many-to-one relations serialize as one related primary key
+- one-to-many relations serialize as a list of related primary keys
+
+This allows richer client-side relation handling while keeping backend payloads
+simple.
+
+Uploads and connection lifecycle
+--------------------------------
+
+If a model contains ``File`` values, the queryset uploads them in chunks before
+the final ``save()`` or ``create()`` request.
+
+Each queryset also manages its own connection state:
+
+- ``isConnected()`` ensures the WebSocket handshake is complete
+- ``close()`` closes the queryset connection
+- ``noOpenRequests()`` resolves when all outstanding requests are complete
+- ``onUpdate`` and ``onCreate`` can react to pushed model events

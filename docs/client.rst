@@ -1,116 +1,156 @@
-The Client
-==========
+The Client Runtime
+==================
 
-The entire client is organized within the *Assets* directory,
-encompassing not only the core code of SDC but also containing
-pre-implemented SDC controllers for frequently used functionalities.
-These encompass page navigation, list views, form views for both
-editing and creating, search views, and more. These controllers are
-located in the 'sdc_tools' folder and the 'sdc_user' folder. Another
-notable advantage of a framework like SDC, which is intricately tied
-to its environment and technologies, is that the entire build chain
-can be pre-designed. Through the use of two Gulp tasks, **build**
-and **develop** a significant portion of the workload has been
-alleviated. However, it's important to note that usage of these tasks
-is optional, and you have the flexibility to choose whether or not to utilize them.
+This page documents the JavaScript runtime used by SDC projects. It replaces
+the older asset-pipeline-only description with the current client architecture.
+
+Overview
+--------
+
+The SDC client is responsible for:
+
+- registering controller classes against custom HTML tags
+- creating controller instances when those tags appear in the DOM
+- loading controller HTML from Django views
+- delegating DOM events to controller methods
+- refreshing and reconciling DOM updates
+- making server calls through AJAX or WebSockets
+- synchronizing server-backed models in the browser
+
+Primary exports
+---------------
+
+The client package exposes:
+
+``app``
+   Global runtime object.
+
+``AbstractSDC``
+   Base class for browser controllers.
+
+``SdcModel`` and ``SdcQuerySet``
+   Model APIs for live server-backed data.
+
+``on()``, ``trigger()``, ``allOff()``, ``setEvent()``
+   Application event bus helpers.
+
+Bootstrap flow
+--------------
+
+When ``app.init_sdc()`` runs, the client:
+
+1. initializes DOM event delegation
+2. prepares server-call connectivity
+3. creates root controller objects
+4. scans the DOM for all registered controller tags
+5. instantiates those controllers
+6. resolves ``data-*`` attributes into ``onInit()`` arguments
+7. loads HTML from ``contentUrl`` if configured
+8. resolves nested controllers recursively
+9. wires DOM events and runs ``onRefresh()``
+
+Tag registration
+----------------
+
+Controllers are mapped from class names to tag names automatically.
+
+- ``HelloWorld`` becomes ``<hello-world>``
+- ``UserListController`` becomes ``<user-list>``
+
+Example:
+
+.. code-block:: javascript
+
+   import { app, AbstractSDC } from "sdc_client";
+
+   class Dashboard extends AbstractSDC {
+     constructor() {
+       super();
+       this.contentUrl = "/sdc_view/main_app/dashboard";
+     }
+   }
+
+   app.register(Dashboard);
+   app.init_sdc();
+
+DOM parameter binding
+---------------------
+
+``onInit()`` arguments are populated from the controller element's
+``data-*`` attributes. The parser converts common literal values into native
+JavaScript types.
+
+Example:
+
+.. code-block:: html
+
+   <book-list data-user-id="7" data-active="true"></book-list>
+
+.. code-block:: javascript
+
+   class BookList extends AbstractSDC {
+     onInit(userId, active, rest) {
+       this.userId = userId;   // 7
+       this.active = active;   // true
+       this.rest = rest;       // remaining data attributes
+     }
+   }
+
+``contentUrl`` and HTML loading
+-------------------------------
+
+If a controller sets ``contentUrl``, the runtime fetches HTML for it from the
+backend. Responses are cached per tag unless ``contentReload`` is true.
+
+If the URL contains placeholders such as ``%(pk)s``, the runtime fills them
+from controller tag data and enables reload behavior automatically.
+
+Dynamic DOM fragments
+---------------------
+
+The runtime supports handler-bound placeholders such as ``<this.listview>``.
+During refresh, the client calls the matching controller method and reconciles
+its result back into the DOM.
+
+That is how SDC supports server-rendered HTML plus smaller client-side dynamic
+regions without introducing a separate template engine.
+
+Safe DOM operations
+-------------------
+
+SDC augments jQuery with safe DOM helpers:
+
+- ``$elem.safeRemove()``
+- ``$elem.safeEmpty()``
+- ``$elem.safeReplace($new)``
+
+These call controller removal logic before changing the DOM so child
+controllers, model sockets, and event subscriptions are cleaned up correctly.
+
+Client asset structure
+----------------------
+
+In a generated SDC project, client source files are typically organized under
+``Assets``:
 
 ::
 
-    └─ ...
-       ├─ Assets/
-          ├─ src/
-             ├─ sdc_tools/
-                └─ ...
-             ├─ sdc_user/
-                └─ ...
-             ├─ simpleDomControl/
-                └─ ...
-             ├─ index.organizer.js
-             └─ index.style.scss
-          ├─ webpack.config/
-             ├─ webpack.development.config.js
-             ├─ webpack.production.config.js
-             └─ webpack.default.config.js
-          ├─ tests/
-             ├─ utils/
-                └─ test_utils.js
-             └─ ...
-          ├─ babel.config.json
-          ├─ gulpfile.js
-          └─ package.json
-       └─ ...
+    Assets/
+    ├─ src/
+    │  ├─ <django_app>/
+    │  ├─ sdc_tools/
+    │  ├─ sdc_user/
+    │  ├─ index.organizer.js
+    │  └─ index.style.scss
+    ├─ webpack.config/
+    ├─ gulpfile.js
+    └─ package.json
 
-Dependencies
-************
+Older SDC projects use this directory both for the runtime package and for
+application-specific controllers, styles, and linked templates.
 
-Let's first look at the dependencies in the package.json
-file. The following list presents all the development dependencies.
+Where to read next
+------------------
 
-* @babel/core = ^7.21.0
-* @babel/preset-env = ^7.20.2
-* babel-loader = ^9.1.2
-* css-loader = ^6.7.3
-* gulp = ^4.0.2
-* gulp-clean = ^0.4.0
-* gulp-rename = ^2.0.0
-* gulp-sass = ^5.1.0
-* gulp-sourcemaps = ^3.0.0
-* gulp-uglify = ^3.0.2
-* jest = ^28.1.3
-* sass = ^1.58.3
-* sass-loader = ^13.2.0
-* style-loader = ^3.3.1
-* terser-webpack-plugin = ^5.3.9
-* through2 = ^4.0.2
-* webpack = ^5.75.0
-* webpack-stream = ^7.0.0
-
-All development dependencies are necessary for the build process.
-The remaining dependencies need to be installed for the error-free application of SDC
-
-* bootstrap = ^5.2.3
-* jquery = ^3.6.3
-* lodash = ^4.17.21"
-
-Build client
-____________
-
-As previously mentioned, one of the notable advantages of SDC's design is its ability to pre-configure
-the entire build chain. Consequently, the *Assets/package.json* file contains two executable scripts:
-**'build'** and **'develop'**, both of which run Gulp tasks defined in *Assets/gulpfile.js.*
-
-**The 'build' task** is responsible for generating CSS and JavaScript index files within a newly created
-*static* folder. These files undergo the process of uglification, resulting in optimized and production-ready assets.
-
-**The 'develop' task**, on the other hand, also produces CSS and JavaScript index files in the 'static'
-folder. However, it includes source mapping to facilitate browser debugging. In addition, it initiates
-a file watcher, which automatically triggers a rebuild whenever there is a change in any CSS or JavaScript file.
-
-Feel free to customize the Gulp tasks to suit your needs, but it's crucial to ensure that the **pre_compile_javascript**
-task remains intact for SDC to function correctly. You can alter the webpack process to suit your specific requirements.
-Within the *Assets/webpack.config/* directory, you'll find three webpack configuration files: a common default file, a
-development file, and a production file.
-
-Organization of the client-file structure
------------------------------------------
-
-
-
-::
-
-    └─ ...
-       ├─ Assets/
-          ├─ src/
-             ├─ sdc_tools/
-                ├─ controller
-                   ├─ sdc_alert_messenger
-                      ├─ sdc_alert_messenger.js
-                      ├─ sdc_alert_messenger.scss
-                      └─ sdc_alert_messenger.html (ONLY LINKED)
-                   ├─ sdc_navigator
-                      └─ ...
-                   └─ ...
-                ├─ sdc_tools.organizer.js
-                └─ sdc_tools.style.scss
-          └─ ...
-       └─ ...
+- :doc:`sdc_controller` for the controller API and lifecycle
+- :doc:`sdc_model` for model, queryset, and form synchronization behavior

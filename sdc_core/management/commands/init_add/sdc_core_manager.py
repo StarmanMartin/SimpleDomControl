@@ -5,6 +5,7 @@ import shutil
 
 from sdc_core.management.commands.init_add import options
 
+
 def add_sdc_to_main_urls(main_urls_path):
     fin = open(main_urls_path, "rt", encoding='utf-8')
     text = ""
@@ -12,13 +13,20 @@ def add_sdc_to_main_urls(main_urls_path):
 
     for line in fin:
         if 'from django.urls import path' in line:
-            line = re.sub(r'path', 'path, re_path, include\nfrom django.shortcuts import render\nfrom django.conf import settings\nfrom django.views.i18n import JavaScriptCatalog', line)
+            line = re.sub(r'path',
+                          'path, re_path, include\nfrom django.shortcuts import render\nfrom django.conf import settings\nfrom django.views.i18n import JavaScriptCatalog\nfrom sdc_core.rest_api import AdcApi, get_api_token',
+                          line)
 
         if "urlpatterns = [" in line:
             new_apps = "%sre_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),\n" % options.SEP
             new_apps += "%sre_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
+
+            new_apps += f"{options.SEP}path('sdc_api/<str:model>/<int:id>', AdcApi.as_view()),\n"
+            new_apps += f"{options.SEP}path('sdc_api/<str:model>', AdcApi.as_view()),\n"
+            new_apps += f"{options.SEP}path('sdc_api/login', get_api_token),\n"
+
             line = re.sub(r'urlpatterns = \[',
-                          "urlpatterns = [\n%s%s# scd view below\n" % (new_apps,options.SEP), line)
+                          "urlpatterns = [\n%s%s# scd view below\n" % (new_apps, options.SEP), line)
             is_done = True
         text += line
 

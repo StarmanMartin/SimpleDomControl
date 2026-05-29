@@ -1,20 +1,44 @@
 Installation
 ============
 
-Currently SDC is available in a pre-release version on `github <https://github.com/StarmanMartin/SimpleDomControl/releases/latest>`_ and on PyPI.
+Requirements
+------------
 
-PyPi
-****
+To use SDC comfortably you should have:
 
+- Python 3.10 or newer
+- Django 4.2 or newer
+- Node.js 18 or newer
+- npm or yarn for the client asset/runtime package
 
-Simply use:
+Install the Python package
+--------------------------
+
+Install the backend package from PyPI:
 
 .. code-block:: sh
 
-    $ pip install simpledomcontrol
+   pip install simpledomcontrol
 
+The package is also available from the project releases on GitHub, but PyPI is
+the normal installation path for application development.
 
-Requirements
-************
+What gets installed
+-------------------
 
-Make sure you have  Python (> 3.9), Django (> 4.2.7) and Node.js (> 18.18.0) installed on your computer.
+The Python installation gives you the Django integration:
+
+- ``sdc_core``
+- management commands
+- websocket and model integration helpers
+- templates and initialization tooling
+
+The JavaScript runtime used by generated projects is handled in the project
+itself through ``npm install`` or ``yarn install`` after ``sdc_init`` has added
+the client asset setup.
+
+Next step
+---------
+
+Continue with :doc:`getting_started` to initialize a project and install the
+client runtime files.

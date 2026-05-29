@@ -57,10 +57,10 @@ export class SdcListViewController extends AbstractSDC {
     if (lc.length === 0) {
       lc = $html.find('.list-container');
     }
-    lc.append(this.model.listView({model_query: this.search_values, template_context: this.template_context}));
-    this.model.on_update = this.model.on_create = () => {
+    lc.append(this.model.listView({modelQuery: this.search_values, templateContext: this.template_context}));
+    this.model.onUpdate = this.model.onCreate = () => {
       if (this.on_update) {
-        this.model.load().then(() => {
+        this.model.update().then(() => {
           this.on_update(this.model);
         });
       }
@@ -92,11 +92,15 @@ export class SdcListViewController extends AbstractSDC {
 
   _updateView() {
 
-    const $div = this.model.listView(this.search_values, () => {
+    const $div = this.model.listView({
+      modelQuery: this.search_values,
+      templateContext: this.template_context,
+      cbResolve: () => {
       const elems = $('.tooltip.fade.show');
       elems.remove();
-      app.reconcile(this, $div, this.find('.list-container .container-fluid').first());
-    }, null, this.template_context);
+      app.reconcile(this, $div, this.find('.list-container .container-fluid').first()).then(r => null);
+    }
+    });
   }
 }
 
