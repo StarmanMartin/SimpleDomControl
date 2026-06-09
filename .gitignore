@@ -80,3 +80,4 @@ sdc.zip
 /Assets/bin/main_test
 /Assets/bin/sdc_tools
 /Assets/bin/sdc_user
+/openapi.generated.yaml

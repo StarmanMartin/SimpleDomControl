@@ -21,9 +21,9 @@ def add_sdc_to_main_urls(main_urls_path):
             new_apps = "%sre_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),\n" % options.SEP
             new_apps += "%sre_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
 
-            new_apps += f"{options.SEP}path('sdc_api/<str:model>/<int:id>', AdcApi.as_view()),\n"
-            new_apps += f"{options.SEP}path('sdc_api/<str:model>', AdcApi.as_view()),\n"
-            new_apps += f"{options.SEP}path('sdc_api/login', get_api_token),\n"
+            new_apps += f"{options.SEP}path('sdc_api/<str:model>/<int:id>/', AdcApi.as_view()),\n"
+            new_apps += f"{options.SEP}path('sdc_api/<str:model>/', AdcApi.as_view()),\n"
+            new_apps += f"{options.SEP}path('sdc_api/login/', get_api_token),\n"
 
             line = re.sub(r'urlpatterns = \[',
                           "urlpatterns = [\n%s%s# scd view below\n" % (new_apps, options.SEP), line)

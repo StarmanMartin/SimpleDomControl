@@ -30,6 +30,7 @@ click = ">=8.1.0"
 pyjwt = "^2.11.0"
 inquirerpy = "^0.3.4"
 poetry-core = "^2.3.1"
+pyyaml = "^6.0.3"
 
 [tool.pytest.ini_options]
 pythonpath = [

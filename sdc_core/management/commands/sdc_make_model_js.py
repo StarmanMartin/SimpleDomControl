@@ -4,7 +4,9 @@ from os import makedirs
 from pathlib import Path
 
 from django.core.management import BaseCommand
-from sdc_core.sdc_extentions.models import all_models, filter_model_fields
+
+from sdc_core.management.commands.utils import get_model_schema
+from sdc_core.sdc_extentions.models import all_models
 
 
 def generate_field_config(field):
@@ -91,34 +93,6 @@ def _generate_js_class(schema):
     lines.append("}")
     return "\n".join(lines)
 
-def _get_model_schema(model):
-    fields = {}
-
-    for field in model._meta.get_fields():
-        field_info = {
-            # "name": field.name,
-            "name": field.accessor_name if hasattr(field, 'accessor_name') else field.name,
-            "type": field.get_internal_type() if hasattr(field, "get_internal_type") else "Unknown",
-            "null": getattr(field, "null", False),
-            "blank": getattr(field, "blank", False),
-            "max_length": getattr(field, "max_length", None),
-            "is_relation": field.is_relation,
-            "many_to_many": field.many_to_many,
-            "many_to_one": field.many_to_one,
-            "one_to_many": field.one_to_many,
-            "one_to_one": field.one_to_one,
-            "related_model": field.related_model.__name__ if field.related_model else None,
-            "remote_field": field.remote_field.name if field.related_model else None,
-        }
-
-        fields[field_info['name']] = field_info
-
-    return {
-        "model": model.__name__,
-        "app": model._meta.app_label,
-        "fields": filter_model_fields(model, fields).values(),
-    }
-
 def _prepare_js_models():
     file_path = Path('Assets/src/models')
     if file_path.exists():
@@ -128,7 +102,7 @@ def _prepare_js_models():
     for name, model in all_models().items():
         src_js.insert(0, f"import {name} from './{name}.js';")
         src_js.append(f'registerModel("{name}", {name});')
-        ms = _get_model_schema(model)
+        ms = get_model_schema(model)
         with open(file_path / f'{name}.js', 'w+') as f:
             f.write(_generate_js_class(ms))
     with open(file_path / 'src.js', 'w+') as f:

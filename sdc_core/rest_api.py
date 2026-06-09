@@ -1,42 +1,65 @@
 import json
 
+import jwt
 from django.contrib.auth import authenticate
+from django.contrib.auth.models import update_last_login
 from django.http import Http404, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
 from django.utils.module_loading import import_string
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth import get_user_model
 
 from sdc_core.consumers import ALL_MODELS
-from sdc_core.jwt_utils import jwt_required, generate_jwt
+from sdc_core.jwt_utils import jwt_required, generate_jwt, get_auth_token_from_request, \
+    verify_refresh_jwt
 from sdc_core.sdc_extentions.models import SDCSerializer
+
+User = get_user_model()
 
 
 @csrf_exempt
 def get_api_token(request):
-    if request.method != "POST":
+    if request.method not in ["POST", "GET"]:
         return JsonResponse(
             {"error": "POST required"},
             status=405,
         )
-
     try:
-        data = json.loads(request.body)
+        if request.method == "GET":
+            token, err = get_auth_token_from_request(request)
+            if err is not None:
+                return err
+            try:
+                payload, user = verify_refresh_jwt(token)
+            except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+                return JsonResponse(
+                    {"error": "Invalid token"},
+                    status=401,
+                )
+            except User.DoesNotExist:
+                return JsonResponse(
+                    {"error": "User not found"},
+                    status=401,
+                )
 
-        username = data.get("username")
-        password = data.get("password")
+        else:
+            data = json.loads(request.body)
 
-        if not username or not password:
-            return JsonResponse(
-                {"error": "Missing credentials"},
-                status=400,
+            username = data.get("username")
+            password = data.get("password")
+
+            if not username or not password:
+                return JsonResponse(
+                    {"error": "Missing credentials"},
+                    status=400,
+                )
+
+            user = authenticate(
+                request,
+                username=username,
+                password=password,
             )
-
-        user = authenticate(
-            request,
-            username=username,
-            password=password,
-        )
 
         if user is None:
             return JsonResponse(
@@ -44,10 +67,14 @@ def get_api_token(request):
                 status=401,
             )
 
-        token = generate_jwt(user)
+
+        update_last_login(None, user)
+
+        token, refresh_token = generate_jwt(user)
 
         return JsonResponse({
             "access_token": token,
+            "refresh_token": refresh_token,
             "token_type": "bearer",
         })
 
@@ -88,7 +115,7 @@ class AdcApi(View):
         if is_single_result:
             try:
                 model_obj = model_qs.get(**qs)
-            except model_class.ObjectDoesNotExist:
+            except model_class.DoesNotExist:
                 return HttpResponseNotFound()
             return JsonResponse({
                 "success": True,
@@ -138,7 +165,7 @@ class AdcApi(View):
         model_qs = model_class.get_queryset(request.user, 'save', qs)
         try:
             model_obj = model_qs.get(**qs)
-        except model_class.ObjectDoesNotExist:
+        except model_class.DoesNotExist:
             return HttpResponseNotFound()
 
         Form = import_string(model_class.SdcMeta.edit_form)
@@ -171,14 +198,23 @@ class AdcApi(View):
         model_qs = model_class.get_queryset(request.user, 'save', qs)
         try:
             model_obj = model_qs.get(**qs)
-        except model_class.ObjectDoesNotExist:
+        except model_class.DoesNotExist:
             return HttpResponseNotFound()
 
         Form = import_string(model_class.SdcMeta.edit_form)
+
         data = QueryDict(request.body.decode(), mutable=True)
-        for f in Form.Meta.fields:
+
+        form = Form(
+            instance=model_obj,
+            data=data,
+            files=request.FILES
+        )
+
+        for f in form.fields.keys():
             if f not in data and hasattr(model_obj, f):
                 data.update({f: getattr(model_obj, f)})
+
         form = Form(
             instance=model_obj,
             data=data,

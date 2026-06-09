@@ -8,15 +8,18 @@ from functools import wraps
 from django.http import JsonResponse
 from django.contrib.auth import get_user_model
 
+User = get_user_model()
+
 
 def generate_jwt(user):
     payload = {
         "user_id": user.id,
         "username": user.username,
+        "iat": user.last_login,
         "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(
             seconds=settings.JWT['exp_delta_seconds']
         ),
-        "iat": datetime.datetime.now(datetime.UTC),
+        "type": "auth"
     }
 
     token = jwt.encode(
@@ -25,60 +28,86 @@ def generate_jwt(user):
         algorithm=settings.JWT['algorithm'],
     )
 
-    return token
+    payload = {
+        "user_id": user.id,
+        "username": user.username,
+        "iat": user.last_login,
+        "exp": datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+            seconds=settings.JWT['exp_delta_seconds'] * 20
+        ),
+        "iat": datetime.datetime.now(datetime.UTC),
+        "type": "refresh"
+    }
+
+    recover_token = jwt.encode(
+        payload,
+        settings.JWT['secret'],
+        algorithm=settings.JWT['algorithm'],
+    )
+
+    return token, recover_token
 
 
-def verify_jwt(token):
-    try:
+def verify_jwt(token, type):
+
         payload = jwt.decode(
             token,
             settings.JWT['secret'],
             algorithms=[settings.JWT['algorithm']],
         )
-        return payload
+        if payload is None or payload.get('type') != type:
+            raise jwt.InvalidTokenError
 
-    except jwt.ExpiredSignatureError:
-        return None
+        user = User.objects.get(id=payload["user_id"])
 
-    except jwt.InvalidTokenError:
-        return None
+        if type == 'refresh' and abs(payload['iat'] - user.last_login.timestamp()) > 10:
+            raise jwt.InvalidTokenError
 
-User = get_user_model()
+        return payload, user
+
+
+def verify_refresh_jwt(token):
+    return verify_jwt(token, 'refresh')
+
+
+def verify_auth_jwt(token):
+    return verify_jwt(token, 'auth')
+
+def get_auth_token_from_request(request):
+    auth_header = request.headers.get("Authorization")
+
+    if not auth_header:
+        return None, JsonResponse(
+            {"error": "Missing Authorization header"},
+            status=401,
+        )
+
+    try:
+        prefix, token = auth_header.split(" ")
+
+        if prefix.lower() != "bearer":
+            raise ValueError()
+
+    except ValueError:
+        return None, JsonResponse(
+            {"error": "Invalid Authorization header"},
+            status=401,
+        )
+    return token, None
 
 def jwt_required(view_func):
     @wraps(view_func)
     def wrapped(request, *args, **kwargs):
-
-        auth_header = request.headers.get("Authorization")
-
-        if not auth_header:
-            return JsonResponse(
-                {"error": "Missing Authorization header"},
-                status=401,
-            )
-
+        token, err = get_auth_token_from_request(request)
+        if err is not None:
+            return err
         try:
-            prefix, token = auth_header.split(" ")
-
-            if prefix.lower() != "bearer":
-                raise ValueError()
-
-        except ValueError:
-            return JsonResponse(
-                {"error": "Invalid Authorization header"},
-                status=401,
-            )
-
-        payload = verify_jwt(token)
-
-        if payload is None:
+            payload, user = verify_auth_jwt(token)
+        except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
             return JsonResponse(
                 {"error": "Invalid token"},
                 status=401,
             )
-
-        try:
-            user = User.objects.get(id=payload["user_id"])
         except User.DoesNotExist:
             return JsonResponse(
                 {"error": "User not found"},

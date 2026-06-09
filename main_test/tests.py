@@ -1,14 +1,19 @@
 import json
 import os
+import tempfile
+from pathlib import Path
+from urllib.parse import urlencode
 
 from channels.testing import WebsocketCommunicator
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.files import File
 from django.test import TestCase
 from django.contrib.auth.models import Group
 from django.test.client import Client
 from django.test.utils import override_settings
+import yaml
 
 from SdcTest.asgi import application
 from main_test.models import Author, Book, BookSearchForm, AuthorSearchForm, BookContent
@@ -551,3 +556,223 @@ class ServerModelTest(TestCase, WithMockedElementTest):
             self.assertEqual(f.read(), ''.join(file_content))
         os.remove(settings.BASE_DIR / 'test_media/TEST_FILE.txt')
 
+
+class OpenApiHttpApiTest(TestCase):
+    maxDiff = None
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        openapi_path = Path(settings.BASE_DIR) / "openapi.generated.yaml"
+
+        class OpenApiLoader(yaml.SafeLoader):
+            pass
+
+        def construct_python_object_new(loader, tag_suffix, node):
+            if isinstance(node, yaml.SequenceNode):
+                value = loader.construct_sequence(node)
+                if len(value) == 1:
+                    return value[0]
+                return value
+            return loader.construct_scalar(node)
+
+        OpenApiLoader.add_multi_constructor(
+            "tag:yaml.org,2002:python/object/new:",
+            construct_python_object_new,
+        )
+        with open(openapi_path, "r") as f:
+            cls.openapi = yaml.load(f, Loader=OpenApiLoader)
+
+    def setUp(self):
+        self.password = "api-test-password"
+        self.user = User.objects.create_user(username="api-user", password=self.password)
+        self.other_user = User.objects.create_user(username="other-api-user", password=self.password)
+
+        self.martin = Author.objects.create(name="Martin", age=22)
+        self.nina = Author.objects.create(name="Nina", age=23)
+        self.book = Book.objects.create(title="My super Book", author=self.martin)
+        Book.objects.create(title="The black story", author=self.nina)
+
+        self.media_root = tempfile.TemporaryDirectory()
+        self.settings_override = override_settings(MEDIA_ROOT=self.media_root.name)
+        self.settings_override.enable()
+        self.addCleanup(self.settings_override.disable)
+        self.addCleanup(self.media_root.cleanup)
+
+        self.book_content = BookContent.objects.create(
+            user=self.user,
+            text=ContentFile("mine", name="api_mine.txt"),
+        )
+        BookContent.objects.create(
+            user=self.other_user,
+            text=ContentFile("other", name="api_other.txt"),
+        )
+
+        login_data = self.login()
+        self.access_token = login_data["access_token"]
+        self.refresh_token = login_data["refresh_token"]
+
+    def login(self):
+        response = self.client.post(
+            "/sdc_api/login",
+            data=json.dumps({"username": self.user.username, "password": self.password}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        return response.json()
+
+    def assert_documented_response(self, path, method, status_code):
+        operation = self.openapi["paths"][path][method]
+        self.assertIn(str(status_code), operation["responses"])
+
+    def assert_openapi_schema_fields(self, schema_name, actual_fields):
+        schema = self.openapi["components"]["schemas"][schema_name]
+        self.assertEqual(set(schema["properties"]), set(actual_fields))
+
+    def auth_headers(self, token=None):
+        return {"HTTP_AUTHORIZATION": f"Bearer {token or self.access_token}"}
+
+    def api_url(self, model_name, pk=None):
+        if pk is None:
+            return f"/sdc_api/{model_name}"
+        return f"/sdc_api/{model_name}/{pk}"
+
+    def form_body(self, data):
+        return urlencode(data)
+
+    def flatten_sdc_instance(self, data):
+        return {"id": data["pk"], **data["fields"]}
+
+    def test_login_and_refresh_tokens_match_openapi_description(self):
+        self.assert_documented_response("/sdc_api/login/", "post", 200)
+        self.assert_documented_response("/sdc_api/login/", "get", 200)
+        self.assert_documented_response("/sdc_api/login/", "post", 401)
+
+        token_fields = self.openapi["paths"]["/sdc_api/login/"]["post"]["responses"]["200"][
+            "content"
+        ]["application/json"]["schema"]["properties"]
+        self.assertEqual(set(token_fields), {"access_token", "refresh_token", "token_type"})
+
+        login_data = self.login()
+        self.assertEqual(set(login_data), set(token_fields))
+        self.assertEqual(login_data["token_type"], "bearer")
+
+        refresh_response = self.client.get(
+            "/sdc_api/login",
+            **self.auth_headers(login_data["refresh_token"]),
+        )
+        self.assertEqual(refresh_response.status_code, 200)
+        self.assertEqual(set(refresh_response.json()), set(token_fields))
+
+        invalid_response = self.client.post(
+            "/sdc_api/login",
+            data=json.dumps({"username": self.user.username, "password": "wrong"}),
+            content_type="application/json",
+        )
+        self.assertEqual(invalid_response.status_code, 401)
+
+    def test_model_endpoints_require_bearer_token(self):
+        self.assertEqual(self.openapi["security"], [{"BearerAuth": []}])
+        response = self.client.get(self.api_url("Author"))
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json(), {"error": "Missing Authorization header"})
+
+    def test_author_list_detail_create_replace_and_patch(self):
+        self.assert_documented_response("/sdc_api/author/", "get", 200)
+        self.assert_documented_response("/sdc_api/author/{id}/", "get", 200)
+        self.assert_documented_response("/sdc_api/author/{id}/", "put", 200)
+        self.assert_documented_response("/sdc_api/author/{id}/", "patch", 200)
+
+        list_response = self.client.get(self.api_url("Author"), **self.auth_headers())
+        self.assertEqual(list_response.status_code, 200)
+        list_data = list_response.json()
+        self.assertTrue(list_data["success"])
+        self.assertEqual(
+            [self.flatten_sdc_instance(item)["name"] for item in list_data["data"]],
+            ["Martin", "Nina"],
+        )
+        self.assert_openapi_schema_fields("Author", self.flatten_sdc_instance(list_data["data"][0]).keys())
+
+        detail_response = self.client.get(self.api_url("Author", self.martin.pk), **self.auth_headers())
+        self.assertEqual(detail_response.status_code, 200)
+        detail_data = self.flatten_sdc_instance(detail_response.json()["data"])
+        self.assertEqual(detail_data, {"id": self.martin.pk, "name": "Martin", "age": 22})
+
+        create_response = self.client.post(
+            self.api_url("Author"),
+            data={"name": "Ada", "age": 36},
+            **self.auth_headers(),
+        )
+        self.assertEqual(create_response.status_code, 200)
+        self.assertEqual(create_response.json(), {"success": True, "data": {"name": "Ada", "age": 36}})
+        created_author = Author.objects.get(name="Ada")
+
+        replace_response = self.client.put(
+            self.api_url("Author", created_author.pk),
+            data=self.form_body({"name": "Ada Lovelace", "age": 37}),
+            content_type="application/x-www-form-urlencoded",
+            **self.auth_headers(),
+        )
+        self.assertEqual(replace_response.status_code, 200)
+        self.assertEqual(
+            replace_response.json(),
+            {"success": True, "data": {"name": "Ada Lovelace", "age": 37}},
+        )
+
+        patch_response = self.client.patch(
+            self.api_url("Author", created_author.pk),
+            data=self.form_body({"age": 38}),
+            content_type="application/x-www-form-urlencoded",
+            **self.auth_headers(),
+        )
+        self.assertEqual(patch_response.status_code, 200)
+        self.assertEqual(
+            patch_response.json(),
+            {"success": True, "data": {"name": "Ada Lovelace", "age": 38}},
+        )
+
+    def test_book_list_and_detail_match_openapi_description(self):
+        self.assert_documented_response("/sdc_api/book/", "get", 200)
+        self.assert_documented_response("/sdc_api/book/{id}/", "get", 200)
+
+        list_response = self.client.get(self.api_url("Book"), **self.auth_headers())
+        self.assertEqual(list_response.status_code, 200)
+        list_data = list_response.json()
+        self.assertTrue(list_data["success"])
+        self.assertEqual(
+            [self.flatten_sdc_instance(item)["title"] for item in list_data["data"]],
+            ["My super Book", "The black story"],
+        )
+        self.assert_openapi_schema_fields("Book", self.flatten_sdc_instance(list_data["data"][0]).keys())
+
+        detail_response = self.client.get(self.api_url("Book", self.book.pk), **self.auth_headers())
+        self.assertEqual(detail_response.status_code, 200)
+        detail_data = self.flatten_sdc_instance(detail_response.json()["data"])
+        self.assertEqual(
+            detail_data,
+            {"id": self.book.pk, "title": "My super Book", "author": self.martin.pk},
+        )
+
+    def test_book_content_is_authenticated_and_scoped_to_current_user(self):
+        self.assert_documented_response("/sdc_api/bookcontent/", "get", 200)
+        self.assert_documented_response("/sdc_api/bookcontent/{id}/", "get", 200)
+
+        list_response = self.client.get(self.api_url("BookContent"), **self.auth_headers())
+        self.assertEqual(list_response.status_code, 200)
+        list_data = list_response.json()
+        self.assertTrue(list_data["success"])
+        self.assertEqual(len(list_data["data"]), 1)
+
+        content_data = self.flatten_sdc_instance(list_data["data"][0])
+        self.assert_openapi_schema_fields("BookContent", content_data.keys())
+        self.assertEqual(content_data["id"], self.book_content.pk)
+        self.assertEqual(content_data["user"], self.user.pk)
+        self.assertEqual(content_data["text"]["name"], "api_mine.txt")
+
+        detail_response = self.client.get(self.api_url("BookContent", self.book_content.pk), **self.auth_headers())
+        self.assertEqual(detail_response.status_code, 200)
+        self.assertEqual(self.flatten_sdc_instance(detail_response.json()["data"])["id"], self.book_content.pk)
+
+        other_content = BookContent.objects.get(user=self.other_user)
+        forbidden_detail = self.client.get(self.api_url("BookContent", other_content.pk), **self.auth_headers())
+        self.assertEqual(forbidden_detail.status_code, 404)

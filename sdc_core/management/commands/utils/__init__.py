@@ -2,6 +2,9 @@ import sys
 
 from django.core.management import CommandError
 
+from sdc_core.sdc_extentions.models import filter_model_fields
+
+
 def multi_cli_select(prompt, options):
     if len(options) == 0:
         print(prompt)
@@ -52,3 +55,33 @@ def cli_select(prompt, options):
             raise CommandError("Input has to be a number between 1 and %d" % (len(options) - 1), 4)
         print(f"You selected: {choice}")
     return choice
+
+
+
+def get_model_schema(model):
+    fields = {}
+
+    for field in model._meta.get_fields():
+        field_info = {
+            # "name": field.name,
+            "name": field.accessor_name if hasattr(field, 'accessor_name') else field.name,
+            "type": field.get_internal_type() if hasattr(field, "get_internal_type") else "Unknown",
+            "null": getattr(field, "null", False),
+            "blank": getattr(field, "blank", False),
+            "max_length": getattr(field, "max_length", None),
+            "is_relation": field.is_relation,
+            "many_to_many": field.many_to_many,
+            "many_to_one": field.many_to_one,
+            "one_to_many": field.one_to_many,
+            "one_to_one": field.one_to_one,
+            "related_model": field.related_model.__name__ if field.related_model else None,
+            "remote_field": field.remote_field.name if field.related_model else None,
+        }
+
+        fields[field_info['name']] = field_info
+
+    return {
+        "model": model.__name__,
+        "app": model._meta.app_label,
+        "fields": filter_model_fields(model, fields).values(),
+    }
