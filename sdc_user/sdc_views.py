@@ -4,17 +4,17 @@ from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.views import RedirectURLMixin
 from django.http import HttpResponse
-from django.utils import timezone
+from django.utils.html import escape
 
 from sdc_core.sdc_extentions.views import SDCView
 from sdc_core.sdc_extentions.response import send_redirect, send_error, send_success
 from django.shortcuts import render
 from django.contrib.auth.forms import AuthenticationForm
 from django.conf import settings
-from datetime import timedelta
 
 from sdc_user.forms import PasswordResetConfirmForm
-from sdc_user.mails import send_confirm_email, send_email_reset_email
+from sdc_user.mails import (send_confirm_email, send_email_reset_email,
+                            reset_token_fingerprint, confirm_token_fingerprint)
 
 
 class SdcLogin(SDCView, RedirectURLMixin):
@@ -39,7 +39,7 @@ class SdcLogin(SDCView, RedirectURLMixin):
 
         msg = {
             'header': 'Upss!',
-            'msg': "<ul>%s</ul>" % "\n".join(["<li>%s</li>" % v[0] for k, v in form.errors.items()])
+            'msg': "<ul>%s</ul>" % "\n".join(["<li>%s</li>" % escape(v[0]) for k, v in form.errors.items()])
         }
         return send_error(self.template_name, context={'form': form}, request=request, **msg)
 
@@ -72,23 +72,36 @@ class SdcConfirmEmail(SDCView):
     template_name = 'sdc_user/sdc/sdc_confirm_email.html'
 
     def get_content(self, request, token, *args, **kwargs):
+        User = get_user_model()
         try:
-            decoded_jwt = jwt.decode(token, settings.JWT['secret'], algorithms=settings.JWT['algorithm'])
-            min_iat = (timezone.now() - timedelta(days=3)).timestamp()
+            decoded_jwt = jwt.decode(token, settings.JWT['secret'], algorithms=[settings.JWT['algorithm']])
+        except jwt.ExpiredSignatureError:
+            # Expired: recover the user (ignoring exp) and send a fresh link.
             try:
-                user = get_user_model().objects.get(pk=decoded_jwt['user'])
-            except get_user_model().DoesNotExist:
-                return render(request, self.template_name,
-                              {'error': True, 'msg': _('Registration has been canceled. Please register new!')})
-            if min_iat > decoded_jwt['iat']:
-                origin = f"{request.scheme}://{request.get_host()}"
-                send_confirm_email(user, origin)
-                return render(request, self.template_name, {'error': True, 'msg': _('Your token has expired. A new one is on its way!')})
-            user.email_confirmed = True
-            user.save()
-        except jwt.exceptions.DecodeError:
+                stale = jwt.decode(token, settings.JWT['secret'], algorithms=[settings.JWT['algorithm']],
+                                   options={"verify_exp": False})
+                user = User.objects.get(pk=stale['user'])
+            except (jwt.InvalidTokenError, KeyError, User.DoesNotExist):
+                return render(request, self.template_name, {'error': True, 'msg': _('No valid token.')})
+            origin = f"{request.scheme}://{request.get_host()}"
+            send_confirm_email(user, origin)
+            return render(request, self.template_name,
+                          {'error': True, 'msg': _('Your token has expired. A new one is on its way!')})
+        except jwt.InvalidTokenError:
             return render(request, self.template_name, {'error': True, 'msg': _('No valid token.')})
 
+        try:
+            user = User.objects.get(pk=decoded_jwt['user'])
+        except (KeyError, User.DoesNotExist):
+            return render(request, self.template_name,
+                          {'error': True, 'msg': _('Registration has been canceled. Please register new!')})
+
+        # Single-use: reject a token that was already used or no longer matches.
+        if decoded_jwt.get('fp') != confirm_token_fingerprint(user):
+            return render(request, self.template_name, {'error': True, 'msg': _('No valid token.')})
+
+        user.email_confirmed = True
+        user.save()
         return render(request, self.template_name)
 
 
@@ -122,7 +135,7 @@ class SdcPasswordForgotten(SDCView):
             origin = f"{request.scheme}://{request.get_host()}"
             send_email_reset_email(user, origin)
             return {'msg': _('E-mail has been sent.')}
-        except get_user_model().DoesNotExist or User.MultipleObjectsReturned:
+        except (User.DoesNotExist, User.MultipleObjectsReturned):
             return send_error(msg=_('User not found'))
 
     def get_content(self, request, *args, **kwargs):
@@ -138,22 +151,33 @@ class SdcResetPassword(SDCView):
             User = get_user_model()  # gets the active AUTH_USER_MODEL
             token = form.cleaned_data["token"]
             password = form.cleaned_data["password"]
-            min_iat = (timezone.now() - timedelta(days=3)).timestamp()
-            # Decode the JWT (you can adjust the decode options as needed)
+            # Decode the JWT; native exp enforces the 3-day expiry.
             try:
-                decoded_jwt = jwt.decode(token, settings.JWT['secret'], algorithms=settings.JWT['algorithm'])
-                if decoded_jwt.get("type") != "reset":
-                    return send_error(msg="Invalid or expired token type")
-
-                user_id = decoded_jwt.get("user")
-                user = User.objects.get(id=user_id)
-            except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, User.DoesNotExist):
-                return send_error(msg="Invalid or expired token")
-
-            if min_iat > decoded_jwt['iat']:
+                decoded_jwt = jwt.decode(token, settings.JWT['secret'], algorithms=[settings.JWT['algorithm']])
+            except jwt.ExpiredSignatureError:
+                # Expired: recover the user (ignoring exp) and send a fresh link.
+                try:
+                    stale = jwt.decode(token, settings.JWT['secret'], algorithms=[settings.JWT['algorithm']],
+                                       options={"verify_exp": False})
+                    user = User.objects.get(id=stale.get("user"))
+                except (jwt.InvalidTokenError, User.DoesNotExist):
+                    return send_error(msg="Invalid or expired token")
                 origin = f"{request.scheme}://{request.get_host()}"
                 send_email_reset_email(user, origin)
                 return send_error(msg=_('Your token has expired. A new one is on its way!'))
+            except jwt.InvalidTokenError:
+                return send_error(msg="Invalid or expired token")
+
+            if decoded_jwt.get("type") != "reset":
+                return send_error(msg="Invalid or expired token type")
+            try:
+                user = User.objects.get(id=decoded_jwt.get("user"))
+            except User.DoesNotExist:
+                return send_error(msg="Invalid or expired token")
+
+            # Single-use: token is bound to the current password hash.
+            if decoded_jwt.get("fp") != reset_token_fingerprint(user):
+                return send_error(msg="Invalid or expired token")
 
             # Set the new password
             user.set_password(password)

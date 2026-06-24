@@ -3,11 +3,13 @@ import os
 import types
 import traceback
 
+from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
 
 from django.utils.datastructures import MultiValueDict
+from django.utils.html import escape
 from django.utils.translation import gettext as _f
 from django.contrib.auth import get_user_model
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
@@ -16,10 +18,10 @@ from asgiref.sync import async_to_sync
 import importlib
 import json
 
-from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models
+from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
-from sdc_core.sdc_extentions.views import SdcAccessMixin
+from sdc_core.sdc_extentions.views import SdcAccessMixin, is_valid_server_call
 
 import logging
 
@@ -126,13 +128,19 @@ class SDCConsumer(AsyncWebsocketConsumer):
         try:
             json_data = json.loads(text_data)
             if json_data['event'] == 'sdc_call':
+                app_name = json_data['app']
+                func_name = json_data['function']
+                # Reject client-controlled imports of non-installed apps and any
+                # private/framework method name before resolving the controller.
+                if not apps.is_installed(app_name) or not is_valid_server_call(func_name):
+                    raise PermissionDenied()
                 controller_name = self.to_camel_case(json_data['controller'])
-                controller = import_function("%s.sdc_views.%s" % (json_data['app'], controller_name))
+                controller = import_function("%s.sdc_views.%s" % (app_name, controller_name))
                 c_instance = controller()
                 if isinstance(c_instance, SdcAccessMixin):
                     if not await c_instance.async_check_requirements(self.scope['user']):
                         raise PermissionDenied()
-                method = getattr(controller(), json_data['function'])
+                method = getattr(controller(), func_name)
 
                 logger.info(f"SDC call Socket received: {json_data['app']}.{controller_name}.{json_data['function']}")
                 if asyncio.iscoroutinefunction(method):
@@ -281,8 +289,8 @@ class SDCModelConsumer(WebsocketConsumer):
                 traceback.print_tb(e.__traceback__)
             else:
                 logger.error(e_text)
-                e_text_details = str(e)
-                e_text = _f('Something went wrong! {e}').format(e=e_text_details)
+                # Do not leak internal exception details to the client in production.
+                e_text = _f('Something went wrong!')
 
             self.state_error({
                 'type': msg_type,
@@ -313,7 +321,7 @@ class SDCModelConsumer(WebsocketConsumer):
         data_load_result = self.model.data_load(self.scope['user'], queryset, self.queryset)
         if data_load_result is not None:
             return data_load_result
-        res = queryset.filter(**self.queryset)
+        res = queryset.filter(**sanitize_filter_query(self.model, self.queryset))
         self.ids = list(res.values_list('id', flat=True))
 
         return res
@@ -430,7 +438,7 @@ class SDCModelConsumer(WebsocketConsumer):
         else:
             msg = {'header': 'Upss!',
                    'msg': "<ul>%s</ul>" % "\n".join(
-                       ["<li>%s: %s</li>" % (k, v[0]) for k, v in form_instance.errors.items()])
+                       ["<li>%s: %s</li>" % (escape(k), escape(v[0])) for k, v in form_instance.errors.items()])
                    }
 
         self.send(text_data=json.dumps(msg | {

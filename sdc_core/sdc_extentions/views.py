@@ -9,6 +9,25 @@ from functools import wraps
 from sdc_core.sdc_extentions.response import send_redirect, send_success
 from django.conf import settings
 
+# Methods a client must never be able to invoke through an `sdc_server_call`
+# dispatch, on top of the blanket rule that private/dunder names are rejected.
+SDC_SERVER_CALL_DENYLIST = frozenset({
+    'as_view', 'dispatch', 'setup', 'options', 'http_method_not_allowed',
+    'get_queryset', 'is_authorised', 'check_requirements',
+    'async_check_requirements', 'handle_no_permission',
+    'handle_no_grop_permission', 'get_login_controller',
+})
+
+
+def is_valid_server_call(name) -> bool:
+    """
+    Guard for client-supplied server-call method names. Rejects empty names,
+    private/dunder names, and known framework internals so a client cannot reach
+    arbitrary view/controller methods via ``getattr``.
+    """
+    return bool(name) and not name.startswith('_') and name not in SDC_SERVER_CALL_DENYLIST
+
+
 class SdcAccessMixin(AccessMixin):
 
     async def async_check_requirements(self, user):
@@ -62,7 +81,7 @@ class SdcLoginRequiredMixin(SdcAccessMixin):
 
 class SdcGroupRequiredMixin(SdcLoginRequiredMixin):
     group_required: list[str] = []
-    staff_allowed: bool = True
+    staff_allowed: bool = False
 
 
     def _get_groups(self, user):
@@ -123,9 +142,10 @@ class SDCView(View):
             request.method += '_api'
 
         if request.method.lower() == 'post' and request.POST.get('_method') == 'sdc_server_call':
-            handler = getattr(
-                self, request.POST.get('_sdc_func_name'), self.http_method_not_allowed
-            )
+            func_name = request.POST.get('_sdc_func_name')
+            if not is_valid_server_call(func_name):
+                return self.http_method_not_allowed(request, *args, **kwargs)
+            handler = getattr(self, func_name, self.http_method_not_allowed)
             res = handler(request, **json.loads(request.POST.get('data', '{}')))
             if isinstance(res, HttpResponse):
                 return res

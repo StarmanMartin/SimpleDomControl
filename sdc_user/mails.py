@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Optional
 
 from django.template.loader import render_to_string
 
 from django.utils import timezone
+from django.utils.crypto import salted_hmac
 import jwt
 from django.core.mail import EmailMessage
 from django.conf import settings
@@ -14,6 +16,28 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sdc_core.sdc_extentions.models import SdcModel
+
+# Lifetime of the e-mail confirmation / password-reset tokens.
+TOKEN_TTL = timedelta(days=3)
+
+
+def reset_token_fingerprint(user: SdcModel) -> str:
+    """
+    Single-use binding for password-reset tokens. Derived from the current
+    password hash, so once the password is changed the token no longer matches
+    and cannot be replayed.
+    """
+    return salted_hmac('sdc.reset', f'{user.pk}:{user.password}').hexdigest()[:16]
+
+
+def confirm_token_fingerprint(user: SdcModel) -> str:
+    """
+    Single-use binding for e-mail confirmation tokens. Changes once the e-mail is
+    confirmed or the address changes, invalidating any previously issued token.
+    """
+    return salted_hmac(
+        'sdc.confirm', f'{user.pk}:{user.email}:{user.email_confirmed}'
+    ).hexdigest()[:16]
 
 
 def get_url_from_sdcmodel(element: SdcModel):
@@ -30,9 +54,13 @@ def get_url_from_sdcmodel(element: SdcModel):
 
 def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
     email_template_name = 'email/confirm.html'
+    now = timezone.now()
     encoded_jwt = jwt.encode({
         "user": user.id,
-        "iat": int(timezone.now().timestamp())    # issued at
+        "type": 'confirm',
+        "fp": confirm_token_fingerprint(user),
+        "iat": int(now.timestamp()),               # issued at
+        "exp": int((now + TOKEN_TTL).timestamp()),  # native expiry
     }, settings.JWT['secret'], algorithm=settings.JWT['algorithm'])
 
     if home_url is None:
@@ -51,10 +79,13 @@ def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
 
 def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None):
     email_template_name = 'email/reset_password.html'
+    now = timezone.now()
     encoded_jwt = jwt.encode({
         "user": user.id,
         "type": 'reset',
-        "iat": int(timezone.now().timestamp())    # issued at
+        "fp": reset_token_fingerprint(user),
+        "iat": int(now.timestamp()),               # issued at
+        "exp": int((now + TOKEN_TTL).timestamp()),  # native expiry
     }, settings.JWT['secret'], algorithm=settings.JWT['algorithm'])
 
     if home_url is None:

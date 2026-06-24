@@ -1,6 +1,8 @@
 import json
 
 import jwt
+from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
 from django.http import Http404, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
@@ -13,7 +15,7 @@ from django.contrib.auth import get_user_model
 from sdc_core.consumers import ALL_MODELS
 from sdc_core.jwt_utils import jwt_required, generate_jwt, get_auth_token_from_request, \
     verify_refresh_jwt
-from sdc_core.sdc_extentions.models import SDCSerializer
+from sdc_core.sdc_extentions.models import SDCSerializer, sanitize_filter_query
 
 User = get_user_model()
 
@@ -91,7 +93,7 @@ def get_api_token(request):
 
     except Exception as e:
         return JsonResponse(
-            {"error": str(e)},
+            {"error": str(e) if settings.DEBUG else "Internal server error"},
             status=500,
         )
 
@@ -112,7 +114,10 @@ class AdcApi(View):
             qs = {'pk': id}
             is_single_result = True
         else:
-            qs = request.GET or {}
+            try:
+                qs = sanitize_filter_query(model_class, request.GET or {})
+            except PermissionDenied as e:
+                return HttpResponseForbidden(str(e))
             is_single_result = False
         if not model_class.is_authorised(request.user, 'load', qs):
             return HttpResponseForbidden()
@@ -239,4 +244,10 @@ class AdcApi(View):
         })
 
     def delete(self, request, model, id):
-        pass
+        # Not implemented. Return an explicit response so the endpoint does not
+        # raise a 500 ("view didn't return an HttpResponse"). See ISSUES.md §2 —
+        # full implementation needs is_authorised('delete') + get_queryset gating.
+        return JsonResponse(
+            {"success": False, "error": "Delete is not supported"},
+            status=501,
+        )

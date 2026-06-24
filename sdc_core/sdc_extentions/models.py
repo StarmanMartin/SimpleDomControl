@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db.models import QuerySet
 from django.template.loader import render_to_string
 from django.core.serializers.json import Serializer
@@ -57,6 +58,38 @@ def filter_model_fields(obj, data):
             "SdcMeta.fields and SdcMeta.exclude are mutually exclusive. If fields is set, exclude must be None and fields must be an iterable or \"__all__\". If exclude is set, fields must be None and exclude must be an iterable.")
 
     return filtered
+
+
+def get_filterable_fields(model_cls) -> set[str]:
+    """
+    Returns the set of field names a client is allowed to filter on. Derived from
+    the model's concrete fields, restricted by the same ``SdcMeta.fields`` /
+    ``SdcMeta.exclude`` rules the serializer uses for output. ``pk`` and ``id``
+    are always allowed.
+    """
+    field_names = {f.name for f in model_cls._meta.get_fields()}
+    allowed = set(filter_model_fields(model_cls, {name: None for name in field_names}).keys())
+    allowed.update({'pk', 'id'})
+    return allowed
+
+
+def sanitize_filter_query(model_cls, query) -> dict[str, Any]:
+    """
+    Validates client-supplied filter keys against :func:`get_filterable_fields`
+    so that arbitrary ORM lookups (e.g. ``password__startswith``) cannot be
+    injected through the REST/WebSocket query. The base field name (the part
+    before ``__``) of every key must be an exposed field, otherwise
+    ``PermissionDenied`` is raised. Returns a plain dict safe for ``filter(**...)``.
+    """
+    allowed = get_filterable_fields(model_cls)
+    clean: dict[str, Any] = {}
+    for key, value in query.items():
+        base = key.split('__', 1)[0]
+        if base not in allowed:
+            raise PermissionDenied(f"Filtering on '{key}' is not allowed")
+        clean[key] = value
+    return clean
+
 
 class SDCSerializer(Serializer):
     """
@@ -191,7 +224,9 @@ class SdcModel:
 
     @classmethod
     def is_authorised(cls, user: UserType, action: str, obj: dict[str, Any]) -> bool:
-        return True
+        # Deny by default: every SdcModel MUST override is_authorised to grant
+        # access. Returning False here keeps models closed unless they opt in.
+        return False
 
     @classmethod
     def get_queryset(cls, user: UserType, action: str, obj: dict[str, Any]) -> QuerySet:
