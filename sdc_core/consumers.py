@@ -343,7 +343,7 @@ class SDCModelConsumer(WebsocketConsumer):
         instance.scope = self.scope
         form_name = json_data['args']['form_name']
         if not hasattr(self.model.SdcMeta, form_name):
-            raise NotImplemented()
+            raise NotImplementedError()
 
         return self._load_form(json_data, getattr(self.model.SdcMeta, form_name), instance)
 
@@ -351,7 +351,7 @@ class SDCModelConsumer(WebsocketConsumer):
         if callable(form_attr):
             form_attr = form_attr({})
         if form_attr is None:
-            raise NotImplemented()
+            raise NotImplementedError()
         elif isinstance(form_attr, str):
             edit_form_path = form_attr.split('.')
             form = getattr(importlib.import_module('.'.join(edit_form_path[0:-1])), edit_form_path[-1])
@@ -407,7 +407,7 @@ class SDCModelConsumer(WebsocketConsumer):
         data = json_data['args']['data']
         files = json_data['args'].get('files')
         if form_attr is None:
-            raise NotImplemented()
+            raise NotImplementedError()
         elif isinstance(form_attr, str):
             edit_form_path = form_attr.split('.')
             form = getattr(importlib.import_module('.'.join(edit_form_path[0:-1])), edit_form_path[-1])
@@ -445,7 +445,7 @@ class SDCModelConsumer(WebsocketConsumer):
 
     def _load_list_view(self, json_data):
         if self.model.SdcMeta.html_list_template is None:
-            raise NotImplemented()
+            raise NotImplementedError()
         loaded_data = self._load_model()
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
@@ -459,7 +459,7 @@ class SDCModelConsumer(WebsocketConsumer):
         loaded_data = self._load_model()
         view_name = json_data['args']['view_name']
         if not hasattr(self.model.SdcMeta, view_name):
-            raise NotImplemented()
+            raise NotImplementedError()
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
@@ -470,7 +470,7 @@ class SDCModelConsumer(WebsocketConsumer):
 
     def _load_detail_view(self, json_data):
         if self.model.SdcMeta.html_detail_template is None:
-            raise NotImplemented()
+            raise NotImplementedError()
         instance = self._load_model().get(pk=json_data['args']['pk'])
         instance.scope = self.scope
         self.send(text_data=json.dumps({

@@ -195,7 +195,7 @@ class SdcModel:
 
     @classmethod
     def get_queryset(cls, user: UserType, action: str, obj: dict[str, Any]) -> QuerySet:
-        raise NotImplemented
+        raise NotImplementedError()
 
     @classmethod
     def data_load(cls, user: UserType, action: str, obj: dict[str, Any]) -> QuerySet | None:

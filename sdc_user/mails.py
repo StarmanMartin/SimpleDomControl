@@ -49,7 +49,7 @@ def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
     msg.send(fail_silently=True)
 
 
-def send_email_reet_email(user: SdcModel, home_url: Optional[str] = None):
+def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None):
     email_template_name = 'email/reset_password.html'
     encoded_jwt = jwt.encode({
         "user": user.id,

@@ -14,7 +14,7 @@ from django.conf import settings
 from datetime import timedelta
 
 from sdc_user.forms import PasswordResetConfirmForm
-from sdc_user.mails import send_confirm_email, send_email_reet_email
+from sdc_user.mails import send_confirm_email, send_email_reset_email
 
 
 class SdcLogin(SDCView, RedirectURLMixin):
@@ -120,7 +120,7 @@ class SdcPasswordForgotten(SDCView):
         try:
             user = User.objects.get(Q(**{username_field: mail}) | Q(email=mail))
             origin = f"{request.scheme}://{request.get_host()}"
-            send_email_reet_email(user, origin)
+            send_email_reset_email(user, origin)
             return {'msg': _('E-mail has been sent.')}
         except get_user_model().DoesNotExist or User.MultipleObjectsReturned:
             return send_error(msg=_('User not found'))
@@ -152,7 +152,7 @@ class SdcResetPassword(SDCView):
 
             if min_iat > decoded_jwt['iat']:
                 origin = f"{request.scheme}://{request.get_host()}"
-                send_email_reet_email(user, origin)
+                send_email_reset_email(user, origin)
                 return send_error(msg=_('Your token has expired. A new one is on its way!'))
 
             # Set the new password

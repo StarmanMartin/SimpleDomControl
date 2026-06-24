@@ -164,7 +164,7 @@ class AddControllerManager:
                          os.path.join(str(main_static), self.controller_name_sc + ".scss"),
                          self.reps)
 
-        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "templade_view.html"),
+        copy_and_prepare(os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_view.html"),
                          os.path.join(main_templates, "sdc",
                                       self.controller_name_sc + ".html"),
                          self.reps)
@@ -190,7 +190,7 @@ class AddControllerManager:
 
     def add_js_test(self):
         text = prepare_as_string(
-            os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_test.js.text"), self.reps)
+            os.path.join(options.SCRIPT_ROOT, "template_files", "controller", "template_test.js.txt"), self.reps)
         fp = os.path.join(options.PROJECT_ROOT, self.app_name, 'Assets/tests', f"{self.app_name}.test.js")
         fout = open(fp, "a", encoding='utf-8')
         fout.write(text)

@@ -6,8 +6,8 @@ Requirements
 
 To use SDC comfortably you should have:
 
-- Python 3.10 or newer
-- Django 4.2 or newer
+- Python 3.13 or newer
+- Django 6.0 or newer
 - Node.js 18 or newer
 - npm or yarn for the client asset/runtime package
 
