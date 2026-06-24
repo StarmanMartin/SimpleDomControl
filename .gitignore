@@ -81,3 +81,8 @@ sdc.zip
 /Assets/bin/sdc_tools
 /Assets/bin/sdc_user
 /openapi.generated.yaml
+/Assets/bin/models/Author.js
+/Assets/bin/models/Book.js
+/Assets/bin/models/BookContent.js
+/Assets/bin/models/SdcUser.js
+/Assets/bin/models/src.js

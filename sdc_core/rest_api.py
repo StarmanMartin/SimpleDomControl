@@ -32,7 +32,12 @@ def get_api_token(request):
                 return err
             try:
                 payload, user = verify_refresh_jwt(token)
-            except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+            except jwt.ExpiredSignatureError:
+                return JsonResponse(
+                    {"error": "Expired token"},
+                    status=401,
+                )
+            except jwt.InvalidTokenError:
                 return JsonResponse(
                     {"error": "Invalid token"},
                     status=401,

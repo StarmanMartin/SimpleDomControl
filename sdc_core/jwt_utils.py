@@ -103,7 +103,12 @@ def jwt_required(view_func):
             return err
         try:
             payload, user = verify_auth_jwt(token)
-        except (jwt.InvalidTokenError, jwt.ExpiredSignatureError):
+        except jwt.ExpiredSignatureError:
+            return JsonResponse(
+                {"error": "Expired token"},
+                status=401,
+            )
+        except jwt.InvalidTokenError:
             return JsonResponse(
                 {"error": "Invalid token"},
                 status=401,
