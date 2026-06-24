@@ -72,7 +72,7 @@ class SdcGroupRequiredMixin(SdcLoginRequiredMixin):
         return user_groups
 
     async def async_check_requirements(self, user):
-        if not super().async_check_requirements(user):
+        if not await super().async_check_requirements(user):
             return False
         user_groups = await database_sync_to_async(self._get_groups)(user)
 

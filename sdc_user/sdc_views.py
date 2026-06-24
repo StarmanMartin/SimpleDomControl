@@ -141,7 +141,7 @@ class SdcResetPassword(SDCView):
             min_iat = (timezone.now() - timedelta(days=3)).timestamp()
             # Decode the JWT (you can adjust the decode options as needed)
             try:
-                decoded_jwt = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+                decoded_jwt = jwt.decode(token, settings.JWT['secret'], algorithms=settings.JWT['algorithm'])
                 if decoded_jwt.get("type") != "reset":
                     return send_error(msg="Invalid or expired token type")
 
