@@ -4,6 +4,38 @@ First App
 We want to create a library app.
 A library has books that can be borrowed online. However, each book can only be borrowed once.
 
+By the end you will have touched every core part of SDC: controllers, DOM events,
+server calls, live-syncing models, forms, navigation, and permissions.
+
+.. note::
+
+   **Prerequisites:** Python ≥ 3.13, Django ≥ 6.0, Node ≥ 18, and basic familiarity
+   with Django (apps, models, migrations). You do **not** need a frontend framework —
+   SDC *is* the frontend.
+
+The one idea to hold onto
+-------------------------
+
+**Every UI piece in SDC is a pair:** a server-side ``SDCView`` (renders an HTML
+fragment, runs permissions, exposes callable methods) and a client-side
+``AbstractSDC`` controller (loads that fragment, binds events, manages children,
+talks back to the server). They share a name and are joined by a **custom HTML
+tag**::
+
+    controller "catalog"  ─►  server class Catalog(SDCView)   (renders the fragment)
+                          ─►  client class CatalogController   (drives the DOM)
+                          ─►  used in markup as  <catalog></catalog>
+
+The CLI generates both halves for you and keeps URLs and the JS build in sync.
+You mostly fill in behavior. The naming map is fixed:
+
+- controller name is ``snake_case`` (``my_list``)
+- → JS class ``MyListController`` → server class ``MyList``
+- → HTML tag ``<my-list>`` → ``contentUrl = "/sdc_view/main_app/my_list"``
+
+Project setup
+-------------
+
 First we need to create a new project. Therefore, cd into the development directory.
 
 .. code-block:: sh
@@ -195,6 +227,14 @@ Now, we need to populate. In this example, a book has a title, an author, text a
 
 In SDC, the model is responsible for managing its own access rights. To ensure secure authorisation, edit the 'is_authorised' method.
 
+.. warning::
+
+   **Models are deny-by-default.** ``SdcModel.is_authorised()`` and
+   ``get_queryset()`` have **no usable defaults** — ``is_authorised`` returns
+   ``False`` and ``get_queryset`` raises. A model that does not override **both**
+   is fully closed and every action on it is forbidden. This is deliberate. Always
+   provide both methods.
+
 .. code-block:: python
 
     ...
@@ -211,8 +251,13 @@ In SDC, the model is responsible for managing its own access rights. To ensure s
                     return True
                 case 'load':
                     return True
-                case _: # edit_form, named_form, create_form, list_view, detail_view, save, create, upload, delete, load
+                case _: # edit_form, named_form, create_form, save, create, upload, delete
                     return False
+
+        # Which rows this user may see/operate on, per action.
+        @classmethod
+        def get_queryset(cls, user, action, obj):
+            return cls.objects.all()
     ...
 
 *./Library/main_app/models.py*
@@ -410,6 +455,28 @@ client programmatically. ``SdcLoginRequiredMixin`` (or
 anonymous visitors. See :ref:`sdc-controller-label` for the full list of
 ``AbstractSDC`` hooks available on the client.
 
+A few things worth knowing about ``serverCall``:
+
+- **The method name is matched verbatim.** ``serverCall('borrow', …)`` invokes a
+  method named exactly ``call_borrow``. The ``call_`` prefix is a convention, not
+  magic. Use ``async def call_async_<name>(self, channel=None, **kwargs)`` for
+  async work.
+- **Name guard (security):** method names that start with ``_`` or that collide
+  with framework internals (``dispatch``, ``get_queryset``, ``is_authorised``, …)
+  are rejected. Name your callables plainly.
+- Returning a ``dict``/``list`` sends it straight back to the client's
+  ``.then(...)``.
+
+.. note::
+
+   **HTTP vs WebSocket transport.** ``serverCall`` uses one transport for the whole
+   app, chosen by a single flag — there is no per-call option. The default is
+   **HTTP POST**. To send server calls (and model sync) over the WebSocket instead,
+   set ``SERVER_CALL_VIA_WEB_SOCKET = True`` in ``settings.py``; SDC passes it into
+   the page as ``window.SERVER_CALL_VIA_WEB_SOCKET`` in ``base.html``. Leave it
+   ``False`` (the default) to use plain HTTP, which needs no ASGI/WebSocket wiring
+   for the call itself.
+
 Registering the model on the client
 -----------------------------------
 
@@ -497,11 +564,21 @@ model name and primary key:
     <a class="btn btn-info navigation-links"
        href="/*/*/sdc-detail-view&model=Book&pk={{ instance.pk }}">More</a>
 
+Any ``<a>`` with the class ``navigation-links`` is intercepted by the navigator:
+it cancels the browser navigation and calls ``goTo`` with the link's ``href``.
+The ``href`` is an SDC path, not a real URL, and it carries client params as a
+query string that arrive as ``onInit`` arguments on the target controller.
+
 When the navigator resolves the link it injects a ``<sdc-detail-view
-data-model="Book" data-pk="...">`` element into the next ``sdc_detail_view``
-placeholder. If the placeholder carries ``data-modal="#myModal"`` the
-navigator opens the matching Bootstrap modal and renders the detail view
-inside it — see :ref:`sdc-how-to-nav` for the modal markup.
+data-model="Book" data-pk="...">`` element into a nested ``sdc_detail_view``
+container. The views of a path render into **nested** ``sdc_detail_view``
+containers, so a deeper view opens *inside* its parent — give a view its own
+``<div class="sdc_detail_view"></div>`` when you want children to nest below it,
+and leave it out when a deeper link should replace the current view instead. If
+the chosen placeholder carries ``data-modal="#myModal"`` the navigator opens the
+matching Bootstrap modal, renders the detail view inside it, and closes the modal
+(navigating back to the parent level) when it is dismissed — see
+:ref:`sdc-how-to-nav` for the modal markup.
 
 Editing books as staff
 ----------------------
@@ -574,12 +651,12 @@ instance — mutating it is enough, because the form fields stay in sync.
 Named forms
 -----------
 
-A model can expose several forms. Declare each one in ``_SdcMeta`` and select
+A model can expose several forms. Declare each one in ``SdcMeta`` and select
 it per controller with ``data-form-name``:
 
 .. code-block:: python
 
-    class _SdcMeta:
+    class SdcMeta:
         edit_form = "main_app.forms.BookForm"
         create_form = "main_app.forms.BookForm"
         small = "main_app.forms.SmallBookForm"
@@ -591,6 +668,18 @@ it per controller with ``data-form-name``:
     <sdc-model-form data-model="Book"
                     data-pk="{{ pk }}"
                     data-form-name="small"></sdc-model-form>
+
+You can also select a named form through a navigator link with a ``form_name``
+query parameter, which arrives as an ``onInit`` argument:
+
+.. code-block:: html
+
+    <a class="navigation-links"
+       href="./sdc-model-form?model=Book&pk={{ instance.pk }}&form_name=small&next=..">Quick edit</a>
+
+The server looks the name up on ``SdcMeta`` and falls back to ``edit_form`` if it
+is not found, so an unknown name is safe. The chosen form name is remembered on
+the form and sent back on save, so edits go through the same named form.
 
 Feedback and auto-submitting forms
 ----------------------------------
@@ -641,11 +730,18 @@ or to a group, use the server-side mixins:
 
     class AdminOnly(SdcGroupRequiredMixin, SDCView):
         group_required = ['Editor']
-        staff_allowed = True
+        staff_allowed = True    # defaults to False — opt in to allow staff
         template_name = 'main_app/sdc/admin_only.html'
 
         def get_content(self, request, *args, **kwargs):
             return render(request, self.template_name)
+
+.. warning::
+
+   ``staff_allowed`` defaults to **False** on group-required views. If you want any
+   staff user to pass a group-gated view, set ``staff_allowed = True`` explicitly.
+   Likewise, set ``raise_exception = True`` to return a ``403`` instead of
+   redirecting to the login flow.
 
 Unauthorized requests are redirected to the login flow. On the client the
 ``login`` and ``logout`` application events are broadcast so any controller can
@@ -835,6 +931,48 @@ Open ``http://127.0.0.1:8000/`` and log in. The dashboard should render with
 the navigation menu, the catalog list should populate, and borrowing a book
 should immediately update every other browser window looking at the same
 list — that is the live WebSocket sync described in :doc:`sdc_model`.
+
+Cheat sheet
+-----------
+
+Naming map::
+
+    controller "catalog"  →  class CatalogController  →  server class Catalog
+                          →  tag <catalog>  →  contentUrl /sdc_view/main_app/catalog
+    model "Book"          →  registerModel("Book", Book)  →  this.querySet('Book')
+    serverCall('borrow', a)  →  server method  def call_borrow(self, channel=None, **a)
+
+Lifecycle order::
+
+    constructor → onInit(...tagAttrs) → onLoad($html) → willShow() → onRefresh()   …   onRemove()
+
+CLI you will use constantly:
+
+.. code-block:: sh
+
+    python manage.py sdc_cc -a <app> -c <controller_snake>   # new controller pair
+    python manage.py sdc_new_model -a <app> -m <ModelCamel>  # new SdcModel + form + templates
+    python manage.py sdc_make_model_js                       # (re)generate client model classes
+    python manage.py sdc_update_url                          # after changing URL patterns
+    python manage.py sdc_update_links                        # re-link app Assets/tests/templates
+
+Common gotchas
+--------------
+
+- **Models are deny-by-default.** Always override **both** ``is_authorised`` and
+  ``get_queryset``, or the model is fully closed.
+- **``staff_allowed`` defaults to ``False``** on group-required views — set it
+  ``True`` to admit staff.
+- **``serverCall`` names match exactly** and may not start with ``_`` or be a
+  framework method.
+- **Do not register controllers by hand** — ``sdc_cc`` edits the organizer; if you
+  move files, rerun ``sdc_update_links`` / fix the organizer import.
+- **Use the safe DOM helpers** (``safeRemove()``, ``safeReplace()``,
+  ``safeEmpty()``) when tearing down DOM that contains controllers, so their
+  ``onRemove`` runs.
+- **WebSockets need ASGI.** Run with ``daphne``/``runserver`` (ASGI) — model sync
+  (and ``serverCall`` when ``SERVER_CALL_VIA_WEB_SOCKET`` is on) will not work under
+  a pure WSGI server.
 
 What to explore next
 --------------------

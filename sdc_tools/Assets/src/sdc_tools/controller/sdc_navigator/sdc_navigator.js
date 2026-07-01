@@ -247,6 +247,9 @@ export class SdcNavigatorController extends AbstractSDC {
 
   _prepareUrl(controller_path_as_array) {
     if (Array.isArray(controller_path_as_array)) {
+      if (controller_path_as_array.length === 0 || !['.', '..', ''].includes(controller_path_as_array[0])) {
+        controller_path_as_array.unshift('');
+      }
       controller_path_as_array = controller_path_as_array.join('~');
     }
 

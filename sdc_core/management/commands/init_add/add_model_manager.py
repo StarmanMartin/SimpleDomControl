@@ -71,7 +71,7 @@ class AddModelManager():
             '',
             '{0}@classmethod\n{0}def render(cls, template_name, context=None, request=None, using=None):\n{0}{0}if template_name == cls.SdcMeta.html_list_template:\n{0}{0}{0}sf = cls.SearchForm(data=context.get("filter", {{}}))\n{0}{0}{0}context = context | handle_search_form(context["instances"], sf,  range=10)\n{0}{0}return render_to_string(template_name=template_name, context=context, request=request, using=using)',
             '',
-            '{0}@classmethod\n{0}def is_authorised(cls, user, action, obj):\n{0}{0}return True',
+            '{0}@classmethod\n{0}def is_authorised(cls, user, action, obj):\n{0}{0}return False',
             '',
             '{0}@classmethod\n{0}def get_queryset(cls, user, action, obj):\n{0}{0}return cls.objects.all()',
         ]).format(options.SEP, self.app_name, self.model_name)

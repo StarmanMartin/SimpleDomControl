@@ -218,8 +218,7 @@ Server calls
 ------------
 
 Use ``serverCall(methodName, args)`` to invoke a backend method associated with
-the controller. Depending on project configuration, this goes over AJAX or
-WebSockets.
+the controller.
 
 Example:
 
@@ -228,6 +227,24 @@ Example:
    approve() {
      return this.serverCall("approve", { approved: true });
    }
+
+``serverCall("approve", …)`` invokes a method named exactly ``call_approve`` on
+the ``SDCView`` that serves the controller (use ``call_async_<name>`` for async
+work). The method name is matched verbatim.
+
+.. warning::
+
+   **Name guard (security).** Method names that start with ``_`` or that collide
+   with framework internals (``dispatch``, ``get_queryset``, ``is_authorised``, …)
+   are rejected. Name your callables plainly.
+
+.. note::
+
+   **Transport.** ``serverCall`` uses one transport for the whole app, chosen by a
+   single flag — there is no per-call option. The default is **HTTP POST**. Set
+   ``SERVER_CALL_VIA_WEB_SOCKET = True`` in ``settings.py`` (exposed to the client
+   as ``window.SERVER_CALL_VIA_WEB_SOCKET``) to route calls over the WebSocket
+   instead; that transport requires an ASGI server such as ``daphne``.
 
 Forms and models
 ----------------

@@ -78,26 +78,24 @@ export class SdcModelFormController extends AbstractSDC {
 
     const querySet = this.querySet(model, filter);
     this.form_name ||= form_name;
-
-    if (this.form_name) {
+    this.pk ||= pk || null;
+    if (typeof (this.pk) === "undefined" || this.pk === null) {
+      this.isAutoChange = false;
+      this.type = 'create';
+      this.model ??= querySet.new();
+      this.formGenerator = (modelObj) => modelObj.form({cbResolve: this._onFormLoaded.bind(this)});
+    } else if (this.form_name) {
       this.isAutoChange = this.autoSave;
-      this.pk = pk;
       this.type = 'edit';
-      this.model ??= querySet.setIds(pk)[0];
+      this.model ??= querySet.setIds(this.pk)[0];
       this.formGenerator = (modelObj) => modelObj.namedForm({
         formName: this.form_name,
         cbResolve: this._onFormLoaded.bind(this)
       });
-    } else if (typeof (pk) !== "undefined") {
-      this.isAutoChange = true;
-      this.pk = pk;
-      this.type = 'edit';
-      this.model ??= querySet.setIds(pk)[0];
-      this.formGenerator = (modelObj) => modelObj.form({cbResolve: this._onFormLoaded.bind(this)});
     } else {
-      this.isAutoChange = false;
-      this.type = 'create';
-      this.model ??= querySet.new();
+      this.isAutoChange = true;
+      this.type = 'edit';
+      this.model ??= querySet.setIds(this.pk)[0];
       this.formGenerator = (modelObj) => modelObj.form({cbResolve: this._onFormLoaded.bind(this)});
     }
 

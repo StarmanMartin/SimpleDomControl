@@ -41,6 +41,7 @@ class AdminOnly(SdcGroupRequiredMixin, SDCView):
 
 
 class StaffAndAdmin(SdcGroupRequiredMixin, SDCView):
+    staff_allowed = True
     template_name = 'main_test/sdc/staff_and_admin.html'
 
     def get_content(self, request, *args, **kwargs):
@@ -48,6 +49,7 @@ class StaffAndAdmin(SdcGroupRequiredMixin, SDCView):
 
 
 class EditorAndStaff(SdcGroupRequiredMixin, SDCView):
+    staff_allowed = True
     group_required = ['Editor']
     template_name = 'main_test/sdc/editor_and_staff.html'
 

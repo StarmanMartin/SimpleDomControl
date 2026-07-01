@@ -86,11 +86,25 @@ as follows:
         }
     }
 
+Nested detail views
+-------------------
+
+The navigator renders a path into nested ``<div class="sdc_detail_view">`` containers, so a deeper
+view opens *inside* its parent. When a link extends the path — say the current path is four SDCs
+deep and the link adds a fifth — the navigator looks at the active view for a nested
+``sdc_detail_view`` container to render the new view into. If that view provides one, the new view
+nests below it; if it does not, the new view replaces the sibling at that level and the earlier
+segments of the path stay put.
+
+In practice: give a view its own ``<div class="sdc_detail_view"></div>`` when you want children to
+nest below it, and leave it out when a deeper link should replace the current view.
+
 Subview in Modal
 ----------------
 
 If the *sdc_detail_view* has an additional data attribute of *data-modal* set to a valid css selector of the Modal DOM, the SDC Navigation controller
 will find the closest BS Modal and open it. It then sets the new view within the modal.
+When the modal is dismissed, the navigator navigates back to the parent level and closes it.
 
 
 .. code-block:: HTML

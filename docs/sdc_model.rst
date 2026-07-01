@@ -53,20 +53,34 @@ submission.
 Authorization
 -------------
 
-Models are responsible for authorizing their own SDC actions. In practice,
-``is_authorised()`` is used to control whether a user may perform operations
-such as:
 
-- connect
-- load
-- list_view
-- detail_view
-- edit_form
-- create_form
-- save
-- create
-- upload
-- delete
+Models are responsible for authorizing their own SDC actions. Two classmethods
+work together:
+
+``is_authorised(cls, user, action, obj)``
+   Returns whether ``user`` may perform ``action``. ``action`` is one of:
+   ``connect``, ``load``, ``list_view``, ``detail_view``, ``edit_form``,
+   ``named_form``, ``create_form``, ``save``, ``create``, ``upload``, ``delete``.
+
+``get_queryset(cls, user, action, obj)``
+   Returns the rows this user may see or operate on for the given action.
+
+.. warning::
+
+   **Deny-by-default.** ``is_authorised()`` and ``get_queryset()`` have **no usable
+   defaults** — ``is_authorised`` returns ``False`` and ``get_queryset`` raises. A
+   model that does not override **both** is fully closed and every SDC action on it
+   is forbidden. This is deliberate; always provide both.
+
+.. code-block:: python
+
+   @classmethod
+   def is_authorised(cls, user, action, obj):
+       return user.is_authenticated
+
+   @classmethod
+   def get_queryset(cls, user, action, obj):
+       return cls.objects.all()
 
 Client-side model architecture
 ------------------------------

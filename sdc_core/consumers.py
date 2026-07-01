@@ -21,6 +21,7 @@ import json
 from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
+from sdc_core.sdc_extentions.search import handle_search_form
 from sdc_core.sdc_extentions.views import SdcAccessMixin, is_valid_server_call
 
 import logging
@@ -400,7 +401,11 @@ class SDCModelConsumer(WebsocketConsumer):
                              field_name=file_data['field_name'],
                              content_type=file_data['content_type'],
                              content_length=file_data['content_length'], )
-        handler.receive_data_chunk(file_data['chunk'].encode(), int(file_data['idx']))
+        if isinstance(file_data['chunk'], list):
+            data = bytes(file_data['chunk'])
+        else:
+            data = file_data['chunk'].encode()
+        handler.receive_data_chunk(data, int(file_data['idx']))
         number_of_chunks = number_of_chunks - 1
         self._upload_handler[json_data['event_id']] = (handler, number_of_chunks)
         if number_of_chunks == 0:
@@ -454,11 +459,12 @@ class SDCModelConsumer(WebsocketConsumer):
     def _load_list_view(self, json_data):
         if self.model.SdcMeta.html_list_template is None:
             raise NotImplementedError()
+        filter = self.queryset.pop('__search_values', {})
         loaded_data = self._load_model()
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
-            'html': self._render(self.model.SdcMeta.html_list_template, {'instances': loaded_data}, json_data),
+            'html': self._render(self.model.SdcMeta.html_list_template, {'instances': loaded_data, 'filter': filter}, json_data),
             'args': self._prepare_loaded_data(loaded_data),
             'is_error': False
         }))

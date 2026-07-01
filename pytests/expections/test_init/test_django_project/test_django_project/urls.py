@@ -23,9 +23,9 @@ from sdc_core.rest_api import AdcApi, get_api_token
 urlpatterns = [
     re_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),
     re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),
-    path('sdc_api/<str:model>/<int:id>', AdcApi.as_view()),
-    path('sdc_api/<str:model>', AdcApi.as_view()),
-    path('sdc_api/login', get_api_token),
+    path('sdc_api/<str:model>/<int:id>/', AdcApi.as_view()),
+    path('sdc_api/<str:model>/', AdcApi.as_view()),
+    path('sdc_api/login/', get_api_token),
     # scd view below
 
     path("admin/", admin.site.urls),

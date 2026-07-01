@@ -20,13 +20,6 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
          * waiting for this controller
          */
         // this.load_async = true;
-
-        /**
-         * Events is an array of dom events.
-         * The pattern is {'event': {'dom_selector': handler}}
-         * Uncomment the following line to add events;
-         */
-        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}});
     }
 
     //-------------------------------------------------//
@@ -47,6 +40,13 @@ class §CONTROLLERNAMETITLE§Controller extends AbstractSDC {
     }
 
     willShow() {
+
+        /**
+         * Events is an array of dom events.
+         * The pattern is {'event': {'dom_selector': handler}}
+         * Uncomment the following line to add events;
+         */
+        // this.events.unshift({'click': {'.header-sample': ($elem, ev)=> $elem.css('border', '2px solid black')}});
         return super.willShow();
     }
 

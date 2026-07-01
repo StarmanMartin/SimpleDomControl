@@ -81,7 +81,7 @@ export class SdcListViewController extends AbstractSDC {
   }
 
   removeInstance($btn) {
-    this.model.delete($btn.data('instance-pk'));
+    this.model.delete({pk: $btn.data('instance-pk')});
   }
 
   onSearch(form) {
@@ -93,7 +93,7 @@ export class SdcListViewController extends AbstractSDC {
   _updateView() {
 
     const $div = this.model.listView({
-      modelQuery: this.search_values,
+      searchValues: this.search_values,
       templateContext: this.template_context,
       cbResolve: () => {
       const elems = $('.tooltip.fade.show');

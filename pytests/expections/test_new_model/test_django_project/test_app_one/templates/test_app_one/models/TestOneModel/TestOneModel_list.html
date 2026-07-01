@@ -13,40 +13,50 @@
 </div>
 
 <table class="table">
-    <tbody></tbody>
+
     {% for instance in instances %}
     {% get_list_id as lid %}
 
     {% if forloop.first %}
-        <tr>
-            <th>Identifier</th>
-            <th>Control</th>
-        </tr>
+    <tr>
+        <th>Identifier</th>
+        <th>
+            <div style="float: right;">Control</div>
+        </th>
+    </tr>
     {% endif %}
     <tr>
         <td>
             {{instance}}
         </td>
         <td>
-            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#delete-model-modal-{{lid}}">
-                Remove
-            </button>
-            <a class="btn btn-dark navigation-links" href="/sdc-model-form&model={{instance|to_class_name}}&pk={{instance.pk}}">Edit</a>
-            <a class="btn btn-dark navigation-links" href="/sdc-detail-view&model={{instance|to_class_name}}&pk={{instance.pk}}">Detail</a>
+            <div style="float: right;">
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                        data-bs-target="#delete-model-modal-{{lid}}">
+                    Remove
+                </button>
+                <a class="btn btn-dark navigation-links"
+                   href="/sdc-model-form&model={{instance|to_class_name}}&pk={{instance.pk}}">{% trans 'Edit' %}</a>
+                <a class="btn btn-dark navigation-links"
+                   href="/sdc-detail-view&model={{instance|to_class_name}}&pk={{instance.pk}}">{% trans 'Detail' %}</a>
+            </div>
             <!-- Modal -->
-            <div class="modal fade" id="delete-model-modal-{{lid}}" tabindex="-1" aria-label="Delete model {{instance.pk}}" aria-hidden="true">
+            <div class="modal fade" id="delete-model-modal-{{lid}}" tabindex="-1"
+                 aria-label="Delete model {{instance.pk}}" aria-hidden="true">
                 <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="delete-model-modal-{{instance.pk}}-label">Are you sure</h5>
+                            <h5 class="modal-title" id="delete-model-modal-{{instance.pk}}-label">{% trans 'Are you sure' %}</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
-                            Do you want to delete {{instance}}?
+                            {% trans 'Do you want to delete:' %} {{instance}}?
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                            <button sdc_click="removeInstance" data-instance-pk="{{instance.pk}}" type="button" class="btn btn-danger" data-bs-dismiss="modal">Remove {{instance}}</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans 'Close' %}</button>
+                            <button sdc_click="removeInstance" data-instance-pk="{{instance.pk}}" type="button"
+                                    class="btn btn-danger" data-bs-dismiss="modal">{% trans 'Remove' %} {{instance}}
+                            </button>
                         </div>
                     </div>
                 </div>

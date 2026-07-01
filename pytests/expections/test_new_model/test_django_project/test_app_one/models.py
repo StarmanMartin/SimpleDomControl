@@ -34,7 +34,7 @@ class TestOneModel(models.Model, SdcModel):
 
     @classmethod
     def is_authorised(cls, user, action, obj):
-        return True
+        return False
 
     @classmethod
     def get_queryset(cls, user, action, obj):
@@ -68,7 +68,7 @@ class TestTwoModel(models.Model, SdcModel):
 
     @classmethod
     def is_authorised(cls, user, action, obj):
-        return True
+        return False
 
     @classmethod
     def get_queryset(cls, user, action, obj):
