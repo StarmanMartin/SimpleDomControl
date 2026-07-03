@@ -92,7 +92,7 @@ AUTH_USER_MODEL = "sdc_user.SdcUser"
 
 """
 def sdc_user_get_queryset(user, action, obj):
-    return user.is_authenticated
+    return True
 """
 SDC_USER_GET_QUERYSET = "sdc_user.models.sdc_user_get_queryset"
 

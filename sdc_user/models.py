@@ -12,7 +12,7 @@ from sdc_user.mails import send_confirm_email
 from django.utils.module_loading import import_string
 
 def sdc_user_is_authorised(user, action, obj):
-    return user.is_authenticated
+    return True
 
 _sdc_user_is_authorised = import_string(settings.SDC_USER_IS_AUTHORISED)
 
