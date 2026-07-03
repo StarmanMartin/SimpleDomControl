@@ -1,4 +1,6 @@
 import {} from "./test_app_one/test_app_one.organizer.js";
+import {} from "./models/src.js"
+
 import * as sdc_client from 'sdc_client';
 
 window['sdc_client'] = sdc_client;

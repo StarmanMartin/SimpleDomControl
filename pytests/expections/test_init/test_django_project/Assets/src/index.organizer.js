@@ -1,3 +1,5 @@
+import {} from "./models/src.js"
+
 import * as sdc_client from 'sdc_client';
 
 window['sdc_client'] = sdc_client;
