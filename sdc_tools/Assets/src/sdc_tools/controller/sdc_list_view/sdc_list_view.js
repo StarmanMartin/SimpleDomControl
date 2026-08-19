@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc_client';
+import { AbstractSDC, app, SdcModel, SdcQuerySet } from 'sdc_client';
 
 export class SdcListViewController extends AbstractSDC {
 
@@ -12,14 +12,13 @@ export class SdcListViewController extends AbstractSDC {
     /**
      * Events is an array of dom events.
      * The pattern is {'event': {'dom_selector': handler}}
-     * Uncommend the following line to add events;
+     * Uncomment the following line to add events;
      */
     // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
   }
 
   //-------------------------------------------------//
   // Lifecycle handler                               //
-  // - onInit (tag parameter)                        //
   // - onLoad (DOM not set)                          //
   // - willShow  (DOM set)                           //
   // - onRefresh  (recalled on reload)              //
@@ -27,22 +26,31 @@ export class SdcListViewController extends AbstractSDC {
   // - onRemove                                      //
   //-------------------------------------------------//
 
-  onInit(model, filter, onUpdate) {
-    if (!this.model) {
-      if (this.model_name) {
-        model = this.model_name;
-      }
+  async onInitList({ model, filter, onUpdate }) {
+    if (this.model) {
+      model = this.model;
+    }
 
-      this.model = this.querySet(model);
+    if (model instanceof Promise) {
+      model = await model;
     }
-    if (onUpdate) {
-      this.on_update = onUpdate;
+    this.filter ??= filter;
+    this.model_name ??= model;
+    this.on_update ??= onUpdate;
+    if (typeof this.filter === 'function') {
+      this.filter = this.filter();
     }
-    if (typeof filter === 'function') {
-      filter = filter();
+
+    if (typeof model === 'object' && model instanceof SdcQuerySet) {
+      this.model = model;
     }
-    if (typeof filter === 'object') {
-      this.model.filter(filter);
+
+    if (typeof model !== 'object') {
+      this.model = this.querySet(this.model_name);
+    }
+
+    if(this.filter) {
+      this.model.setFilter(this.filter);
     }
 
     if (this.on_update) {
@@ -53,10 +61,12 @@ export class SdcListViewController extends AbstractSDC {
   }
 
   onLoad($html) {
+    this.onInitList(this.params);
     let lc = $html.filter('.list-container');
     if (lc.length === 0) {
       lc = $html.find('.list-container');
     }
+
     lc.append(this.model.listView({modelQuery: this.search_values, templateContext: this.template_context}));
     this.model.onUpdate = this.model.onCreate = () => {
       if (this.on_update) {
@@ -64,6 +74,7 @@ export class SdcListViewController extends AbstractSDC {
           this.on_update(this.model);
         });
       }
+
       this._updateView();
     };
     return super.onLoad($html);
@@ -81,7 +92,7 @@ export class SdcListViewController extends AbstractSDC {
   }
 
   removeInstance($btn) {
-    this.model.delete({pk: $btn.data('instance-pk')});
+    this.model.delete({id: $btn.data('instance-pk')});
   }
 
   onSearch(form) {

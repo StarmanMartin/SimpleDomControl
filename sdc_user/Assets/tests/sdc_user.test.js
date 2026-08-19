@@ -4,24 +4,11 @@
 
 import {test_utils} from 'sdc_client';
 import {} from "#root/src/models/src.js";
-import {} from "#root/src/models/src.js";
-import '../src/sdc_user/sdc_user.organizer.js'
+import '#root/src/sdc_user/sdc_user.organizer.js'
 import '#root/src/sdc_tools/sdc_tools.organizer.js'
 
 window.gettext = (x) => x;
 
-describe('SdcNavigator', () => {
-    let controller;
-
-    beforeEach(async () => {
-        // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('sdc_tools', {}, '<div><h1>Controller loading...</h1></div>');
-    });
-
-    test('Load Content', async () => {
-    });
-
-});
 
 describe('SdcUserNavBtn', () => {
     let controller;
@@ -45,13 +32,13 @@ describe('User', () => {
 
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('user',
+        controller = await test_utils.get_controller('sdc-user',
                                                   {},
                                                   '<div><h1>Controller Loaded</h1></div>');
     });
 
     test('Load Content', async () => {
-        const $div = $('body').find('user');
+        const $div = $('body').find('sdc-user');
         expect($div.length).toBeGreaterThan(0);
     });
 
@@ -63,7 +50,7 @@ describe('SdcConfirmEmail', () => {
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
         controller = await test_utils.get_controller('sdc-confirm-email',
-                                                  {},
+                                                  {token: 1234},
                                                   '<div><h1>Controller Loaded</h1></div>');
     });
 

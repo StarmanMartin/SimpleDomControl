@@ -69,7 +69,14 @@ else:
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                "hosts": [('redis', 6379)],
+                # NB: must be a dict (not a (host, port) tuple) so we can pass
+                # socket_timeout. redis-py >= 8 defaults socket_timeout to 5s,
+                # which exactly races channels-redis' hardcoded brpop_timeout=5,
+                # raising "Timeout reading from redis" on every idle WebSocket
+                # receive. Keep socket_timeout > brpop_timeout (5s) to avoid it.
+                "hosts": [{"host": "redis", "port": 6379, "socket_timeout": 20}],
+                "capacity": 1500,
+                "expiry": 10,
             },
         },
     }

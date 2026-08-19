@@ -81,8 +81,12 @@ sdc.zip
 /Assets/bin/sdc_tools
 /Assets/bin/sdc_user
 /openapi.generated.yaml
-/Assets/bin/models/Author.js
-/Assets/bin/models/Book.js
-/Assets/bin/models/BookContent.js
-/Assets/bin/models/SdcUser.js
-/Assets/bin/models/src.js
+/Assets/bin/models
+/main_test/Assets/bin/main_test/controller/admin_only/admin_only.js
+/main_test/Assets/bin/main_test/controller/book_edit/book_edit.js
+/main_test/Assets/bin/main_test/controller/editor_and_staff/editor_and_staff.js
+/main_test/Assets/bin/main_test/controller/editor_no_staff/editor_no_staff.js
+/main_test/Assets/bin/main_test/controller/error_404/error_404.js
+/main_test/Assets/bin/main_test/controller/logged_in/logged_in.js
+/main_test/Assets/bin/main_test/controller/main_view/main_view.js
+/main_test/Assets/bin/main_test/controller/staff_and_admin/staff_and_admin.js

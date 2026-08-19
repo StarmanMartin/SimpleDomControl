@@ -76,6 +76,7 @@ def get_model_schema(model):
             "one_to_one": field.one_to_one,
             "related_model": field.related_model.__name__ if field.related_model else None,
             "remote_field": field.remote_field.name if field.related_model else None,
+            "reverse_relation": field.auto_created and not field.concrete,
         }
 
         fields[field_info['name']] = field_info

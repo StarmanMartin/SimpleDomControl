@@ -20,8 +20,33 @@ if TYPE_CHECKING:
 
 _ALL_MODELS = None
 
+class CaseInsensitiveDict(dict[str,Any]):
+    key_mapper = {}
 
-def all_models() -> dict[str,Any]:
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for key in self.keys():
+            self.key_mapper[key] = key
+            self.key_mapper[key.lower()] = key
+
+    def __setitem__(self, key, value):
+        self.key_mapper[key] = key
+        self.key_mapper[key.lower()] = key
+        super().__setitem__(key, value)
+
+    def __getitem__(self, key):
+        mapped_key = self.key_mapper[key]
+        return super().__getitem__(mapped_key)
+
+    def __contains__(self, key):
+        return self.key_mapper.__contains__(key)
+
+    def get(self, key, default=None):
+        mapped_key = self.key_mapper.get(key, key)
+        return super().get(mapped_key, default)
+
+
+def all_models() -> CaseInsensitiveDict:
     """
     Collects and returns all SDC Models
 
@@ -30,9 +55,9 @@ def all_models() -> dict[str,Any]:
 
     global _ALL_MODELS
     if _ALL_MODELS is None:
-        _ALL_MODELS = {
+        _ALL_MODELS = CaseInsensitiveDict({
             model.__name__: model for model in apps.get_models() if hasattr(model, '__is_sdc_model__')
-        }
+        })
     return _ALL_MODELS
 
 

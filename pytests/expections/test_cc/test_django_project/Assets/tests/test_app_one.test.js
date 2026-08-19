@@ -4,8 +4,9 @@
 
 import {test_utils} from 'sdc_client';
 import {} from "#root/src/test_app_one/test_app_one.organizer.js";
-import '#root/src/sdc_tools/sdc_tools.organizer.js'
-import '#root/src/sdc_user/sdc_user.organizer.js'
+import '#root/libs/sdc_tools/sdc_tools.organizer.js'
+import '#root/libs/sdc_user/sdc_user.organizer.js'
+import '#root/src/models/src.js'
 
 describe('TestSdcOne', () => {
     let controller;

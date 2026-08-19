@@ -21,6 +21,7 @@ def generate_field_config(field):
         "one_to_one": field["one_to_one"],
         "related_model": field["related_model"],
         "remote_field": field["remote_field"],
+        "reverse_relation": field["reverse_relation"],
     }
 
     if field["type"] == "FileField":
@@ -64,8 +65,11 @@ def _generate_js_class(schema):
         setter_line.append("    try {")
 
         if field["is_relation"] and field["related_model"]:
-            constructor_line.append(f"    this._{name} = new SdcQuerySet('{field['related_model']}');")
-            if field["many_to_many"] or field["one_to_many"]:
+            if field["reverse_relation"]:
+                constructor_line.append(f"    this._{name} = new SdcQuerySet('{field['related_model']}', {{ {field['remote_field'] }: this.id }});")
+            else:
+                constructor_line.append(f"    this._{name} = new SdcQuerySet('{field['related_model']}');")
+            if field["reverse_relation"] or field["many_to_many"] or field["one_to_many"]:
                 constructor_line.append(f"    this._toManyFields.push([this._{name}, '{field['remote_field']}']);")
                 setter_line.append(f"    this.{name}.setFilter({{ {field['remote_field']}:  data.id }});")
                 setter_line.append(f"    this.{name} = data.{name} || [];")

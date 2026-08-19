@@ -11,8 +11,6 @@ class LoginViewController extends AbstractSDC {
 
     constructor() {
         super();
-        _
-        console.log(cake);
         log_test();
         log_test_outer()
         this.contentUrl = "/sdc_view/sdc_user/login_view"; //<login-view></login-view>
@@ -58,7 +56,7 @@ class LoginViewController extends AbstractSDC {
     }
 
     onSubmit(res) {
-        trigger('login', res.pk)
+        trigger('login', res.id)
     }
 
 }

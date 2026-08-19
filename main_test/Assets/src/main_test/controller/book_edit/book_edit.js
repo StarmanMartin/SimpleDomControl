@@ -31,7 +31,6 @@ class BookEditController extends AbstractSDC {
 
     //-------------------------------------------------//
     // Lifecycle handler                               //
-    // - onInit (tag parameter)                        //
     // - onLoad (DOM not set)                          //
     // - willShow  (DOM set)                           //
     // - onRefresh  (recalled on reload)              //
@@ -39,11 +38,8 @@ class BookEditController extends AbstractSDC {
     // - onRemove                                      //
     //-------------------------------------------------//
 
-    onInit() {
-      this.model_name = 'Book';
-    }
-
     onLoad($html) {
+      this.model_name = 'Book';
         return super.onLoad($html);
     }
 

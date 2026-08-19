@@ -17,16 +17,12 @@ class EditorNoStaffController extends AbstractSDC {
 
     //-------------------------------------------------//
     // Lifecycle handler                               //
-    // - onInit (tag parameter)                        //
     // - onLoad (DOM not set)                          //
     // - willShow  (DOM set)                           //
     // - onRefresh  (recalled on reload)              //
     //-------------------------------------------------//
     // - onRemove                                      //
     //-------------------------------------------------//
-
-    onInit() {
-    }
 
     onLoad($html) {
         return super.onLoad($html);

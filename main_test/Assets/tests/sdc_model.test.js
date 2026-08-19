@@ -149,7 +149,7 @@ describe('SDC Model [create]', () => {
 
 
   test('create Book no on_create', async () => {
-    let books = controller.querySet('Book', {'pk': 1});
+    let books = controller.querySet('Book', {'id': 1});
     let is_on_create = false;
     books.on_create = () => {
       is_on_create = true;
@@ -184,7 +184,7 @@ describe('SDC Model [save]', () => {
 
 
   test('Changed Book name [model filter]', async () => {
-    let books = await controller.querySet('Book', {'pk': 1}).get();
+    let books = await controller.querySet('Book', {'id': 1}).get();
 
     books.title = "My super doper Book";
     await books.save();
@@ -314,7 +314,7 @@ describe('SDC Model [form]', () => {
 
 
   test('Book edit form', async () => {
-    let books = await controller.querySet('Book').get({'pk': 1}, true);
+    let books = await controller.querySet('Book').get({'id': 1}, true);
     await new Promise((resolv) => {
       controller.find('.edit_form').append(books.form({cbResolve: resolv}));
     });
@@ -324,7 +324,7 @@ describe('SDC Model [form]', () => {
 
 
   test('Book named form to model', async () => {
-    let books = await controller.querySet('Book', {'pk': 1}).get(null, true);
+    let books = await controller.querySet('Book', {'id': 1}).get(null, true);
 
     await new Promise((resolv) => {
       controller.find('.edit_form').empty().append(books.namedForm({formName: 'test', cbResolve: resolv}));
@@ -338,7 +338,7 @@ describe('SDC Model [form]', () => {
 
 
   test('Book edit form to model', async () => {
-    let books = await controller.newModel('Book').get({'pk': 1}, true);
+    let books = await controller.newModel('Book').get({'id': 1}, true);
     let res_pk = -1;
     books.save = (res) => {
       res_pk = res.data.title;
@@ -406,7 +406,7 @@ describe('SDC Model [form & file]', () => {
     const fileNew = new File(['file contents 1'], 'manage.txt', {type: 'text/plain'});
     const book1 = books.new({text: fileNew});
     await book1.create()
-    const ob = await controller.querySet('BookContent').get({pk: book1.id});
+    const ob = await controller.querySet('BookContent').get({id: book1.id});
     const textRes = await ob.text.text();
     // Media cannot be loaded
     expect(textRes).toBe('');

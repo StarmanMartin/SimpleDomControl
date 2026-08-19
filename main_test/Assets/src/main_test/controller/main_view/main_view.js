@@ -27,7 +27,6 @@ class MainViewController extends AbstractSDC {
 
     //-------------------------------------------------//
     // Lifecycle handler                               //
-    // - onInit (tag parameter)                        //
     // - onLoad (DOM not set)                          //
     // - willShow  (DOM set)                           //
     // - onRefresh  (recalled on reload)              //
@@ -40,6 +39,7 @@ class MainViewController extends AbstractSDC {
     }
 
     onLoad($html) {
+       this.onInit();
         this.flow_test.push('onLoad');
         return super.onLoad($html);
     }

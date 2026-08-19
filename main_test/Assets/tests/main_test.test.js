@@ -137,7 +137,7 @@ describe('MainView Logged out', () => {
     });
 
     test('Flow test', async () => {
-        expect(controller.flow_test).toStrictEqual(["constructor", "onInit", "onRefresh"])
+        expect(controller.flow_test).toStrictEqual(["constructor", "onRefresh"])
     });
 
     test('Load Content', async () => {
@@ -283,13 +283,13 @@ describe('Error404', () => {
 
     beforeEach(async () => {
         // Create new controller instance based on the standard process.
-        controller = await test_utils.get_controller('error404',
+        controller = await test_utils.get_controller('error-404',
             {},
             '<div><h1>Controller Loaded</h1></div>');
     });
 
     test('Load Content', async () => {
-        const $div = $('body').find('error404');
+        const $div = $('body').find('error-404');
         expect($div.length).toBeGreaterThan(0);
     });
 

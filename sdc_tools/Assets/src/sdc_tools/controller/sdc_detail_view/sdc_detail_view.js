@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc_client';
+import { AbstractSDC, app, SdcModel, SdcQuerySet } from 'sdc_client';
 
 
 export class SdcDetailViewController extends AbstractSDC {
@@ -19,7 +19,6 @@ export class SdcDetailViewController extends AbstractSDC {
 
   //-------------------------------------------------//
   // Lifecycle handler                               //
-  // - onInit (tag parameter)                        //
   // - onLoad (DOM not set)                          //
   // - willShow  (DOM set)                           //
   // - onRefresh  (recalled on reload)              //
@@ -27,18 +26,37 @@ export class SdcDetailViewController extends AbstractSDC {
   // - onRemove                                      //
   //-------------------------------------------------//
 
-  async onInit(model, pk) {
-    if (!this.model) {
-      if (!model || typeof pk === 'undefined') {
-        console.error("You have to set data-model and data-pk in the <sdc-detail-view> tag!");
-      }
-      this.querySetInstance = this.querySet(model, {pk: pk});
+  async onInitDetails({ model, pk, id }) {
+    this.id ??= id ?? pk;
 
+    if (this.model) {
+      model = this.model;
     }
+
+    if (model instanceof Promise) {
+      model = await model;
+    }
+
+    if (typeof model === 'object' && model instanceof SdcModel) {
+      this.model = model;
+      this.querySetInstance = model.querySet;
+      return;
+    }
+
+    if (typeof model === 'object' && model instanceof SdcQuerySet) {
+      this.querySetInstance = model;
+    }
+
+    if (typeof model !== 'object') {
+      this.querySetInstance = this.querySet(this.model_name || model, { id: this.id  });
+    }
+
+    this.model = await this.querySetInstance.get();
   }
 
   async onLoad($html) {
-    this.model ??= await this.querySetInstance.get();
+    await this.onInitDetails(this.params);
+
     const $dt = this.model.detailView({
       cbResolve: () => {
         let $lc = this.find('.detail-container');
@@ -48,10 +66,12 @@ export class SdcDetailViewController extends AbstractSDC {
 
       }, templateContext: this.template_context
     });
-    this.querySetInstance.onUpdate = async () => {
-      await this._updateView();
-      this._onUpdate();
-    };
+    if (this.querySetInstance) {
+      this.querySetInstance.onUpdate = async () => {
+        await this._updateView();
+        this._onUpdate();
+      };
+    }
     return super.onLoad($html);
   }
 
@@ -66,11 +86,6 @@ export class SdcDetailViewController extends AbstractSDC {
     return super.onRefresh();
   }
 
-
-  removeInstance($btn, e) {
-    this.model.delete();
-  }
-
   _onUpdate() {
     if (this.on_update) {
       this.model.update().then(() => {
@@ -81,8 +96,7 @@ export class SdcDetailViewController extends AbstractSDC {
 
   _updateView() {
     return new Promise((resolve) => {
-      const $div = this.model.listView({
-        modelQuery: this.search_values,
+      const $div = this.model.detailView({
         cbResolve: () => {
           const elems = $('.tooltip.fade.show');
           elems.remove();
