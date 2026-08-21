@@ -85,16 +85,16 @@ export class SdcModelFormController extends AbstractSDC {
     }
 
     if (typeof this.model === 'object' && this.model instanceof SdcQuerySet) {
-      try {
-        this.model = await this.model.get();
-        this.id = this.model.id;
-      } catch (e) {
-        if (this.model.length !== 0) {
+      if(Object.keys(this.model.modelQuery).length === 0) {
+        this.id = null;
+        this.model = this.model.new();
+      } else {
+        try {
+          this.model = await this.model.get();
+          this.id = this.model.id;
+        } catch (e) {
           this.id = null;
           this.model = this.model.new();
-        } else {
-          console.error(e);
-          throw e;
         }
       }
     }

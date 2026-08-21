@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc_client';
+import { AbstractSDC, app } from 'sdc_client';
 
 
 class SdcSearchSelectController extends AbstractSDC {
@@ -63,7 +63,7 @@ class SdcSearchSelectController extends AbstractSDC {
     this.name = name;
     if (modelName) {
       if (ids) {
-        this.model = this.newModel(modelName, {pk__in: ids});
+        this.model = this.newModel(modelName, { pk__in: ids });
       } else {
         this.model = this.newModel(modelName);
       }
@@ -132,32 +132,28 @@ class SdcSearchSelectController extends AbstractSDC {
 
   current_val() {
     if (this._state === 0) {
-      const content = () => {
-        if (this.value.length === 0) {
-          return <input type="hidden" className="timer-change" name={this.name} value=""/>
-        } else {
-          let values;
-          if (this.multi) {
-            values = `[${this.value.join(',')}]`;
-          } else {
-            values = this.value[0];
-          }
-          return <div className={this.multi ? 'multi' : ''}>{this._currentOption}
-            <input className="timer-change" type="hidden" name={this.name} value={values}/>
-          </div>
-        }
+      if (this.value.length === 0) {
+        return <div>
+          <p sdc_click="onActivate" className="mb-2 custom-select form-control">
+            <span className="select-label">{gettext('Search & select...')}</span>
+            <span className="select-arrow"></span>
+          </p>
+          <input type="hidden" className="timer-change" name={this.name} value=""/>
+        </div>
       }
 
-      return <div>
-        <p sdc_click="onActivate" className="mb-2 custom-select form-control">
-          <span className="select-label">{gettext('Search & select...')}</span>
-          <span className="select-arrow"></span>
-        </p>
-        {content()}
+      let values;
+      if (this.multi) {
+        values = `[${this.value.join(',')}]`;
+      } else {
+        values = this.value[0];
+      }
+      return <div sdc_click="onActivate" className={this.multi ? 'multi custom-select-selected' : 'custom-select-selected'}>
+        {this._currentOption.map(this._optionBtnToSelected.bind(this))}
+        <input className="timer-change" type="hidden" name={this.name} value={values}/>
+            <span className="select-arrow"></span>
       </div>
     }
-
-
   }
 
   onActivate() {
@@ -182,9 +178,8 @@ class SdcSearchSelectController extends AbstractSDC {
     });
   }
 
-  _storeSelectedOption($btn) {
+  _optionBtnToSelected($btn) {
     const currentOption = $btn.clone()[0];
-    $btn.addClass('selected');
     // copy attributes into array first (NamedNodeMap is live)
     Array.from(currentOption.attributes).forEach(attr => currentOption.removeAttribute(attr.name));
     currentOption.className = "selected-option";
@@ -196,19 +191,28 @@ class SdcSearchSelectController extends AbstractSDC {
       currentOption.append(delBtn[0]);
     }
 
+    return currentOption;
+  }
+
+  _storeSelectedOption($btn) {
+    const newVal = String($btn.data('value'));
+    $btn.addClass('selected');
     if (!this.multi) {
       this.value = [newVal];
-      this._currentOption = [currentOption];
+      this._currentOption.forEach(($selBtn) => $selBtn.removeClass('selected'));
+      this._currentOption = [$btn];
     } else if (!this.value.includes(newVal)) {
       this.value.push(newVal);
-      this._currentOption.push(currentOption);
+      this._currentOption.push($btn);
     }
   }
 
-  remove_selection($btn) {
+  remove_selection($btn, e) {
+    e.stopPropagation();
     const idx = this.value.indexOf($btn.data('value'));
     this.value.splice(idx, 1);
-    this._currentOption.splice(idx, 1);
+    const [$selBtn] = this._currentOption.splice(idx, 1);
+    $selBtn.removeClass('selected');
     this.refresh().then(() => {
       this.find('.timer-change').trigger('change');
     });

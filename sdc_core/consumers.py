@@ -206,6 +206,7 @@ class SDCModelConsumer(WebsocketConsumer):
     def websocket_disconnect(self, close_code):
         for group in self._group_names:
             async_to_sync(self.channel_layer.group_discard(group, self.channel_name))
+        hasattr(self.model.SdcMeta, 'on_disconnected') and self.model.SdcMeta.on_disconnected(self._load_model('disconnect'))
         super().websocket_disconnect(close_code)
 
     def on_update(self, data):
@@ -316,8 +317,10 @@ class SDCModelConsumer(WebsocketConsumer):
             self.channel_name
         )
 
-    def _load_model(self):
-        queryset = self.model.get_queryset(self.scope['user'], self.scope['event_type'], self.queryset)
+    def _load_model(self, event_type=None):
+        if event_type is None:
+            event_type = self.scope['event_type']
+        queryset = self.model.get_queryset(self.scope['user'], event_type, self.queryset)
 
         data_load_result = self.model.data_load(self.scope['user'], queryset, self.queryset)
         if data_load_result is not None:

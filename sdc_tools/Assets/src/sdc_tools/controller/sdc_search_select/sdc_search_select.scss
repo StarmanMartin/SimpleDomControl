@@ -10,11 +10,43 @@
       cursor: pointer;
       user-select: none;
       transition: all 0.2s ease;
+
+      /* ▼ arrow */
+      .select-arrow {
+        display: inline-block;
+        width: 0;
+        height: 0;
+        margin-left: 10px;
+        vertical-align: middle;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 6px solid #555;
+        transition: transform 0.2s ease;
+      }
     }
 
-    .custom-select:hover {
+    .custom-select-selected:hover, .custom-select:hover {
       border-color: #999;
       background-color: #fafafa;
+    }
+
+    .custom-select-selected {
+      position: relative;
+
+      /* ▼ arrow */
+      .select-arrow {
+        position: absolute;
+        width: 0;
+        height: 0;
+        right: 12px;
+        top: 12px;
+        vertical-align: middle;
+        border-left: 6px solid transparent;
+        border-right: 6px solid transparent;
+        border-top: 6px solid #555;
+        transition: transform 0.2s ease;
+      }
+
     }
 
     /* Label text */
@@ -24,21 +56,8 @@
       font-size: 14px;
     }
 
-    /* ▼ arrow */
-    .select-arrow {
-      display: inline-block;
-      width: 0;
-      height: 0;
-      margin-left: 10px;
-      vertical-align: middle;
-      border-left: 6px solid transparent;
-      border-right: 6px solid transparent;
-      border-top: 6px solid #555;
-      transition: transform 0.2s ease;
-    }
-
     /* Optional — rotate arrow when open */
-    .custom-select.open .select-arrow {
+    .open .select-arrow {
       transform: rotate(-180deg);
     }
 

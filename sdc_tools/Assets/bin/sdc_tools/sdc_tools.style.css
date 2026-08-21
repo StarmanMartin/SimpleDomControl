@@ -229,23 +229,9 @@
   cursor: pointer;
   user-select: none;
   transition: all 0.2s ease;
-}
-[sdc-search-select] .main-select .custom-select:hover {
-  border-color: #999;
-  background-color: #fafafa;
-}
-[sdc-search-select] .main-select {
-  /* Label text */
-}
-[sdc-search-select] .main-select .select-label {
-  flex: 1;
-  color: #333;
-  font-size: 14px;
-}
-[sdc-search-select] .main-select {
   /* ▼ arrow */
 }
-[sdc-search-select] .main-select .select-arrow {
+[sdc-search-select] .main-select .custom-select .select-arrow {
   display: inline-block;
   width: 0;
   height: 0;
@@ -256,10 +242,38 @@
   border-top: 6px solid #555;
   transition: transform 0.2s ease;
 }
+[sdc-search-select] .main-select .custom-select-selected:hover, [sdc-search-select] .main-select .custom-select:hover {
+  border-color: #999;
+  background-color: #fafafa;
+}
+[sdc-search-select] .main-select .custom-select-selected {
+  position: relative;
+  /* ▼ arrow */
+}
+[sdc-search-select] .main-select .custom-select-selected .select-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  right: 12px;
+  top: 12px;
+  vertical-align: middle;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #555;
+  transition: transform 0.2s ease;
+}
+[sdc-search-select] .main-select {
+  /* Label text */
+}
+[sdc-search-select] .main-select .select-label {
+  flex: 1;
+  color: #333;
+  font-size: 14px;
+}
 [sdc-search-select] .main-select {
   /* Optional — rotate arrow when open */
 }
-[sdc-search-select] .main-select .custom-select.open .select-arrow {
+[sdc-search-select] .main-select .open .select-arrow {
   transform: rotate(-180deg);
 }
 [sdc-search-select] .main-select .selected-option {

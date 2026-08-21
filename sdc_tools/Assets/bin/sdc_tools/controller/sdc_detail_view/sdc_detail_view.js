@@ -37,8 +37,6 @@ export class SdcDetailViewController extends AbstractSDC {
       model = await model;
     }
 
-
-
     if (typeof model === 'object' && model instanceof SdcModel) {
       this.model = model;
       this.querySetInstance = model.querySet;
@@ -86,11 +84,6 @@ export class SdcDetailViewController extends AbstractSDC {
       new Tooltip(this);
     });
     return super.onRefresh();
-  }
-
-
-  removeInstance($btn, e) {
-    this.model.delete();
   }
 
   _onUpdate() {
