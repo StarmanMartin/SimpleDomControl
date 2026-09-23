@@ -118,10 +118,14 @@ export class SdcModelFormController extends AbstractSDC {
   }
 
   async onLoad($html) {
-    await this.onInitForm(this.params);
-
-    this.form = this.formGenerator(this.model).addClass('container-fluid');
-    $html.find('.form-container').append(this.form);
+    await this.onInitForm(this.params).catch((e) => {
+      this.model = null;
+      console.error(e);
+    });
+    if (this.model) {
+      this.form = this.formGenerator(this.model).addClass('container-fluid');
+      $html.find('.form-container').append(this.form);
+    }
     // $html.find(`.not-${this.type}`).remove();
     return super.onLoad($html);
   }

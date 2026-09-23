@@ -182,7 +182,7 @@ export class SdcNavigatorController extends AbstractSDC {
       }
       this._is_processing = false;
       this._updateBreadcrumb();
-      this._checkProcessQueue();
+      this._checkProcessQueue(controller);
       this.refresh();
       return;
     }
@@ -237,7 +237,7 @@ export class SdcNavigatorController extends AbstractSDC {
     } else {
       this._updateBreadcrumb();
       if (!this._manageDefault(last_view_array.empty_container)) {
-        this._checkProcessQueue();
+        this._checkProcessQueue(controller);
       }
       setTimeout(() => {
         this.$container.find('.header-loading').removeClass('active');
@@ -264,12 +264,16 @@ export class SdcNavigatorController extends AbstractSDC {
     return c_list.join('~').split('~~').join('~');
   }
 
-  _checkProcessQueue() {
+  _checkProcessQueue(controller) {
     let next = this._process_queue.shift();
     this._current_process = null;
     if (next) {
       this._pushState(next[0], next[1]);
-    } else if (this._redirectAfterCurrentProcess) {
+    } else if (this._redirectAfterCurrentProcess || controller.autoRedirect) {
+      if(controller.autoRedirect) {
+        this._RedirectOnView(controller.autoRedirect);
+      }
+
       const temp = this._redirectAfterCurrentProcess;
       this._redirectAfterCurrentProcess = null;
       this.goTo(temp);

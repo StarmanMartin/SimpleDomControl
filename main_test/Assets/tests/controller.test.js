@@ -186,8 +186,8 @@ describe('Controller flow redirect [logged out]', () => {
 
         const $div = $('body').find('staff-and-admin');
         expect($div.length).toBeGreaterThan(0);
-        const $header = controller.find('sdc-error');
-        expect($header.data('code')).toBe(301);
+        const $header = controller.find('p');
+        expect($header.text()).toBe("Redirected");
     });
 
 });

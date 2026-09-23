@@ -287,7 +287,9 @@ class SDCModelConsumer(WebsocketConsumer):
         except Exception as e:
             extracted_list = traceback.extract_tb(e.__traceback__)
             e_text = [e.__str__()] + [item for item in traceback.StackSummary.from_list(extracted_list).format()]
+
             if settings.DEBUG:
+                logger.error(e_text[0])
                 traceback.print_tb(e.__traceback__)
             else:
                 logger.error(e_text)
@@ -476,7 +478,8 @@ class SDCModelConsumer(WebsocketConsumer):
         loaded_data = self._load_model()
         view_name = json_data['args']['view_name']
         if not hasattr(self.model.SdcMeta, view_name):
-            raise NotImplementedError()
+            text = f'"{view_name}" is not implemented in "{loaded_data.__class__.__name__}.SdcMeta".'
+            raise Exception(text)
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
