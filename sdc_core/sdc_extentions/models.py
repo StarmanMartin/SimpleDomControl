@@ -10,6 +10,7 @@ from django.template.loader import render_to_string
 from django.core.serializers.json import Serializer
 from django.db.models import FileField
 from django.apps import apps
+from django.utils.module_loading import import_string
 
 from django.contrib.auth import get_user_model
 
@@ -20,30 +21,34 @@ if TYPE_CHECKING:
 
 _ALL_MODELS = None
 
-class CaseInsensitiveDict(dict[str,Any]):
-    key_mapper = {}
+class CaseInsensitiveDict(dict[str, Any]):
+    """
+    A dict whose keys can be looked up in any letter case. The keys keep their
+    original spelling; each instance keeps its own lower-case key map.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for key in self.keys():
-            self.key_mapper[key] = key
-            self.key_mapper[key.lower()] = key
+        self.key_mapper = {key.lower(): key for key in self.keys()}
+
+    def _mapped(self, key):
+        if isinstance(key, str):
+            return self.key_mapper.get(key.lower(), key)
+        return key
 
     def __setitem__(self, key, value):
-        self.key_mapper[key] = key
-        self.key_mapper[key.lower()] = key
+        if isinstance(key, str):
+            self.key_mapper[key.lower()] = key
         super().__setitem__(key, value)
 
     def __getitem__(self, key):
-        mapped_key = self.key_mapper[key]
-        return super().__getitem__(mapped_key)
+        return super().__getitem__(self._mapped(key))
 
     def __contains__(self, key):
-        return self.key_mapper.__contains__(key)
+        return super().__contains__(self._mapped(key))
 
     def get(self, key, default=None):
-        mapped_key = self.key_mapper.get(key, key)
-        return super().get(mapped_key, default)
+        return super().get(self._mapped(key), default)
 
 
 def all_models() -> CaseInsensitiveDict:
@@ -89,6 +94,21 @@ def filter_model_fields(obj, data):
             "SdcMeta.fields and SdcMeta.exclude are mutually exclusive. If fields is a list of names, exclude must be None. "
             "To exclude fields, set fields to None or \"__all__\" and exclude to an iterable.")
     return {key: value for key, value in data.items() if key in whitelist}
+
+
+def resolve_form(form_attr):
+    """
+    Returns the form class of an SdcMeta form setting (``edit_form``, ``create_form``
+    or a named form): a dotted import path, a form class, or a callable (not a class)
+    that is called with ``{}`` and returns one of them.
+    """
+    if callable(form_attr) and not isinstance(form_attr, type):
+        form_attr = form_attr({})
+    if form_attr is None:
+        raise NotImplementedError("No form is defined for this SdcMeta setting.")
+    if isinstance(form_attr, str):
+        return import_string(form_attr)
+    return form_attr
 
 
 def get_filterable_fields(model_cls) -> set[str]:
@@ -268,5 +288,13 @@ class SdcModel:
         raise NotImplementedError()
 
     @classmethod
-    def data_load(cls, user: UserType, action: str, obj: dict[str, Any]) -> QuerySet | None:
+    def data_load(cls, user: UserType, queryset: QuerySet, model_query: dict[str, Any]) -> QuerySet | None:
+        """
+        Optional hook to load the rows for a WebSocket request yourself.
+
+        :param user: the user of the connection
+        :param queryset: the result of ``get_queryset()`` for this request
+        :param model_query: the client filter, already checked against ``SdcMeta.fields`` / ``exclude``
+        :return: the rows to use, or ``None`` for the default ``queryset.filter(**model_query)``
+        """
         return None

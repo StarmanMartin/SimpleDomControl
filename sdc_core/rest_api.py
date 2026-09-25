@@ -6,7 +6,6 @@ from django.core.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
 from django.http import Http404, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
-from django.utils.module_loading import import_string
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -15,7 +14,7 @@ from django.contrib.auth import get_user_model
 from sdc_core.consumers import ALL_MODELS
 from sdc_core.jwt_utils import jwt_required, generate_jwt, get_auth_token_from_request, \
     verify_refresh_jwt
-from sdc_core.sdc_extentions.models import SDCSerializer, sanitize_filter_query
+from sdc_core.sdc_extentions.models import SDCSerializer, sanitize_filter_query, resolve_form
 
 User = get_user_model()
 
@@ -153,7 +152,7 @@ class AdcApi(View):
         model_class = self.get_element(model)
         if not model_class.is_authorised(request.user, 'create', {}):
             return HttpResponseForbidden()
-        Form = import_string(model_class.SdcMeta.create_form)
+        Form = resolve_form(model_class.SdcMeta.create_form)
         form = Form(
             instance=None,
             data=request.POST,
@@ -184,7 +183,7 @@ class AdcApi(View):
         except model_class.DoesNotExist:
             return HttpResponseNotFound()
 
-        Form = import_string(model_class.SdcMeta.edit_form)
+        Form = resolve_form(model_class.SdcMeta.edit_form)
         data = QueryDict(request.body.decode())
         form = Form(
             instance=model_obj,
@@ -217,7 +216,7 @@ class AdcApi(View):
         except model_class.DoesNotExist:
             return HttpResponseNotFound()
 
-        Form = import_string(model_class.SdcMeta.edit_form)
+        Form = resolve_form(model_class.SdcMeta.edit_form)
 
         data = QueryDict(request.body.decode(), mutable=True)
 

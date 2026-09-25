@@ -2,7 +2,8 @@
 {% load sdc_filter %}
 
 <div class="searchable-select-wrapper">
-    <sdc-search-select data-name="{{ widget.name }}"
+    <sdc-search-select {% include "django/forms/widgets/attrs.html" %}
+                   data-name="{{ widget.name }}"
                    data-required="{{ widget.required }}"
                    data-multiple="{{ widget.multiple }}"
                    data-value="{{ widget.value }}"

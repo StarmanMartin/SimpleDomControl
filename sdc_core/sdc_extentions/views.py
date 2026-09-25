@@ -1,3 +1,4 @@
+import asyncio
 import json
 
 from channels.db import database_sync_to_async
@@ -154,13 +155,37 @@ class SDCView(View):
         return super(SDCView, self).dispatch(request, *args, **kwargs)
 
 
+def _channel_user(channel):
+    # WebSocket calls pass the consumer (user in scope), HTTP calls the request.
+    scope = getattr(channel, 'scope', None)
+    if isinstance(scope, dict) and 'user' in scope:
+        return scope['user']
+    return getattr(channel, 'user', None)
+
+
 def channel_login(function):
-    @wraps(function)
-    def wrap(channel, **kwargs):
-        profile = channel.scope['user']
-        if profile.is_authenticated:
-            return function(channel, **kwargs)
-        else:
+    """
+    Decorator for server-call methods (and functions) that requires a logged-in
+    user. Works for HTTP calls (the channel is the request) and WebSocket calls
+    (the channel is the consumer), for sync and ``async`` methods. The channel is
+    the last positional argument. Raises ``PermissionDenied`` otherwise.
+    """
+    def check(args):
+        user = _channel_user(args[-1]) if args else None
+        if user is None or not user.is_authenticated:
             raise PermissionDenied
+
+    if asyncio.iscoroutinefunction(function):
+        @wraps(function)
+        async def async_wrap(*args, **kwargs):
+            check(args)
+            return await function(*args, **kwargs)
+
+        return async_wrap
+
+    @wraps(function)
+    def wrap(*args, **kwargs):
+        check(args)
+        return function(*args, **kwargs)
 
     return wrap

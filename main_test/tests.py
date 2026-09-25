@@ -878,3 +878,146 @@ class SecurityDefaultsTest(TestCase):
         self.assertEqual(self.client.get("/sdc_api/SdcUser", **headers).status_code, 401)
         refresh_headers = {"HTTP_AUTHORIZATION": f"Bearer {tokens['refresh_token']}"}
         self.assertEqual(self.client.get("/sdc_api/login", **refresh_headers).status_code, 401)
+
+
+class ServerRuntimeTest(TestCase):
+    """Regression tests for the model consumer, search helpers and decorators."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='runtime-user', password='pw')
+        self.martin = Author.objects.create(name='Martin', age=22)
+        self.nina = Author.objects.create(name='Nina', age=23)
+
+    async def open(self, path="/sdc_ws/model/Author"):
+        communicator = AuthWebsocketCommunicator(application, path, user=self.user)
+        connected, _ = await communicator.connect()
+        self.assertTrue(connected)
+        return communicator
+
+    async def request(self, communicator, event_type, **args):
+        args.setdefault('model_name', 'Author')
+        await communicator.send_json_to({"event": 'model', "event_type": event_type,
+                                         "event_id": event_type, "args": args})
+        return json.loads(await communicator.receive_from())
+
+    async def test_live_updates_survive_form_requests(self):
+        from channels.db import database_sync_to_async
+        communicator = await self.open()
+        await self.request(communicator, 'connect', model_query={'age': 22})
+        await self.request(communicator, 'load', model_query={'age': 22})
+        # A form request sends no filter; it must not change what is forwarded.
+        form = await self.request(communicator, 'edit_form', model_query={}, pk=self.martin.pk)
+        self.assertFalse(form['is_error'])
+
+        def rename():
+            self.martin.name = 'Martin S.'
+            self.martin.save()
+        await database_sync_to_async(rename)()
+        message = json.loads(await communicator.receive_from())
+        self.assertEqual((message['type'], message['pk']), ('on_update', self.martin.pk))
+
+        # on_create follows the filter of the last full load (age 22), not of the form request.
+        await database_sync_to_async(lambda: Author.objects.create(name='Other', age=50))()
+        self.assertTrue(await communicator.receive_nothing(timeout=0.3))
+        created = await database_sync_to_async(lambda: Author.objects.create(name='Twin', age=22))()
+        message = json.loads(await communicator.receive_from())
+        self.assertEqual((message['type'], message['pk']), ('on_create', created.pk))
+        await communicator.disconnect()
+
+    async def test_data_load_gets_queryset_and_clean_query(self):
+        from unittest import mock
+        calls = []
+
+        def data_load(user, queryset, model_query):
+            calls.append((user, set(queryset.values_list('pk', flat=True)), model_query))
+            return queryset.filter(name='Nina')
+
+        with mock.patch.object(Author, 'data_load', side_effect=data_load):
+            communicator = await self.open()
+            await self.request(communicator, 'connect', model_query={})
+            loaded = await self.request(communicator, 'load', model_query={'age__gte': 1})
+            await communicator.disconnect()
+        self.assertEqual([x['pk'] for x in json.loads(loaded['args']['data'])], [self.nina.pk])
+        self.assertEqual(calls[-1][0], self.user)
+        self.assertEqual(calls[-1][2], {'age__gte': 1})
+
+    async def test_model_id_route_restricts_the_connection(self):
+        communicator = await self.open(f"/sdc_ws/model/Author/{self.nina.pk}")
+        await self.request(communicator, 'connect', model_query={})
+        loaded = await self.request(communicator, 'load', model_query={})
+        await communicator.disconnect()
+        self.assertEqual([x['pk'] for x in json.loads(loaded['args']['data'])], [self.nina.pk])
+
+    async def test_form_class_in_sdc_meta_renders(self):
+        from unittest import mock
+        from main_test.forms import AuthorForm
+        with mock.patch.object(Author.SdcMeta, 'edit_form', AuthorForm):
+            communicator = await self.open()
+            await self.request(communicator, 'connect', model_query={})
+            form = await self.request(communicator, 'edit_form', model_query={}, pk=self.martin.pk)
+            await communicator.disconnect()
+        self.assertFalse(form['is_error'])
+        self.assertIn('name="name"', form['html'])
+
+    async def test_on_disconnected_is_called(self):
+        from unittest import mock
+        seen = []
+        with mock.patch.object(Author.SdcMeta, 'on_disconnected', staticmethod(lambda qs: seen.append(list(qs))),
+                               create=True):
+            communicator = await self.open()
+            await self.request(communicator, 'connect', model_query={'age': 23})
+            await communicator.disconnect()
+        self.assertEqual(seen, [[self.nina]])
+
+    def test_case_insensitive_model_lookup(self):
+        from sdc_core.sdc_extentions.models import CaseInsensitiveDict
+        first = CaseInsensitiveDict({'Book': 1})
+        second = CaseInsensitiveDict({'Author': 2})
+        self.assertEqual(first['BOOK'], 1)
+        self.assertIn('book', first)
+        self.assertNotIn('author', first)
+        self.assertEqual(second.get('aUtHoR'), 2)
+
+    def test_search_form_edge_cases(self):
+        from main_test.models import AuthorSearchForm
+        qs = Author.objects.all()
+        # Partial values (no _method) are valid; empty order_by falls back to the default.
+        result = handle_search_form(qs, AuthorSearchForm(data={'search': 'Nin', 'order_by': ''}))
+        self.assertEqual(list(result['instances']), [self.nina])
+        self.assertEqual(len(handle_search_form(qs, AuthorSearchForm(data=None))['instances']), 2)
+
+        class EmptyMeansNothing(AuthorSearchForm):
+            NO_RESULTS_ON_EMPTY_SEARCH = True
+
+        result = handle_search_form(qs, EmptyMeansNothing(data={}), range=2)
+        self.assertEqual(list(result['instances']), [])
+        self.assertEqual(result['total_count'], 0)
+
+    def test_channel_login_on_methods(self):
+        import asyncio
+        from types import SimpleNamespace
+        from django.contrib.auth.models import AnonymousUser
+        from django.core.exceptions import PermissionDenied
+        from sdc_core.sdc_extentions.views import channel_login
+
+        class View:
+            @channel_login
+            def call(self, channel, value=None):
+                return value
+
+            @channel_login
+            async def acall(self, channel, value=None):
+                return value
+
+        request = SimpleNamespace(user=self.user)
+        consumer = SimpleNamespace(scope={'user': self.user})
+        self.assertEqual(View().call(request, value=1), 1)
+        self.assertEqual(asyncio.run(View().acall(consumer, value=2)), 2)
+        with self.assertRaises(PermissionDenied):
+            View().call(SimpleNamespace(user=AnonymousUser()))
+
+    def test_searchable_select_renders_attrs(self):
+        from sdc_tools.widgets import SearchableSelect
+        html = SearchableSelect(attrs={'data-extra': 'x'}).render('author', None)
+        self.assertIn('class="searchable-select"', html)
+        self.assertIn('data-extra="x"', html)

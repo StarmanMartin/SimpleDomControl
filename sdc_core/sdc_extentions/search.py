@@ -21,11 +21,12 @@ def handle_search_form(query_set: QuerySet, search_form: AbstractSearchForm, fil
     else:
         data = search_form.cleaned_data
 
-    key_word = data.get('search', '')
-    does_order = len(search_form.CHOICES) > 0
+    key_word = data.get('search') or ''
     order_by = None
-    if(does_order):
-        order_by = data.get('order_by', search_form.DEFAULT_CHOICES)
+    if len(search_form.CHOICES) > 0:
+        # An empty selection falls back to the default ordering.
+        order_by = data.get('order_by') or search_form.DEFAULT_CHOICES or None
+    does_order = order_by is not None
 
     if filter_dict is not None:
         query_set = query_set.filter(**filter_dict)
@@ -42,8 +43,8 @@ def handle_search_form(query_set: QuerySet, search_form: AbstractSearchForm, fil
     if q_list != Q():
         query_set = query_set.filter(q_list).distinct()
         query_set_count = query_set.count()
-    elif(search_form.NO_RESULTS_ON_EMPTY_SEARCH):
-        query_set = []
+    elif search_form.NO_RESULTS_ON_EMPTY_SEARCH:
+        query_set = query_set.none()
     else:
         query_set_count = query_set.count()
 
@@ -57,7 +58,7 @@ def handle_search_form(query_set: QuerySet, search_form: AbstractSearchForm, fil
     }
 
     if range > 0:
-        from_idx = data.get('range_start', 0)
+        from_idx = data.get('range_start') or 0
         if from_idx >= query_set_count:
             from_idx = max(query_set_count - 2, 0)
 

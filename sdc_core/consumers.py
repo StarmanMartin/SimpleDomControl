@@ -15,10 +15,9 @@ from django.contrib.auth import get_user_model
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 
 from asgiref.sync import async_to_sync
-import importlib
 import json
 
-from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query
+from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query, resolve_form
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
 from sdc_core.sdc_extentions.search import handle_search_form
@@ -68,7 +67,7 @@ class MsgManager:
         return {'save': {'header': f'{model} saved', 'msg': '{0} was successfully saved'},
                 'on_change': {'header': f'{model} was changed', 'msg': '{0} was changed'},
                 'create': {'header': f'{model} created', 'msg': '{0} was successfully created'},
-                'delete': {'header': f'{model} was deleted', 'msg': '{0} was changed'}}
+                'delete': {'header': f'{model} was deleted', 'msg': '{0} was deleted'}}
 
 
 class SDCConsumer(AsyncWebsocketConsumer):
@@ -190,12 +189,21 @@ class SDCModelConsumer(WebsocketConsumer):
         self.model_name = None
         self.model = None
         self.queryset = {}
-        self.model_id_list = []
+        # Filter of the last full load (connect, load, list_view, named_view). Live updates
+        # (on_create) are checked against it, independent of later form or detail requests.
+        self.live_query = {}
+        # Primary keys of the rows the client has received; on_update/on_delete are only
+        # forwarded for these.
+        self.ids = []
+        self.model_id = None
         self._upload_handler = {}
         self._group_names = []
 
     def connect(self):
         self.model_name = self.scope['url_route']['kwargs']['model_name']
+        # sdc_ws/model/<model_name>/<model_id> restricts the connection to one object.
+        model_id = self.scope['url_route']['kwargs'].get('model_id')
+        self.model_id = int(model_id) if model_id else None
         self.model = ALL_MODELS.get(self.model_name)
         if self.model is None or not hasattr(self.model, '__is_sdc_model__'):
             raise ValueError(f'{self.model_name} is not a SDC model')
@@ -204,10 +212,16 @@ class SDCModelConsumer(WebsocketConsumer):
         self.accept()
 
     def websocket_disconnect(self, close_code):
-        for group in self._group_names:
-            async_to_sync(self.channel_layer.group_discard(group, self.channel_name))
-        hasattr(self.model.SdcMeta, 'on_disconnected') and self.model.SdcMeta.on_disconnected(self._load_model('disconnect'))
-        super().websocket_disconnect(close_code)
+        try:
+            for group in self._group_names:
+                async_to_sync(self.channel_layer.group_discard)(group, self.channel_name)
+            on_disconnected = getattr(self.model.SdcMeta, 'on_disconnected', None) if self.model else None
+            if callable(on_disconnected):
+                on_disconnected(self._load_model('disconnect', self.live_query))
+        except Exception:
+            logger.exception("Error while closing the SDC model connection")
+        finally:
+            super().websocket_disconnect(close_code)
 
     def on_update(self, data):
         if data['pk'] in self.ids:
@@ -215,15 +229,23 @@ class SDCModelConsumer(WebsocketConsumer):
 
     def on_delete(self, data):
         if data['pk'] in self.ids:
+            self.ids.remove(data['pk'])
             self.send(text_data=json.dumps(data))
 
     def on_create(self, data):
-        instance = data['pk']
+        # Forward only rows the user may see and that match the filter of the last full load.
         try:
-            self._load_model().get(pk=instance)
+            rows = self._load_model('load', self.live_query)
+            if hasattr(rows, 'filter'):
+                visible = rows.filter(pk=data['pk']).exists()
+            else:
+                visible = data['pk'] in self._pks(rows)
+        except Exception:
+            logger.exception("Error while checking a created %s for live updates", self.model_name)
+            visible = False
+        if visible:
+            self._track_ids([data['pk']])
             self.send(text_data=json.dumps(data))
-        except:
-            pass
 
     def state_error(self, event):
         self.send(text_data=json.dumps({
@@ -270,12 +292,7 @@ class SDCModelConsumer(WebsocketConsumer):
             elif event_type == 'model_delete':
                 self._delete_element(json_data)
             elif event_type == 'model_load':
-                self.send(text_data=json.dumps({
-                    'type': json_data['event_type'],
-                    'event_id': json_data['event_id'],
-                    'args': self._prepare_loaded_data(),
-                    'is_error': False
-                }))
+                self._load(json_data)
             else:
                 raise ValueError(
                     f"{json_data['event']} must be 'model' and {json_data['event_type']} must be in [load, delete, upload, create, save, detail_view, 'connect', 'edit_form', 'create_form', 'list_view']")
@@ -323,21 +340,63 @@ class SDCModelConsumer(WebsocketConsumer):
             self.channel_name
         )
 
-    def _load_model(self, event_type=None):
+    def _load_model(self, event_type=None, query=None):
+        """
+        Returns the rows for ``query`` (default: the filter of the current message):
+        ``get_queryset()`` of the model, filtered with the sanitised query, or the
+        result of the model's ``data_load()`` hook if it returns one.
+        """
         if event_type is None:
             event_type = self.scope['event_type']
-        queryset = self.model.get_queryset(self.scope['user'], event_type, self.queryset)
+        if query is None:
+            query = self.queryset
+        clean_query = sanitize_filter_query(self.model, query)
+        if self.model_id is not None:
+            clean_query['pk'] = self.model_id
+        queryset = self.model.get_queryset(self.scope['user'], event_type, query)
 
-        data_load_result = self.model.data_load(self.scope['user'], queryset, self.queryset)
+        data_load_result = self.model.data_load(self.scope['user'], queryset, clean_query)
         if data_load_result is not None:
             return data_load_result
-        res = queryset.filter(**sanitize_filter_query(self.model, self.queryset))
-        self.ids = list(res.values_list('id', flat=True))
+        return queryset.filter(**clean_query)
 
-        return res
+    @staticmethod
+    def _pks(rows):
+        if hasattr(rows, 'values_list'):
+            return list(rows.values_list('pk', flat=True))
+        return [row.pk for row in rows]
+
+    def _track_ids(self, pks, replace=False):
+        """Remembers which rows the client has received (for on_update/on_delete)."""
+        if replace:
+            self.ids = list(pks)
+        else:
+            self.ids += [pk for pk in pks if pk not in self.ids]
+
+    def _full_load(self):
+        """Loads with the current filter and makes it the filter for live updates."""
+        self.live_query = dict(self.queryset)
+        rows = self._load_model()
+        self._track_ids(self._pks(rows), replace=True)
+        return rows
+
+    def _load(self, json_data):
+        # queryset.update({item}) loads a single row with {"id": <pk>}: that row is added to
+        # the known rows; any other load replaces them and the live filter.
+        if set(self.queryset.keys()) in ({'id'}, {'pk'}):
+            rows = self._load_model()
+            self._track_ids(self._pks(rows))
+        else:
+            rows = self._full_load()
+        self.send(text_data=json.dumps({
+            'type': json_data['event_type'],
+            'event_id': json_data['event_id'],
+            'args': self._prepare_loaded_data(rows),
+            'is_error': False
+        }))
 
     def _init_connection(self, json_data):
-        self._load_model()
+        self._full_load()
         self._add_to_class()
         # self.model_description =  {field.name: field.__class__.__name__ for field in self.model._meta.fields}
         self.send(text_data=json.dumps({
@@ -366,15 +425,7 @@ class SDCModelConsumer(WebsocketConsumer):
         return self._load_form(json_data, getattr(self.model.SdcMeta, form_name), instance)
 
     def _load_form(self, json_data, form_attr, instance=None):
-        if callable(form_attr):
-            form_attr = form_attr({})
-        if form_attr is None:
-            raise NotImplementedError()
-        elif isinstance(form_attr, str):
-            edit_form_path = form_attr.split('.')
-            form = getattr(importlib.import_module('.'.join(edit_form_path[0:-1])), edit_form_path[-1])
-        else:
-            form = form_attr
+        form = resolve_form(form_attr)
 
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
@@ -428,13 +479,7 @@ class SDCModelConsumer(WebsocketConsumer):
     def _submit_element(self, json_data, form_attr, instance=None):
         data = json_data['args']['data']
         files = json_data['args'].get('files')
-        if form_attr is None:
-            raise NotImplementedError()
-        elif isinstance(form_attr, str):
-            edit_form_path = form_attr.split('.')
-            form = getattr(importlib.import_module('.'.join(edit_form_path[0:-1])), edit_form_path[-1])
-        else:
-            form = form_attr
+        form = resolve_form(form_attr)
         uploads = MultiValueDict()
         if files is not None:
             for (key, val) in files.items():
@@ -448,6 +493,7 @@ class SDCModelConsumer(WebsocketConsumer):
         if is_valid:
             form_instance.save()
             new_instance = SDCSerializer().serialize(self._load_model().filter(pk=form_instance.instance.pk))
+            self._track_ids([form_instance.instance.pk])
             msg = self.msg_manager.get_msg(form_instance.instance, json_data['event_type'])
         else:
             msg = {'header': 'Upss!',
@@ -469,7 +515,7 @@ class SDCModelConsumer(WebsocketConsumer):
         if self.model.SdcMeta.html_list_template is None:
             raise NotImplementedError()
         filter = self.queryset.pop('__search_values', {})
-        loaded_data = self._load_model()
+        loaded_data = self._full_load()
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
@@ -479,7 +525,7 @@ class SDCModelConsumer(WebsocketConsumer):
         }))
 
     def _load_named_view(self, json_data):
-        loaded_data = self._load_model()
+        loaded_data = self._full_load()
         view_name = json_data['args']['view_name']
         if not hasattr(self.model.SdcMeta, view_name):
             text = f'"{view_name}" is not implemented in "{loaded_data.__class__.__name__}.SdcMeta".'
@@ -497,6 +543,7 @@ class SDCModelConsumer(WebsocketConsumer):
             raise NotImplementedError()
         instance = self._load_model().get(pk=json_data['args']['pk'])
         instance.scope = self.scope
+        self._track_ids([instance.pk])
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],

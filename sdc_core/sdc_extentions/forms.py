@@ -32,12 +32,14 @@ class AbstractSearchForm(forms.Form):
     search = forms.CharField(label=_('Search'), required=False, max_length=100, initial='')
     order_by = forms.ChoiceField(widget=forms.Select, required=False, choices=CHOICES)
     range_start = forms.IntegerField(widget=forms.HiddenInput(), required=False, initial=0)
-    _method = forms.CharField(widget=forms.HiddenInput(), required=True, initial='search')
+    # Marks the form as search request for SDCView (``_method=search``). Not required, so
+    # partial search values (e.g. only ``search``) are still valid.
+    _method = forms.CharField(widget=forms.HiddenInput(), required=False, initial='search')
 
 
     def __init__(self, data=None, *args, **kwargs):
         auto_id= self.__class__.__name__ + "_%s"
-        if len(data) == 0:
+        if not data:
             data = None
         super(AbstractSearchForm, self).__init__(data, auto_id=auto_id, *args, **kwargs)
         self.fields['search'].widget.attrs['placeholder'] = self.PLACEHOLDER

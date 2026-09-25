@@ -40,6 +40,23 @@ The server and the client are released with the same version number.
   navigation parameters arrive in `this.params`, readable from `onLoad()` on.
 
 ### Fixed
+- Model WebSocket connections track which rows the client has received and the filter of the last full
+  load separately, so form and detail requests no longer change which live updates (`on_update`,
+  `on_create`, `on_delete`) are forwarded.
+- `SdcModel.data_load(user, queryset, model_query)`: the declared signature now matches the call, the hook
+  gets the sanitised filter, and the loaded ids for live updates are taken from its result.
+- `SdcMeta` form settings may be a form class (rendering failed before), an import path or a callable,
+  in the WebSocket consumer and in the REST API.
+- `sdc_ws/model/<Model>/<id>` restricts the connection to that object (the id was ignored).
+- WebSocket disconnect removes the connection from its channel groups (the call never ran) and calls
+  `SdcMeta.on_disconnected` only if it is callable; errors there no longer block closing.
+- Model names are matched in any letter case (`CaseInsensitiveDict` shared its key map between instances).
+- Search forms: `_method` is optional (partial search values work), an empty `order_by` falls back to
+  `DEFAULT_CHOICES`, `AbstractSearchForm(data=None)` works, `NO_RESULTS_ON_EMPTY_SEARCH` returns an empty
+  queryset instead of a list.
+- `channel_login` works on methods, over HTTP and WebSocket, and for `async` methods.
+- `SearchableSelect` renders its `attrs`.
+- The default delete message text is "… was deleted"; `except A or B` clauses catch both exceptions.
 - Deleting an SDC model instance sends the new live event `on_delete` (before, deletes were sent as
   `on_update` and the row stayed in client querysets). Requires client 0.159.0.
 - Generated JS model classes accept a missing `data` argument in their constructor

@@ -42,8 +42,9 @@ URLs
 ``sdc_api/<model>/<id>/``
    Instance URL of a model (``AdcApi``). Read, update and partial update.
 
-``<model>`` is the class name of an SDC model. The lookup is case-insensitive,
-so ``/sdc_api/book/`` and ``/sdc_api/Book/`` both address ``Book``. Only
+``<model>`` is the class name of an SDC model in any letter case, so
+``/sdc_api/book/``, ``/sdc_api/Book/`` and ``/sdc_api/BOOK/`` all address
+``Book``. Only
 models that extend ``SdcModel`` are reachable; any other name returns ``404``.
 
 .. note::

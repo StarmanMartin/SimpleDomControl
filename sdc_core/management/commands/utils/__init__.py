@@ -26,7 +26,7 @@ def multi_cli_select(prompt, options):
             selected_indexes = [int(x.strip()) - 1 for x in user_input.split(",")]
             selected = [options[i] for i in selected_indexes if 0 <= i < len(options)]
 
-        except  ValueError or IndexError:
+        except (ValueError, IndexError):
             raise CommandError("Input has to be a list of numbers between 1 and %d" % (len(options) - 1), 4)
         print(f"You selected: {', '.join(selected)}")
     return selected
@@ -51,7 +51,7 @@ def cli_select(prompt, options):
         try:
             idx = int(input("Enter number: [%d]" % (len(options) - 1)) or (len(options) - 1))
             choice = options[idx - 1]
-        except ValueError or IndexError:
+        except (ValueError, IndexError):
             raise CommandError("Input has to be a number between 1 and %d" % (len(options) - 1), 4)
         print(f"You selected: {choice}")
     return choice

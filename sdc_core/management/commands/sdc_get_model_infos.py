@@ -23,7 +23,7 @@ class Command(BaseCommand):
         if class_path is None: return None
         try:
             model = import_function(class_path)
-        except ImportError or NameError as e:
+        except (ImportError, NameError) as e:
             return None
         file_path = inspect.getfile(model)
         return {

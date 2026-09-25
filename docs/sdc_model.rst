@@ -104,8 +104,10 @@ submission.
 ``on_disconnected(qs)``
    Optional hook called when a model WebSocket closes. ``qs`` is the result of
    loading the model with the action ``disconnect`` (``get_queryset()`` plus the
-   connection's last filter). It is called as ``SdcMeta.on_disconnected(qs)``,
-   so define it as a ``staticmethod`` or ``classmethod``.
+   filter of the connection's last full load). It is called as
+   ``SdcMeta.on_disconnected(qs)``, so define it as a ``staticmethod`` or
+   ``classmethod``. Errors in the hook are logged and do not prevent closing
+   the connection.
 
 Any other attribute
    Extra attributes act as *named forms* or *named views*, looked up by name:
@@ -117,16 +119,9 @@ Any other attribute
      The attribute holds a template name.
 
 Form values (``edit_form``, ``create_form``, named forms) can be a dotted
-import string (``"app.forms.BookForm"``) or the form class itself.
-
-.. note::
-
-   When a form is **rendered** (``edit_form``, ``create_form``,
-   ``named_form`` requests), a callable value is first called with ``{}`` and
-   its result is used. A form class is callable, so a class given directly is
-   instantiated there and rendering then fails. For rendering, use the import
-   string (or a callable that returns the import string or class). ``save`` and
-   ``create`` accept both forms directly.
+import string (``"app.forms.BookForm"``), the form class itself, or a function
+that is called with ``{}`` and returns one of these. The same rules apply to
+rendering, saving and the REST API.
 
 ``fields`` and ``exclude`` are used in three places: the filter keys a client
 may use (see :ref:`sdc-model-filter-sanitising`), the fields that
@@ -257,7 +252,7 @@ Class attributes:
 
 Form fields: ``search`` (text, max. 100 characters), ``order_by`` (select),
 ``range_start`` (hidden integer, default ``0``) and ``_method`` (hidden,
-required, initial ``"search"``). The HTML ids are prefixed with the form class
+optional, initial ``"search"``). The HTML ids are prefixed with the form class
 name. An empty data dict gives an unbound form.
 
 ``handle_search_form(query_set, search_form, filter_dict=None, range=0)``
@@ -266,7 +261,10 @@ name. An empty data dict gives an unbound form.
    - the search text is split on spaces; every word must match at least one of
      ``SEARCH_FIELDS`` (``icontains``, results made ``distinct()``)
    - ``filter_dict``, if given, is applied with ``filter(**filter_dict)`` first
-   - the result is ordered by ``order_by`` when ``CHOICES`` is not empty
+   - the result is ordered by ``order_by`` when ``CHOICES`` is not empty; an
+     empty ``order_by`` falls back to ``DEFAULT_CHOICES``
+   - with ``NO_RESULTS_ON_EMPTY_SEARCH`` and no search text the result is an
+     empty queryset
 
    Returned keys:
 
@@ -283,14 +281,11 @@ name. An empty data dict gives an unbound form.
    ``range_size``
       Only if ``range > 0``: the ``range`` argument.
 
-.. note::
-
-   If the submitted data is invalid, the search is ignored and all rows are
-   returned ordered by ``DEFAULT_CHOICES``. ``_method`` is required, so send the
-   values of the complete rendered search form (including the hidden fields) as
-   ``searchValues``. A valid form with an empty ``order_by`` passes ``""`` to
-   ``order_by()``, which Django rejects. ``AbstractSearchForm(data=None)`` raises
-   because ``len(None)`` is evaluated; pass ``{}`` for an empty form.
+If the submitted data is invalid (e.g. an ``order_by`` value that is not in
+``CHOICES``), the search is ignored and all rows are returned ordered by
+``DEFAULT_CHOICES``. Partial ``searchValues`` such as ``{search: "Dune"}`` are
+valid. ``AbstractSearchForm(data=None)`` and ``AbstractSearchForm(data={})`` give
+an unbound form.
 
 Serialization
 -------------
@@ -354,24 +349,25 @@ How rows are loaded
 Every server action that needs rows (load, views, forms, save, delete, live
 updates) loads them the same way:
 
-1. ``qs = get_queryset(user, action, model_query)``
-2. ``result = data_load(user, qs, model_query)``; if the result is not ``None``
-   it is used as is and the remaining steps are skipped
-3. ``qs.filter(**sanitize_filter_query(model, model_query))``
+1. ``clean_query = sanitize_filter_query(model, model_query)``
+2. ``qs = get_queryset(user, action, model_query)``
+3. ``result = data_load(user, qs, clean_query)``; if the result is ``None``,
+   ``qs.filter(**clean_query)`` is used
+
+If the connection was opened with an id (``sdc_ws/model/<Model>/<id>``),
+``clean_query`` also contains ``pk=<id>``.
 
 Single-instance actions (edit/named form, save, detail view, delete) then call
 ``.get(pk=...)`` on that result, so a row outside ``get_queryset()`` or outside
 the filter cannot be edited, viewed or deleted.
 
-``data_load(cls, user, action, obj)``
-   Optional classmethod hook, default returns ``None``. Although the declared
-   parameters are ``(user, action, obj)``, the consumer calls it as
-   ``data_load(user, queryset, model_query)``: the second argument is the
-   queryset returned by ``get_queryset()``, not the action. If it returns
-   something other than ``None``, that value replaces the loaded rows: the
-   client filter is neither sanitised nor applied, and the list of loaded ids
-   used for live updates is not updated. Return a ``QuerySet``, since
-   single-instance actions call ``.get(pk=...)`` on it.
+``data_load(cls, user, queryset, model_query)``
+   Optional classmethod hook to load the rows yourself; the default returns
+   ``None``. ``queryset`` is the result of ``get_queryset()``, ``model_query``
+   the client filter, already checked against ``SdcMeta.fields`` / ``exclude``.
+   A non-``None`` return value is used as the rows; the loaded ids for live
+   updates are taken from it. Return a ``QuerySet``, since single-instance
+   actions call ``.get(pk=...)`` on it.
 
 .. _sdc-model-filter-sanitising:
 
@@ -1054,22 +1050,20 @@ SDC model serializes the instance and broadcasts it to that group:
 
 Each connection then decides whether to forward the event:
 
-``on_update``
-   Sent only if the pk is among the ids the connection loaded last (the result
-   of the most recent server-side load for that socket).
-
-``on_delete``
-   Sent only if the pk is among the ids the connection loaded last.
+``on_update`` and ``on_delete``
+   Sent only if the pk is one of the rows the client has received on that
+   connection.
 
 ``on_create``
-   Sent only if the new row is found by
-   ``get_queryset(user, <last action>, <last filter>)`` plus the sanitised
-   filter, i.e. it is visible to that user and matches that connection's
-   filter. This check also refreshes the connection's list of loaded ids.
+   Sent only if the new row is visible to the user and matches the filter of the
+   connection's last full load (``get_queryset(user, "load", filter)`` plus the
+   sanitised filter). The row then counts as received.
 
-"Last" means the ``model_query`` and action of the most recent message on that
-socket. ``update({item})`` and ``detailView()`` send a narrower filter, and
-form requests send none (``{}``), which changes what is forwarded afterwards.
+The server tracks the received rows per connection: a full load (``connect``,
+``load()``, ``listView()``, ``view()``) replaces them and sets the filter for
+``on_create``; loading a single row (``update({item})``), ``detailView()``,
+``save()`` and ``create()`` add rows; a delete removes the row. Form requests
+change nothing.
 
 On the client the pushed rows are merged into the queryset (existing items are
 updated, new ones are added) and the handler is called with the array of
@@ -1098,9 +1092,10 @@ WebSocket protocol
 Routes (``SdcTest/routing.py``):
 
 - ``ws(s)://<host>/sdc_ws/model/<ModelName>`` — the model consumer; the model
-  name may also be given in lowercase
-- ``ws(s)://<host>/sdc_ws/model/<ModelName>/<id>`` — same consumer; the id is
-  ignored by the server and the client never uses it
+  name is matched in any letter case
+- ``ws(s)://<host>/sdc_ws/model/<ModelName>/<id>`` — same consumer, restricted
+  to the object with that primary key (every load is filtered with ``pk=<id>``).
+  The client queryset does not use this route.
 - ``ws(s)://<host>/sdc_ws/ws/`` — the ``sdc_call`` consumer for server calls,
   not model related
 

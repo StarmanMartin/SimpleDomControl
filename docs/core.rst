@@ -659,15 +659,18 @@ For websocket server calls only ``async_check_requirements(user)`` is used; a
 denied call returns a *403 Not allowed!* error to the client.
 
 ``channel_login``
-    A decorator for functions with the signature ``function(channel,
-    **kwargs)``. It raises ``PermissionDenied`` unless
-    ``channel.scope['user']`` is authenticated.
+    A decorator for server-call methods (and functions) that raises
+    ``PermissionDenied`` unless the user is logged in. The channel is the last
+    positional argument: the request over HTTP (``request.user``) or the
+    consumer over WebSocket (``consumer.scope['user']``). Works for sync and
+    ``async`` methods:
 
-    .. note::
+    .. code-block:: python
 
-        The wrapper accepts only one positional argument. On a normal
-        instance method (``self`` plus the consumer) the call fails with a
-        ``TypeError``, and on the HTTP path the request has no ``scope``.
+        class Catalog(SDCView):
+            @channel_login
+            def borrow(self, channel, pk=None, **kwargs):
+                ...
 
 Responses
 *********
@@ -782,6 +785,8 @@ Widgets
       option.
     - ``multiple=True`` allows several values. The submitted value can be a
       list, a JSON list or a string like ``[a,b]``.
+    - ``attrs`` are rendered on the ``<sdc-search-select>`` element (together
+      with the default ``class="searchable-select"``).
 
     Each option in a template must be an element with the class
     ``option-container``, ``data-value`` (the value) and ``data-search``
@@ -837,7 +842,7 @@ file is added the same way.
         "save": {"header": "BookCover saved", "msg": "{0} was successfully saved"},
         "on_change": {"header": "BookCover was changed", "msg": "{0} was changed"},
         "create": {"header": "BookCover created", "msg": "{0} was successfully created"},
-        "delete": {"header": "BookCover was deleted", "msg": "{0} was changed"}}}
+        "delete": {"header": "BookCover was deleted", "msg": "{0} was deleted"}}}
 
 *templates/sdc_strings.json*
 
