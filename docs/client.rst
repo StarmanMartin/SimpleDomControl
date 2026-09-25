@@ -240,14 +240,9 @@ Registration and bootstrap
    The instance is a singleton stored as ``window[camelCaseTagName]``, for
    example ``window.sdcAlertMessenger`` for ``<sdc-alert-messenger>``. If the tag
    also appears in the page, the same instance is reused and its
-   ``$container`` is set to the new element. ``registerGlobal`` returns nothing,
-   so global controllers cannot get mixins through ``addMixin``.
-
-   .. note::
-
-      Each further ``app.init_sdc()`` call creates new detached elements for
-      the global tags. The singleton moves its ``$container`` to the new
-      element and runs its lifecycle again, except ``onLoad()``.
+   ``$container`` is set to the new element. Like ``register()``, it returns
+   ``{addMixin}``. Each global controller is created once, even if
+   ``app.init_sdc()`` is called again.
 
 ``app.controllerToTag(Controller)``
    Returns the tag name for a class: upper-case letters become ``-`` plus the
@@ -332,12 +327,10 @@ HTTP helpers
 ``app.submitForm(form, url, method)``
    Same request as above, without refresh and without redirect handling.
 
-.. note::
-
-   ``app.get()`` and ``app.post()`` react only to a successful response whose
-   body has ``status: "redirect"``. A ``send_redirect()`` response has HTTP
-   status 301, so it rejects the promise and no navigation happens. Use
-   ``submitForm()`` if the server answers with ``send_redirect()``.
+``app.get()``, ``app.post()`` and ``app.submitFormAndUpdateView()`` follow a
+redirect in the response: a successful response with ``status: "redirect"`` or a
+``send_redirect()`` response (HTTP 301). The promise resolves with the redirect
+data.
 
 Values read from ``window``
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -426,14 +419,9 @@ with jQuery:
 The ``sdc_tools`` controllers use this style: JSX for the markup and
 ``sdc_click`` attributes for events.
 
-.. note::
-
-   Placeholder output is reconciled into the DOM. When a rendered node matches
-   an existing node, the existing node is kept and only its attributes and
-   jQuery data are updated. Listeners from ``on*`` props are attached to the
-   newly created node only, so a kept node keeps the listener from the render
-   in which it was first inserted. ``sdc_<event>`` attributes do not have this
-   problem, because they are read when the event happens.
+Placeholder output is reconciled into the DOM. When a rendered node matches an
+existing node, the existing node is kept and its attributes, jQuery data and
+``on*`` listeners are replaced by those of the new render.
 
 .. _sdc-client-event-bus:
 

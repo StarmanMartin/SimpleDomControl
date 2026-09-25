@@ -566,12 +566,10 @@ Other queryset methods
    kept; missing ids become new, unloaded instances that contain only the id.
    Call ``load()`` to fetch their data. Returns the new item list.
 
-   .. note::
-
-      For an ``SdcModel`` or ``SdcQuerySet`` argument the items are copied with
-      ``structuredClone``. This throws a ``DataCloneError`` for instances that
-      belong to a queryset or have relation fields (they hold a ``WeakRef`` or
-      queryset proxies). Pass ids instead.
+   For an ``SdcModel`` or ``SdcQuerySet`` argument, items with an id that is
+   already in this queryset are kept (existing references stay valid); the
+   other models are copied into this queryset (a new instance with the same
+   field values).
 
 ``save({ pk = null, id = null, formName = "edit_form", data = null } = {})``
    Save existing items. With ``pk`` (or its alias ``id``) only that item is
@@ -594,7 +592,8 @@ Other queryset methods
 
 ``delete({ pk = null, id = null, elem = null })``
    Delete an item by id (``pk`` or ``id``) or model object. Throws synchronously
-   if none is given. The item is not removed from the local queryset.
+   if none is given. When the server confirms, the item is removed from the
+   local queryset.
 
 Server-rendered views
 ---------------------
@@ -628,11 +627,8 @@ continue to work. Insert the div right away:
 ``cbResolve(res)`` is called after the HTML was inserted, ``cbReject(err)`` on
 error. There is no returned promise.
 
-.. note::
-
-   The response of ``listView()`` also contains the loaded rows, but the client
-   only turns ``load``, ``named_view`` and ``detail_view`` responses into model
-   objects. ``listView()`` does not add items to the queryset.
+The responses of ``listView()``, ``view()`` and ``detailView()`` also contain
+the rendered rows; they are merged into the queryset like a ``load()``.
 
 Uploads and connection lifecycle
 --------------------------------
@@ -656,20 +652,13 @@ Each queryset also manages its own connection state:
 ``noOpenRequests()``
    Resolves when all outstanding requests are complete.
 
-``onUpdate`` / ``onCreate`` (setter aliases ``on_update`` / ``on_create``)
+``onUpdate`` / ``onCreate`` / ``onDelete`` (setter aliases ``on_update`` / ``on_create`` / ``on_delete``)
    React to pushed model events; see :ref:`sdc-model-live-updates`.
 
 If the socket closes unexpectedly, all open requests are rejected with the
-``CloseEvent`` and the queryset reopens the socket after one second (unless
-``close()`` was called).
-
-.. note::
-
-   The automatic reconnect only reopens the socket; it does not repeat the
-   ``connect`` handshake. The queryset stays marked as not connected, so the
-   next request calls ``isConnected()``, which opens another socket and
-   performs the handshake there. Until then the queryset receives no live
-   updates.
+``CloseEvent`` and after one second the queryset reconnects with
+``isConnected()``, including the ``connect`` handshake, so live updates
+continue (unless ``close()`` was called).
 
 ``SdcModel`` instances
 ----------------------
@@ -731,8 +720,8 @@ do not work on it.
 
 ``validate(value, config)``
    Throws an ``Error`` if ``value`` is not valid for the field config
-   (required, ``max_length``, type checks). Generated setters call it, so
-   ``book.title = 42`` throws ``"Must be a string"``.
+   (required, ``max_length``, type checks, file size and type). Generated
+   setters call it, so ``book.title = 42`` throws ``"Must be a string"``.
 
 ``parseValue(value, config)``
    Converts a raw value to the field's JavaScript type; see
@@ -791,14 +780,14 @@ Live synchronization
    Registers a jQuery form on the model and listens to ``input`` and ``change``
    events of its ``input``, ``select`` and ``textarea`` elements. When a field
    whose ``name`` is a model field changes, the model's
-   ``set<name>(getValueFromField(el))`` method is called. Called automatically
-   by ``form()`` and ``namedForm()``; calling it twice for the same form adds
-   the listeners twice.
+   ``set<name>(getValueFromField(el))`` method is called and the new value is
+   written into the same field of the model's other registered forms (not
+   into the input being edited). Invalid input is ignored and left for the
+   server validation on submit. Called automatically by ``form()`` and
+   ``namedForm()``; calling it twice for the same form adds the listeners twice.
 
 Assigning a model property (``book.title = "Dune"``) writes the value into the
-fields with that name in all registered forms. Form edits update the model but
-are not written back to other forms, because they call the ``set<name>()``
-method rather than the property setter.
+fields with that name in all registered forms.
 
 Every assignment is validated. An invalid value makes the setter throw; from a
 form event the error is thrown inside the event handler and the model keeps the
@@ -824,12 +813,10 @@ Both methods only use ``$forms`` if it has the model's ``formId`` class (i.e.
 it was rendered by ``form()``/``namedForm()`` for this instance); otherwise they
 use all forms rendered for this instance.
 
-.. note::
-
-   Because of the ``model_pk`` check, ``syncModelToForm()`` does nothing for
-   create forms of new models (``id`` is ``null``, ``model_pk`` is ``-1``).
-   ``syncForm()`` uses the validating setters, so it throws on the first
-   invalid value, e.g. an empty required field.
+``syncModelToForm()`` also fills the create form of a new model (``id`` is
+``null``, the form's ``model_pk`` is ``-1``). ``syncForm()`` never throws: an
+invalid value (e.g. an empty required field) is not assigned to the model but
+is still returned, so the server can report the error.
 
 Practical consequences:
 
@@ -854,8 +841,9 @@ the controller calls the first of these that exists:
 The default flow prevents the native submit, runs
 ``model.syncForm($form)``, then calls ``model.save({formName, data})`` for
 existing models or ``model.create({data})`` for new ones. On success it clears
-the form errors and calls ``submit_model_form_success(res[0])`` on the
-controller and on all its child controllers, if defined. On failure it
+the form errors and calls ``submit_model_form_success(response)`` on the
+controller and on all its child controllers, if defined. ``response`` is the
+server response of the save or create request. On failure it
 reconciles the error HTML into the first ``.container-fluid`` element inside the
 form and calls ``submit_model_form_error(err)`` (with the ``SdcModelError``) on
 the controller and its children.
@@ -871,13 +859,6 @@ the controller and its children.
        console.warn(err.header, err.msg);
      }
    }
-
-.. note::
-
-   ``save()`` resolves with an array of responses, so ``res[0]`` is the
-   response. ``create()`` resolves with a single response object, so in the
-   create flow ``res[0]`` is ``undefined`` and
-   ``submit_model_form_success`` receives ``undefined``.
 
 Validation errors
 ~~~~~~~~~~~~~~~~~
@@ -902,13 +883,12 @@ field holds a JavaScript type:
 
    * - Django field
      - Value on the model
-   * - ``CharField``, ``EmailField``, ``UUIDField``
+   * - ``CharField``, ``TextField``, ``SlugField``, ``EmailField``, ``UUIDField``
      - string (``EmailField`` and ``UUIDField`` are format-checked)
-   * - ``TextField``
-     - validated as a string, stored unchanged (the conversion switch lists
-       ``TeextField``)
-   * - ``IntegerField``, ``AutoField``, ``BigIntegerField``
-     - ``parseInt(value, 10)``
+   * - ``IntegerField``, ``SmallIntegerField``, ``BigIntegerField``, the
+       ``Positive*IntegerField`` types, ``AutoField``, ``SmallAutoField``,
+       ``BigAutoField``
+     - ``parseInt(value, 10)``, validated as integer
    * - ``FloatField``, ``DecimalField``
      - ``parseFloat(value)`` (Django sends decimals as strings)
    * - ``BooleanField``
@@ -918,14 +898,14 @@ field holds a JavaScript type:
    * - ``URLField``
      - ``URL`` object
    * - ``JSONField``
-     - object; a string would be parsed, but ``validate()`` rejects strings
-       first, so assign objects
+     - any JSON value; strings are parsed with ``JSON.parse`` (invalid JSON is
+       rejected)
    * - ``FileField``
      - ``FileLoaded`` for stored files, ``File`` for new uploads, ``null``
    * - relations
      - see :ref:`sdc-model-generated-classes`; string values are
        ``JSON.parse``\ d (``"5"``, ``"[1,2]"``)
-   * - other types (e.g. ``BigAutoField``)
+   * - other types
      - unchanged, not validated
 
 Dates (0.159.0)
@@ -966,13 +946,9 @@ Selecting a file in a file input sets a ``File`` on the model, which is
 uploaded on the next save or create. A string value (e.g. from a hidden input)
 becomes ``null``.
 
-.. note::
-
-   The generated schema has ``max_size`` (``5 * 1024 * 1024 * 1024`` bytes,
-   i.e. 5 GiB, although the generator comment says 5 MB) and
-   ``allowed_types = null``. If a ``File`` violates them, ``parseValue()``
-   returns an error message string, which is then stored as the field value
-   instead of throwing.
+The generated schema has ``max_size`` (``5 * 1024 * 1024 * 1024`` bytes, i.e.
+5 GiB) and ``allowed_types = null``. A ``File`` that is larger or has another
+MIME type is rejected by ``validate()`` (the setter throws).
 
 .. _sdc-model-generated-classes:
 
@@ -1057,18 +1033,11 @@ Serialization follows two rules:
 The relation querysets are not registered on a controller; they are closed when
 the owning queryset is closed.
 
-.. note::
+Relation fields accept ids, models and querysets (see ``setIds()``).
 
-   Assign ids to relation fields. Assigning an ``SdcModel`` or ``SdcQuerySet``
-   goes through ``setIds()`` and hits the ``structuredClone`` limitation
-   described there.
-
-.. note::
-
-   ``SdcModel.querySet(modelQuery, parent)`` (static) reads ``this.modeName``,
-   which is not defined, so it creates a queryset without a model name. Use
-   ``new SdcQuerySet("Book", ...)`` or ``this.querySet("Book", ...)`` in a
-   controller.
+``SdcModel.querySet(modelQuery, parent)`` (static) creates a queryset for the
+model class, e.g. ``Book.querySet({author: 1})``; with a controller as
+``parent`` it is registered on that controller like ``this.querySet()``.
 
 .. _sdc-model-live-updates:
 
@@ -1081,13 +1050,16 @@ SDC model serializes the instance and broadcasts it to that group:
 
 - ``post_save`` with ``created=True`` → ``on_create``
 - every other ``post_save`` → ``on_update``
-- ``post_delete`` → ``on_update`` (there is no delete event)
+- ``post_delete`` → ``on_delete``
 
 Each connection then decides whether to forward the event:
 
 ``on_update``
    Sent only if the pk is among the ids the connection loaded last (the result
    of the most recent server-side load for that socket).
+
+``on_delete``
+   Sent only if the pk is among the ids the connection loaded last.
 
 ``on_create``
    Sent only if the new row is found by
@@ -1101,7 +1073,10 @@ form requests send none (``{}``), which changes what is forwarded afterwards.
 
 On the client the pushed rows are merged into the queryset (existing items are
 updated, new ones are added) and the handler is called with the array of
-affected models:
+affected models. Deleted rows are removed from the queryset and passed to
+``onDelete`` (setter alias ``on_delete``); if no ``onDelete`` handler is set,
+``onUpdate`` is called instead, so views that refresh on updates also refresh
+on deletes:
 
 .. code-block:: javascript
 
@@ -1113,9 +1088,9 @@ affected models:
 
 .. note::
 
-   Deleting a row sends an ``on_update`` with its last data, so a deleted row
-   stays in client querysets. ``QuerySet.update()``, ``bulk_create()`` and raw
-   SQL do not send signals and therefore produce no live events.
+   ``QuerySet.update()``, ``bulk_create()``, ``bulk_update()`` and raw SQL do
+   not send ``post_save`` / ``post_delete`` and therefore produce no live
+   events.
 
 WebSocket protocol
 ------------------

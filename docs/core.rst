@@ -802,19 +802,19 @@ Widgets
 Live model updates (signals)
 ****************************
 
-*sdc_core/signals.py* connects one receiver to ``post_save`` and
+*sdc_core/signals.py* connects receivers to ``post_save`` and
 ``post_delete`` of all models. For SDC models (models with
 ``__is_sdc_model__``) it serialises the instance and sends it with
 ``group_send`` to the channel group named after the model class:
 
 - ``post_save`` with ``created=True``: event ``on_create``.
 - ``post_save`` of an existing object: event ``on_update``.
-- ``post_delete``: also event ``on_update``. There is no separate delete
-  event; the deleted object is sent as an update.
+- ``post_delete``: event ``on_delete``.
 
 Every client that has connected to the model through ``sdc_ws/model/<Model>``
-is in that group. The ``SDCModelConsumer`` forwards ``on_update`` only if the
-primary key is in the objects it loaded last, and ``on_create`` only if the
+is in that group. The ``SDCModelConsumer`` forwards ``on_update`` and
+``on_delete`` only if the primary key is in the objects it loaded last, and
+``on_create`` only if the
 new object is in its queryset (``get_queryset`` plus the client filter).
 
 Only ``Model.save()`` and ``Model.delete()`` (including cascades) send these

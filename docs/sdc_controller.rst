@@ -330,7 +330,9 @@ Server call details:
 - ``serverCall`` reads the Django app name from ``contentUrl``, which must
   contain ``sdc_view/<app>``. Otherwise it logs an error and returns
   ``undefined`` instead of a promise.
-- ``args`` must be a plain object; its keys become keyword arguments.
+- ``args`` should be a plain object; its keys become keyword arguments.
+  Without ``args`` the method gets no extra arguments; any other value is
+  passed as the keyword argument ``arg0``.
 - Over HTTP the call is a POST to the controller's content URL, with
   ``%(...)s`` placeholders already filled in. The promise resolves with the
   return value of the Python method. If the method returns an ``HttpResponse``,
@@ -344,12 +346,8 @@ Server call details:
 - Messages: if the HTTP return value is an object with ``msg`` or ``header``,
   the client triggers ``pushMsg(header, msg)``. Error responses with ``msg`` or
   ``header`` (HTTP error JSON, WebSocket errors) trigger
-  ``pushErrorMsg(header, msg)``. ``sdc-alert-messenger`` displays both.
-
-.. note::
-
-   Over WebSocket, ``msg`` and ``header`` keys in the return value do not
-   trigger ``pushMsg``; only the HTTP transport does this.
+  ``pushErrorMsg(header, msg)``. ``sdc-alert-messenger`` displays both. This
+  works the same over HTTP and over WebSocket.
 
 Forms and models
 ----------------
@@ -399,9 +397,10 @@ Define ``submitModelForm()`` to customize the submit and call
    otherwise ``model.create({data})``. Returns a promise:
 
    - On success it clears the form errors, calls
-     ``submit_model_form_success(res[0])`` on the controller and on every
+     ``submit_model_form_success(response)`` on the controller and on every
      descendant controller (``iterateAllChildren()``) that defines it, and
-     resolves with ``res``.
+     resolves with the result of ``save()`` / ``create()``. ``response`` is the
+     server response (the first one for ``save()``).
    - On failure it reconciles the returned form HTML (``data.html``) into the
      form's first ``.container-fluid``, calls ``submit_model_form_error(data)``
      on the controller and its descendants, and rejects with ``data``.
@@ -522,14 +521,9 @@ Methods
    ``false``. Normally called through ``safeRemove()``, ``safeEmpty()`` or
    ``safeReplace()``.
 
-.. note::
-
-   Reconciliation resets ``childController`` without filling it again. This
-   happens on ``reload()``, ``reconcile()`` and whenever a ``<this.*>``
-   placeholder is rendered, including the first render. In such controllers
-   ``childController`` and ``iterateAllChildren()`` are empty, so
-   ``submit_model_form_success`` and ``submit_model_form_error`` do not reach
-   the child controllers. ``app.getController()`` and ``find()`` still work.
+After ``reload()``, ``reconcile()`` and the rendering of ``<this.*>``
+placeholders, ``childController`` is rebuilt from the DOM: it contains the
+controllers whose closest enclosing controller element is this controller.
 
 Built-in controllers in ``sdc_tools``
 -------------------------------------

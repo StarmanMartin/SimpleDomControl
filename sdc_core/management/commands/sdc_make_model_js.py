@@ -27,7 +27,8 @@ def generate_field_config(field):
     if field["type"] == "FileField":
         config.update({
             # optional — you can hardcode or extract from validators
-            "max_size": 5 * 1024 * 1024 * 1024,  # 5 MB
+            # Client-side upload limit in bytes (5 GiB). The server limits still apply.
+            "max_size": 5 * 1024 * 1024 * 1024,
             "allowed_types": None,        # or list of mime types
         })
 

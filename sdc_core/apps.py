@@ -8,7 +8,7 @@ class SdcCoreConfig(AppConfig):
     def ready(self):
         import sys
         from django.conf import settings
-        from sdc_core.signals import set_winner
+        import sdc_core.signals  # noqa: F401 (registers the signal receivers)
 
         if settings.DEBUG and os.path.exists('./Assets'):
             env_vars = {}

@@ -286,6 +286,32 @@ class ServerModelTest(TestCase, WithMockedElementTest):
         message = await communicator.receive_from()
         self.assertFalse(json.loads(message)["is_error"])
 
+    async def test_delete_is_pushed_as_on_delete(self):
+        from channels.db import database_sync_to_async
+
+        communicator = AuthWebsocketCommunicator(application, "/sdc_ws/model/Author", user=self.user)
+        connected, subprotocol = await communicator.connect()
+        self.assertTrue(connected)
+        for event_type in ('connect', 'load'):
+            await communicator.send_json_to({
+                "event": 'model',
+                "event_type": event_type,
+                "event_id": event_type,
+                "args": {
+                    "model_name": "Author",
+                    "model_query": {}
+                }
+            })
+            loaded = json.loads(await communicator.receive_from())
+        pk = json.loads(loaded['args']['data'])[0]['pk']
+
+        await database_sync_to_async(lambda: Author.objects.get(pk=pk).delete())()
+        message = json.loads(await communicator.receive_from())
+        self.assertEqual(message['type'], 'on_delete')
+        self.assertEqual(message['pk'], pk)
+        self.assertEqual(json.loads(message['args']['data'])[0]['pk'], pk)
+        await communicator.disconnect()
+
     async def test_connect_fails(self):
         communicator = AuthWebsocketCommunicator(application, "/sdc_ws/model/Author", user=self.user)
         connected, subprotocol = await communicator.connect()

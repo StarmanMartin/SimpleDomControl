@@ -213,6 +213,10 @@ class SDCModelConsumer(WebsocketConsumer):
         if data['pk'] in self.ids:
             self.send(text_data=json.dumps(data))
 
+    def on_delete(self, data):
+        if data['pk'] in self.ids:
+            self.send(text_data=json.dumps(data))
+
     def on_create(self, data):
         instance = data['pk']
         try:

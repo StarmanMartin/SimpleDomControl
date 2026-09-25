@@ -7,33 +7,40 @@ from django.dispatch.dispatcher import receiver
 from sdc_core.sdc_extentions.models import SDCSerializer
 
 
-@receiver(post_save)  # instead of @receiver(post_save, sender=Rebel)
-@receiver(post_delete)  # instead of @receiver(post_save, sender=Rebel)
-def set_winner(sender, instance=None, created: bool = False, **kwargs):
-    """
-    Handles the client notification if an SDC model has been saved, created or deleted.
+def _send(sender, event_type, instance):
+    async_to_sync(get_channel_layer().group_send)(sender.__name__, {
+        'event_id': 'none',
+        'type': event_type,
+        'pk': instance.pk,
+        'args': {'data': SDCSerializer().serialize([instance])},
+        'is_error': False
+    })
 
-    :param sender: The modul class
-    :param instance: Saved, created or deleted instance
-    :param created: True if instance has no db id before it has been saved
+
+@receiver(post_save)
+def sdc_model_saved(sender, instance=None, created: bool = False, **kwargs):
+    """
+    Notifies the connected clients when an SDC model instance has been created
+    (``on_create``) or saved (``on_update``).
+
+    :param sender: The model class
+    :param instance: Saved or created instance
+    :param created: True if the instance has been created
     :param kwargs:
     """
-
     if instance is not None and hasattr(sender, '__is_sdc_model__'):
-        serialize_instance = SDCSerializer().serialize([instance])
-        if created:
-            async_to_sync(get_channel_layer().group_send)(sender.__name__, {
-                'event_id': 'none',
-                'type': 'on_create',
-                'pk': instance.pk,
-                'args': {'data': serialize_instance},
-                'is_error': False
-            })
-        else:
-            async_to_sync(get_channel_layer().group_send)(sender.__name__, {
-                'event_id': 'none',
-                'type': 'on_update',
-                'pk': instance.pk,
-                'args': {'data': serialize_instance},
-                'is_error': False
-            })
+        _send(sender, 'on_create' if created else 'on_update', instance)
+
+
+@receiver(post_delete)
+def sdc_model_deleted(sender, instance=None, **kwargs):
+    """
+    Notifies the connected clients when an SDC model instance has been deleted
+    (``on_delete``).
+
+    :param sender: The model class
+    :param instance: Deleted instance (its pk is still set in post_delete)
+    :param kwargs:
+    """
+    if instance is not None and hasattr(sender, '__is_sdc_model__'):
+        _send(sender, 'on_delete', instance)

@@ -40,6 +40,8 @@ The server and the client are released with the same version number.
   navigation parameters arrive in `this.params`, readable from `onLoad()` on.
 
 ### Fixed
+- Deleting an SDC model instance sends the new live event `on_delete` (before, deletes were sent as
+  `on_update` and the row stayed in client querysets). Requires client 0.159.0.
 - Generated JS model classes accept a missing `data` argument in their constructor
   (`this.setValues(data || {})`).
 - New projects: the REST login route `sdc_api/login/` is registered before `sdc_api/<str:model>/`, so
