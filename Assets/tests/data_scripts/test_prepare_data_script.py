@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from main_test.models import Author, Book
 from django.test import Client
 
+from sdc_core.sdc_extentions.test_utils import register_test_user
 
 User = get_user_model()
 
@@ -24,9 +25,8 @@ book_list.append(Book.objects.create(title='Man i like,...', author=auther_list[
 
 client = Client()
 
-user = User.objects.create_superuser("TestUser", "test@test.test", "123")
+User.objects.create_superuser("TestUser", "test@test.test", "123")
+User.objects.create_superuser("TestUser2", "test2@test.test", "123")
 
-client.login(username="TestUser", password="123")
-
-
-print(client.session.session_key)
+register_test_user(username="TestUser", password="123")
+register_test_user(username="TestUser2", password="123")

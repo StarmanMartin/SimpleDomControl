@@ -76,7 +76,7 @@ export default async function (globalConfig, projectConfig) {
     }
 
     if(db_python_script) {
-        console.log(`Execute ${python_script_cmd} to JEST DB`);
+        console.log(`Execute ${python_script_cmd} to prepare DB`);
         process.env.SCRIPT_OUTPUT = (await executeCmd(python_script_cmd)).trim('\n');
         console.log(process.env.SCRIPT_OUTPUT);
     }

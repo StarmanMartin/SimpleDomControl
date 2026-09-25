@@ -89,7 +89,7 @@ def _generate_js_class(schema):
         setter.append("  }\n")
         setter_functions.append("  }\n")
         getter.append("  }\n")
-    constructor_line.append("    this.setValues(data);")
+    constructor_line.append("    this.setValues(data || {});")
     constructor_line.append("  }")
     setter_line.append("  }")
 

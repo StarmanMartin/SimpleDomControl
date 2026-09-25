@@ -1,18 +1,15 @@
 import {test_utils} from 'sdc_client';
 import {} from "#root/src/models/src.js";
 import {} from "#root/src/main_test/main_test.organizer.js";
-import '#root/src/sdc_tools/sdc_tools.organizer.js'
-import '#root/src/sdc_user/sdc_user.organizer.js'
-import Cookies from 'js-cookie';
+import '#root/src/sdc_tools/sdc_tools.organizer.js';
+import '#root/src/sdc_user/sdc_user.organizer.js';
 
 
 describe('SDC Model [load]', () => {
   let controller;
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
+    test_utils.login('TestUser');
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
@@ -106,9 +103,6 @@ describe('SDC Model [create]', () => {
   let controller;
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
@@ -117,7 +111,7 @@ describe('SDC Model [create]', () => {
 
   test('create Book', async () => {
     let books = controller.querySet('Book');
-    await books.new({'title': 'Last of the books!', 'author': 2}).create({});
+    await books.new({'title': 'Last of the books!', 'author': 2}).create();
     expect(books[0].author.id).toBe(2)
     expect(books[0].title).toBe("Last of the books!");
     const auth = books[0].author;
@@ -173,9 +167,6 @@ describe('SDC Model [save]', () => {
   let controller;
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
@@ -303,9 +294,7 @@ describe('SDC Model [form]', () => {
   let controller;
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
+    test_utils.login('TestUser');
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
@@ -357,9 +346,7 @@ describe('SDC Model [form & file]', () => {
   let controller;
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
+    test_utils.login('TestUser');
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
@@ -460,9 +447,7 @@ describe('SDC Model [list & details]', () => {
 
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
+    test_utils.login('TestUser');
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
@@ -551,9 +536,6 @@ describe('SDC Model Submodel', () => {
 
 
   beforeAll(async () => {
-    const session_key = SCRIPT_OUTPUT[0];
-    Cookies.set('sessionid', session_key);
-    console.log('Session key set:', session_key);
     // Create new controller instance based on the standard process.
     controller = await test_utils.get_controller('admin-only',
       {},
