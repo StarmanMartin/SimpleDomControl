@@ -5,7 +5,8 @@ import _ from 'lodash';
 
 import { TextEncoder, TextDecoder } from 'util';
 
-global.SCRIPT_OUTPUT = process.env.SCRIPT_OUTPUT.split("\n");
+// SCRIPT_OUTPUT is only set when DB_PYTHON_SCRIPT is configured in Assets/.sdc_env.
+global.SCRIPT_OUTPUT = (process.env.SCRIPT_OUTPUT || "").split("\n");
 global.SDC_TEST_USER = Object.fromEntries(SCRIPT_OUTPUT.filter((ol) => ol.startsWith('USER_FOR_SDC_TESTS$$$')).map((ol) => ol.replace(/^USER_FOR_SDC_TESTS\$\$\$/, '').split('$$$')));
 global.gettext = (x) => x;
 

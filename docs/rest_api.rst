@@ -46,13 +46,13 @@ URLs
 so ``/sdc_api/book/`` and ``/sdc_api/Book/`` both address ``Book``. Only
 models that extend ``SdcModel`` are reachable; any other name returns ``404``.
 
-.. warning::
+.. note::
 
-   In the generated *urls.py* the ``sdc_api/login/`` route comes **after**
-   ``sdc_api/<str:model>/``. Django uses the first matching pattern, so
-   ``/sdc_api/login/`` is handled by ``AdcApi`` (as a model named ``login``) and
-   every login request fails with ``401 {"error": "Missing Authorization header"}``.
-   Move the login route above the model routes:
+   The login route must come before the model routes, otherwise
+   ``/sdc_api/login/`` is handled as a model named ``login`` and every login
+   fails with ``401 {"error": "Missing Authorization header"}``. ``sdc_init``
+   writes them in the right order (projects created with versions before
+   0.159.0 have them the other way round):
 
    .. code-block:: python
 

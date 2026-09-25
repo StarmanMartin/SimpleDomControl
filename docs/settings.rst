@@ -30,7 +30,7 @@ the setting.
      - See `The ALLOWED_HOST environment variable`_.
    * - ``CSRF_TRUSTED_ORIGINS``
      - Only set when ``DEBUG`` is ``False``, from ``ALLOWED_HOST``
-     - The full URLs from ``ALLOWED_HOST`` (scheme, host and port).
+     - Scheme, host and port of the URLs in ``ALLOWED_HOST``.
    * - ``VERSION``
      - ``0.0`` (only if missing)
      - Passed to ``index.html`` and exposed to the client as
@@ -60,7 +60,7 @@ the setting.
        (:ref:`sdc-testing-label`). A ``jest`` entry in your own ``DATABASES``
        replaces the default one.
    * - ``DATABASES``
-     - ``{'default': DATABASES_AVAILABLE[DJANGO_DATABASE]}``
+     - ``DATABASES | {'default': DATABASES_AVAILABLE[DJANGO_DATABASE]}``
      - See `The DJANGO_DATABASE environment variable`_.
    * - ``TEMPLATES``
      - ``APP_DIRS = True`` and ``BASE_DIR / "templates"`` added to ``DIRS``
@@ -142,8 +142,11 @@ Settings read but not written
     written. ``index.html`` receives it as ``window.DEBUG``.
 
 ``HOME_URL``
-    Used by ``sdc_user`` to build the links in confirmation and password reset
-    e-mails when the request origin is not known.
+    Written by ``sdc_init`` (only if missing): the ``HOME_URL`` environment
+    variable, else the first URL of ``ALLOWED_HOST``, else
+    ``http://127.0.0.1:8000`` in ``DEBUG``. Used by ``sdc_user`` to build the
+    links in confirmation and password reset e-mails when the request origin
+    is not known.
 
 ``DEFAULT_FROM_EMAIL`` and the other e-mail settings
     ``sdc_user`` sends its e-mails with Django's ``EmailMessage``. The
@@ -162,12 +165,6 @@ Settings read but not written
     Mails are sent with ``fail_silently=True``, so a wrong configuration does
     not raise an error.
 
-.. note::
-
-   ``HOME_URL`` is not defined by the generated settings. If ``sdc_user``
-   needs the fallback and the setting is missing, sending the e-mail raises an
-   ``AttributeError``.
-
 Environment variables
 ---------------------
 
@@ -175,7 +172,8 @@ The ALLOWED_HOST environment variable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 With ``DEBUG = False``, ``settings.py`` reads ``ALLOWED_HOST``: a
-comma-separated list of full URLs, including the scheme.
+comma-separated list of the URLs of the site. Entries without a scheme are read
+as ``https://``.
 
 .. code-block:: sh
 
@@ -183,13 +181,13 @@ comma-separated list of full URLs, including the scheme.
 
 - ``ALLOWED_HOSTS`` becomes the host names (``example.com``,
   ``www.example.com``).
-- ``CSRF_TRUSTED_ORIGINS`` becomes the URLs (``https://example.com``, ...).
+- ``CSRF_TRUSTED_ORIGINS`` becomes scheme, host and port of each URL
+  (``https://example.com``, ...).
+- The first URL is the default of ``HOME_URL``.
 
-The variable is required. If it is missing, loading the settings fails with an
-``AttributeError`` (``'NoneType' object has no attribute 'split'``). A value
-without a scheme (``example.com``) has no host name after parsing and does not
-work. With ``DEBUG = True`` the variable is ignored and ``ALLOWED_HOSTS`` is
-``['*']``.
+The variable is required. If it is missing or empty, loading the settings fails
+with ``ImproperlyConfigured`` and a message that explains the variable. With
+``DEBUG = True`` the variable is ignored and ``ALLOWED_HOSTS`` is ``['*']``.
 
 The DJANGO_DATABASE environment variable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -202,12 +200,9 @@ runs the test server with ``DJANGO_DATABASE=jest``.
 
    DJANGO_DATABASE=jest python manage.py migrate
 
-.. note::
-
-   The final ``DATABASES`` contains only the ``default`` alias. Other aliases
-   from ``base_settings.py`` are only available through
-   ``DATABASES_AVAILABLE``. An unknown name in ``DJANGO_DATABASE`` raises a
-   ``KeyError``.
+Other database aliases from ``base_settings.py`` are kept. An unknown name in
+``DJANGO_DATABASE`` stops with ``ImproperlyConfigured`` and lists the available
+names.
 
 Deployment
 ----------
@@ -244,12 +239,9 @@ Daphne serves HTTP and websockets on one port. It does not serve the files in
 
 .. note::
 
-   The generated ``asgi.py`` contains
-   ``os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ElnAdapter.settings')``.
-   The module name is not replaced with your project name. Set
-   ``DJANGO_SETTINGS_MODULE`` in the environment (for example
-   ``DJANGO_SETTINGS_MODULE=mysite.settings``) or change the line to
-   ``'<project>.settings'``.
+   Projects created with versions before 0.159.0 have
+   ``os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ElnAdapter.settings')`` in
+   their *asgi.py*. Change it to ``'<project>.settings'``.
 
 Websocket routes
 ^^^^^^^^^^^^^^^^

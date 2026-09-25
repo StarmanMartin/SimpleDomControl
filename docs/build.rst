@@ -169,28 +169,28 @@ Overriding library files
 ------------------------
 
 ``python manage.py sdc_overwrite_lib_file`` lets you choose an app from
-``Assets/libs``, one of its controllers and the ``.js``/``.scss`` files to
-copy. The files are copied to ``Assets/overwrite_libs/<app>/controller/``.
+``Assets/libs``, one of its controllers and the ``.js`` files to copy. The
+files are copied to the same path below ``Assets/overwrite_libs``, e.g.
+``Assets/libs/sdc_tools/controller/sdc_dummy/sdc_dummy.js`` →
+``Assets/overwrite_libs/sdc_tools/controller/sdc_dummy/sdc_dummy.js``. Edit the
+copy; the library file stays unchanged.
 
-``webpack.default.config.jsx`` maps the module name ``libs`` to
-``Assets/overwrite_libs``:
+``webpack.default.config.jsx`` contains a resolver plugin
+(``OverwriteLibsPlugin``): whenever a module resolves to a file in
+``Assets/libs`` and a file with the same relative path exists in
+``Assets/overwrite_libs``, the build uses that file instead. This also covers
+the relative imports inside the library organizers, so no import has to be
+changed.
 
-.. code-block:: javascript
-
-   resolve: {
-     alias: {"libs": override},   // Assets/overwrite_libs
-     modules: [path.resolve(__dirname, "../../node_modules"), "node_modules"],
-     symlinks: false
-   }
-
-.. note::
-
-   The alias only applies to imports that start with ``libs/``. The generated
-   organizer imports library apps through ``#lib/``, which resolves to
-   ``Assets/libs``, so copied files are not used until you import them via
-   ``libs/...`` yourself. The command also drops the controller directory
-   level: ``libs/<app>/controller/<controller>/<file>`` is copied to
-   ``overwrite_libs/<app>/controller/<file>``.
+- Relative imports inside a copied file are resolved from its new location in
+  ``Assets/overwrite_libs``. Copy the imported files as well, or import them
+  through ``#lib/...``.
+- Only the webpack build uses the overrides. The Jest tests import the
+  library files directly.
+- Styles cannot be overwritten this way: the library styles are included with
+  relative ``@use`` paths in ``Assets/src/index.style.scss``. Add your own rules
+  after those ``@use`` lines instead.
+- Restart ``npm run develop`` after adding an override.
 
 webpack configuration
 ---------------------

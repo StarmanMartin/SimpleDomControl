@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/3.1/howto/deployment/asgi/
 """
 
 import os
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ElnAdapter.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'test_django_project.settings')
 
 import django
 django.setup()

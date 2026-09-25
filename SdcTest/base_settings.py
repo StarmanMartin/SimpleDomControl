@@ -12,7 +12,6 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 import os
-from urllib.parse import urlparse, urlunparse
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -32,12 +31,7 @@ SERVER_CALL_VIA_WEB_SOCKET = False
 
 # Application definition
 
-if not DEBUG:
-    hosts = [urlparse(x)  for x in os.environ.get('ALLOWED_HOST').split(',')]
-    ALLOWED_HOSTS = [host.hostname for host in hosts]
-    CSRF_TRUSTED_ORIGINS = [urlunparse(x) for x in hosts]
-else:
-    ALLOWED_HOSTS = ['*']
+# ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS are set in settings.py.
 
 VERSION=0.0
 

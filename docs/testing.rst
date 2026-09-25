@@ -125,13 +125,6 @@ The test setup reads two dotenv files:
         Path of a seed script that is run in the test database (see
         `Seed script`_). ``0`` disables it.
 
-.. note::
-
-   ``test-setup.js`` reads ``process.env.SCRIPT_OUTPUT``, which is only set
-   when a seed script runs. With ``DB_PYTHON_SCRIPT=0`` every test file fails
-   in the setup with a ``TypeError``. Configure a seed script, even an empty
-   one.
-
 A typical ``Assets/.sdc_env`` with reproducible data:
 
 .. code-block:: sh

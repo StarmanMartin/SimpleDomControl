@@ -171,9 +171,10 @@ them as tags or navigate to them with navigation links (see
    message is shown. An expired token triggers a new e-mail.
 
 ``sdc-change-password`` — ``<sdc-change-password></sdc-change-password>``
-   Placeholder only: the template still contains the generated sample content.
-   To change a password use the ``password_form`` link of the user edit form
-   (see `ReadOnlyPassword widget`_).
+   Lets the logged-in user change their password: renders ``sdc-model-form``
+   with the ``password_form`` (current password, new password, confirmation)
+   of their own ``SdcUser``. Requires login; anonymous users are sent to the
+   login controller. Link to it with ``href="/sdc-change-password"``.
 
 ``sdc-user`` — global controller
    Registered with ``app.registerGlobal``, so one instance is created at start-up
@@ -291,11 +292,12 @@ password hash. When an expired link is opened, a fresh e-mail is sent.
 Required settings:
 
 ``HOME_URL``
-   Base URL of your site without trailing slash, e.g.
-   ``"https://example.com"``. **Not written by** ``sdc_init``. It is needed
-   whenever a user's e-mail changes outside a WebSocket request (Django admin,
-   shell, REST API). Without it such a save raises ``AttributeError`` after the
-   user has been stored.
+   Base URL of your site, e.g. ``"https://example.com"``. It is used when the
+   URL cannot be taken from the request, e.g. when a user's e-mail changes in
+   the Django admin, the shell or the REST API. ``sdc_init`` defines it (from the
+   ``HOME_URL`` environment variable, else the first ``ALLOWED_HOST`` URL, else
+   ``http://127.0.0.1:8000`` in ``DEBUG``). If no URL is available at all, the
+   e-mail is not sent and an error is logged; the user is still saved.
 
 ``DEFAULT_FROM_EMAIL`` and ``EMAIL_*``
    Sender address and SMTP connection. ``sdc_init`` writes these only as

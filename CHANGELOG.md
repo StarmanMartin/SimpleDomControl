@@ -42,6 +42,19 @@ The server and the client are released with the same version number.
 ### Fixed
 - Generated JS model classes accept a missing `data` argument in their constructor
   (`this.setValues(data || {})`).
+- New projects: the REST login route `sdc_api/login/` is registered before `sdc_api/<str:model>/`, so
+  logins reach the token view (existing projects: move the line up in `urls.py`).
+- New projects: `asgi.py` uses the project's settings module instead of `ElnAdapter.settings`.
+- New projects: the JS test setup works without a seed script (`DB_PYTHON_SCRIPT=0`).
+- `sdc-change-password` shows a real password form for the logged-in user (it was a placeholder).
+- `sdc_user` e-mails: the settings template defines `HOME_URL`; if no base URL is available, the e-mail is
+  skipped with a logged error instead of raising after the user is saved.
+- `sdc_overwrite_lib_file` keeps the controller folder in the target path and copies only JavaScript;
+  a webpack resolver plugin makes the build use files in `Assets/overwrite_libs` instead of the library
+  files (before, the copies were never used).
+- Settings template: a missing `ALLOWED_HOST` or an unknown `DJANGO_DATABASE` raises
+  `ImproperlyConfigured` with a clear message; `ALLOWED_HOST` entries without a scheme are read as
+  `https://`; other database aliases are kept; the `SDC_USER_*` comments are corrected.
 
 ### Internal
 - CI runs pytest, the Django tests and the Jest tests on Python 3.13/3.14 with Node 22.

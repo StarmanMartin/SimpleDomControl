@@ -7,17 +7,35 @@ For more information on this file, see
 https://simpledomcontrol.readthedocs.io/en/latest/
 """
 import os
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 from SdcTest.base_settings import *
 
 
+def _parse_allowed_host(value):
+    # ALLOWED_HOST is a comma-separated list of site URLs; entries without a scheme are read as https.
+    urls = []
+    for entry in value.split(','):
+        entry = entry.strip()
+        if entry:
+            urls.append(urlparse(entry if '://' in entry else f'https://{entry}'))
+    return urls
+
+
 if not DEBUG:
-    hosts = [urlparse(x) for x in os.environ.get('ALLOWED_HOST').split(',')]
-    ALLOWED_HOSTS = [host.hostname for host in hosts]
-    CSRF_TRUSTED_ORIGINS = [urlunparse(x) for x in hosts]
+    _hosts = _parse_allowed_host(os.environ.get('ALLOWED_HOST', ''))
+    if not _hosts:
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("Set the environment variable ALLOWED_HOST when DEBUG is False.")
+    ALLOWED_HOSTS = [host.hostname for host in _hosts]
+    CSRF_TRUSTED_ORIGINS = [f'{host.scheme}://{host.netloc}' for host in _hosts]
+    _default_home_url = f'{_hosts[0].scheme}://{_hosts[0].netloc}'
 else:
     ALLOWED_HOSTS = ['*']
+    _default_home_url = 'http://127.0.0.1:8000'
+
+if 'HOME_URL' not in locals():
+    HOME_URL = os.environ.get('HOME_URL', _default_home_url)
 
 if 'VERSION' not in locals():
     VERSION = 0.0

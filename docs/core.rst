@@ -124,13 +124,6 @@ With ``-u`` the command also adds every app that has a *sdc_views.py* to
 
 .. note::
 
-    The generated *asgi.py* calls
-    ``os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ElnAdapter.settings')``.
-    If you start the ASGI server without setting *DJANGO_SETTINGS_MODULE*,
-    change this line to ``'<main app>.settings'``.
-
-.. note::
-
     When Django starts with ``DEBUG = True`` and an *Assets* directory
     exists, *sdc_core* writes *Assets/.sdc_python_env* (the path of the
     Python interpreter, used by the gulp build) and *Assets/.sdc_env* (Jest
@@ -501,17 +494,12 @@ against the *jest* database before the tests.
 Copies controller files of an installed SDC package (for example
 *sdc_tools* or *sdc_user*) into your project so that you can change them.
 The command has no options and is always interactive: select an app from
-*Assets/libs/*, then a controller, then one or more *.js* / *.scss* files.
-Each selected file is copied to
-*Assets/overwrite_libs/<app>/controller/<file>*.
-
-.. note::
-
-    The controller directory is not part of the target path. The default
-    webpack config maps the import prefix ``libs`` to *Assets/overwrite_libs*,
-    but the generated *index.organizer.js* imports the packages with
-    ``#lib/...``, which points to *Assets/libs*. The copied files are
-    therefore not used by the build until you import them yourself.
+*Assets/libs/*, then a controller, then one or more *.js* files. Each
+selected file is copied to the same path below *Assets/overwrite_libs*
+(*Assets/overwrite_libs/<app>/controller/<controller>/<file>*). The webpack
+build then uses the copy instead of the library file; see
+:ref:`sdc-build-label` for details and limits (styles cannot be overwritten
+this way).
 
 15 - Creating a new project (sdc/__main__.py)
 *********************************************

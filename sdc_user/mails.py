@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from datetime import timedelta
 from typing import Optional
 
@@ -16,6 +18,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from sdc_core.sdc_extentions.models import SdcModel
+
+logger = logging.getLogger(__name__)
 
 # Lifetime of the e-mail confirmation / password-reset tokens.
 TOKEN_TTL = timedelta(days=3)
@@ -52,6 +56,21 @@ def get_url_from_sdcmodel(element: SdcModel):
             return header_value.decode('utf-8')
     return None
 
+def _resolve_home_url(user: SdcModel, home_url: Optional[str]) -> Optional[str]:
+    """
+    Base URL for links in e-mails: the given ``home_url``, else the origin of the
+    current WebSocket request, else ``settings.HOME_URL``. Returns ``None`` (and
+    logs an error) if none is available, so the caller can skip the e-mail instead
+    of failing after the user has been saved.
+    """
+    home_url = home_url or get_url_from_sdcmodel(user) or getattr(settings, 'HOME_URL', None)
+    if not home_url:
+        logger.error("Cannot send e-mail to user %s: set settings.HOME_URL to the base URL of the site "
+                     "(e.g. https://example.com).", user.pk)
+        return None
+    return home_url.rstrip('/')
+
+
 def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
     email_template_name = 'email/confirm.html'
     now = timezone.now()
@@ -63,10 +82,9 @@ def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
         "exp": int((now + TOKEN_TTL).timestamp()),  # native expiry
     }, settings.JWT['secret'], algorithm=settings.JWT['algorithm'])
 
+    home_url = _resolve_home_url(user, home_url)
     if home_url is None:
-        home_url = get_url_from_sdcmodel(user)
-    if home_url is None:
-        home_url = settings.HOME_URL
+        return
 
     context = {'jwt': encoded_jwt, 'user': user, 'url': f'{home_url}/~sdc-confirm-email~&1.token={encoded_jwt}'}
 
@@ -88,10 +106,9 @@ def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None):
         "exp": int((now + TOKEN_TTL).timestamp()),  # native expiry
     }, settings.JWT['secret'], algorithm=settings.JWT['algorithm'])
 
+    home_url = _resolve_home_url(user, home_url)
     if home_url is None:
-        home_url = get_url_from_sdcmodel(user)
-    if home_url is None:
-        home_url = settings.HOME_URL
+        return
 
     context = {'jwt': encoded_jwt, 'user': user, 'url': f'{home_url}/~sdc-reset-password~&1.token={encoded_jwt}'}
 

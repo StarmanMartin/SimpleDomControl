@@ -1,7 +1,32 @@
+const fs = require('fs');
 const path = require('path');
 
 const libs = path.resolve(__dirname, "../libs");
 const override = path.resolve(__dirname, "../overwrite_libs");
+
+/**
+ * Resolver plugin: when a module resolves to a file in Assets/libs and a file with
+ * the same relative path exists in Assets/overwrite_libs, the build uses that file
+ * instead (see manage.py sdc_overwrite_lib_file). This also covers the relative
+ * imports inside the library organizers.
+ */
+class OverwriteLibsPlugin {
+  apply(resolver) {
+    const target = resolver.ensureHook('existing-file');
+    resolver.getHook('existing-file').tapAsync('OverwriteLibsPlugin', (request, resolveContext, callback) => {
+      const file = request.path;
+      if (!file || !file.startsWith(libs + path.sep)) {
+        return callback();
+      }
+      const replacement = path.join(override, path.relative(libs, file));
+      if (!fs.existsSync(replacement)) {
+        return callback();
+      }
+      resolver.doResolve(target, {...request, path: replacement},
+        `overwrite_libs: ${replacement}`, resolveContext, callback);
+    });
+  }
+}
 
 module.exports = (filepaths) => {
   const entry = filepaths.reduce((acc, file)=> {
@@ -15,6 +40,7 @@ module.exports = (filepaths) => {
       alias: {
         "libs": override
       },
+      plugins: [new OverwriteLibsPlugin()],
       modules: [
         path.resolve(__dirname, "../../node_modules"),
         "node_modules"

@@ -6,7 +6,7 @@ from django.contrib.auth.views import RedirectURLMixin
 from django.http import HttpResponse
 from django.utils.html import escape
 
-from sdc_core.sdc_extentions.views import SDCView
+from sdc_core.sdc_extentions.views import SDCView, SdcLoginRequiredMixin
 from sdc_core.sdc_extentions.response import send_redirect, send_error, send_success
 from django.shortcuts import render
 from django.contrib.auth.forms import AuthenticationForm
@@ -116,7 +116,8 @@ class SdcUser(SDCView):
         return HttpResponse('')
 
 
-class SdcChangePassword(SDCView):
+class SdcChangePassword(SdcLoginRequiredMixin, SDCView):
+    # Shows the password form (SdcMeta.password_form) of the logged-in user.
     template_name = 'sdc_user/sdc/sdc_change_password.html'
 
     def get_content(self, request, *args, **kwargs):
