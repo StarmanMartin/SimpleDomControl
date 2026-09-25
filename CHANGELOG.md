@@ -7,6 +7,20 @@ The server and the client are released with the same version number.
 
 ## 0.159.0
 
+### Security
+- `SdcMeta.fields` / `SdcMeta.exclude` now filter the model fields in serialized output (WebSocket, REST
+  and live updates). Before, they were applied to the wrong level and hid nothing. `fields = "__all__"`
+  (the default) can now be combined with `exclude`.
+- `SdcUser` never sends the `password` field (the password hash) to clients and does not allow filtering
+  on it, whatever `SDC_USER_FIELDS` / `SDC_USER_FIELDS_EXCLUDE` say.
+- The default `sdc_user_is_authorised` no longer allows everything: anyone may `connect`, `create_form`
+  and `create` (self-registration); logged-in users may read and edit the rows from
+  `SDC_USER_GET_QUERYSET`; `delete` and `upload` are for superusers only.
+- JWT access and refresh tokens of inactive users are rejected.
+- REST create, update and partial update return the saved row (serialized like a detail request) instead
+  of the form's `cleaned_data`, so submitted passwords are no longer echoed. This also fixes server errors
+  for forms with foreign keys or files.
+
 ### Added
 - `sdc_core.sdc_extentions.test_utils.register_test_user(username, password)` logs a test user in and
   prints its session id, so JS tests can switch users with `test_utils.login(username)` /

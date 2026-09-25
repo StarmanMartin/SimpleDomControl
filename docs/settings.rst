@@ -118,7 +118,9 @@ the setting.
    * - ``SDC_USER_IS_AUTHORISED``
      - ``"sdc_user.models.sdc_user_is_authorised"``
      - Dotted path to the permission function of ``SdcUser``. The default
-       allows everything.
+       allows self-registration for everyone, reading and editing the rows
+       from ``SDC_USER_GET_QUERYSET`` for logged-in users, and deleting for
+       superusers only.
    * - ``SDC_USER_FIELDS``
      - ``"__all__"``
      - ``SdcMeta.fields`` of ``SdcUser``.

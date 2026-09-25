@@ -121,12 +121,8 @@ Refresh token
    refresh (or a new login, also through the web login page) invalidates all
    older refresh tokens. Access tokens stay valid until they expire.
 
-.. note::
-
-   Token verification does not check ``is_active``. Deactivating a user blocks
-   new logins (``authenticate()`` rejects inactive users), but already issued
-   access tokens stay valid until they expire and the latest refresh token can
-   still be refreshed.
+Tokens of an inactive user (``is_active = False``) are rejected: deactivating
+a user blocks new logins, already issued access tokens and refreshes.
 
 Settings
 ^^^^^^^^
@@ -274,12 +270,14 @@ relations as primary keys:
 
 For a detail request ``data`` is a single object instead of a list.
 
-Create, update and partial update return the form's ``cleaned_data``, not the
-serialized row. The response does not contain the new primary key:
+Create, update and partial update return the saved row in the same format as a
+detail request, including its primary key:
 
 .. code-block:: json
 
-   {"success": true, "data": {"title": "Dune", "author": 1}}
+   {"success": true,
+    "data": {"model": "main_app.book", "pk": 7,
+             "fields": {"title": "Dune", "author": 1}}}
 
 Validation errors return ``400`` with the form errors:
 
@@ -287,22 +285,8 @@ Validation errors return ``400`` with the form errors:
 
    {"success": false, "errors": {"title": ["This field is required."]}}
 
-.. note::
-
-   ``cleaned_data`` is sent through ``JsonResponse`` as it is. Values it cannot
-   encode, for example the model instance of a ``ModelChoiceField`` (foreign
-   key) or an uploaded file, make the request fail with a server error *after*
-   the row has been saved. Password fields of a form (e.g. ``password1`` of the
-   ``sdc_user`` creation form) are echoed back in the response.
-
-.. note::
-
-   ``SdcMeta.fields`` and ``SdcMeta.exclude`` restrict the fields you can
-   filter on, but ``SDCSerializer`` applies them to the top-level keys
-   (``model``, ``pk``, ``fields``) of each serialized object. As a result,
-   ``exclude`` does not remove any field from the output, and a ``fields``
-   list returns empty objects (``{}``). Do not rely on these options to hide
-   data in responses.
+``SdcMeta.fields`` and ``SdcMeta.exclude`` limit both the fields in responses
+and the fields clients may filter on (see :ref:`sdc-model-label`).
 
 Every successful create or update through the API also fires Django's
 ``post_save`` signal, so connected SDC clients receive the change as a live

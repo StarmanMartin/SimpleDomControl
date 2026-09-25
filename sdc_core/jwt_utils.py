@@ -60,6 +60,9 @@ def verify_jwt(token, type):
 
         user = User.objects.get(id=payload["user_id"])
 
+        if not user.is_active:
+            raise jwt.InvalidTokenError
+
         if type == 'refresh' and abs(payload['iat'] - user.last_login.timestamp()) > 10:
             raise jwt.InvalidTokenError
 

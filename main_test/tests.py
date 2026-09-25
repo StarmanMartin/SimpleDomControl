@@ -704,8 +704,11 @@ class OpenApiHttpApiTest(TestCase):
             **self.auth_headers(),
         )
         self.assertEqual(create_response.status_code, 200)
-        self.assertEqual(create_response.json(), {"success": True, "data": {"name": "Ada", "age": 36}})
         created_author = Author.objects.get(name="Ada")
+        create_data = create_response.json()
+        self.assertTrue(create_data["success"])
+        self.assertEqual(self.flatten_sdc_instance(create_data["data"]),
+                         {"id": created_author.pk, "name": "Ada", "age": 36})
 
         replace_response = self.client.put(
             self.api_url("Author", created_author.pk),
@@ -715,8 +718,8 @@ class OpenApiHttpApiTest(TestCase):
         )
         self.assertEqual(replace_response.status_code, 200)
         self.assertEqual(
-            replace_response.json(),
-            {"success": True, "data": {"name": "Ada Lovelace", "age": 37}},
+            self.flatten_sdc_instance(replace_response.json()["data"]),
+            {"id": created_author.pk, "name": "Ada Lovelace", "age": 37},
         )
 
         patch_response = self.client.patch(
@@ -727,8 +730,8 @@ class OpenApiHttpApiTest(TestCase):
         )
         self.assertEqual(patch_response.status_code, 200)
         self.assertEqual(
-            patch_response.json(),
-            {"success": True, "data": {"name": "Ada Lovelace", "age": 38}},
+            self.flatten_sdc_instance(patch_response.json()["data"]),
+            {"id": created_author.pk, "name": "Ada Lovelace", "age": 38},
         )
 
     def test_book_list_and_detail_match_openapi_description(self):
@@ -776,3 +779,76 @@ class OpenApiHttpApiTest(TestCase):
         other_content = BookContent.objects.get(user=self.other_user)
         forbidden_detail = self.client.get(self.api_url("BookContent", other_content.pk), **self.auth_headers())
         self.assertEqual(forbidden_detail.status_code, 404)
+
+
+class SecurityDefaultsTest(TestCase):
+    """Regression tests for field filtering, SdcUser defaults and JWT checks."""
+
+    def setUp(self):
+        self.password = "security-test-password"
+        self.user = User.objects.create_user(username="sec-user", password=self.password)
+        self.other_user = User.objects.create_user(username="sec-other", password=self.password)
+        self.admin = User.objects.create_superuser(username="sec-admin", password=self.password)
+
+    def serialize(self, obj):
+        from sdc_core.sdc_extentions.models import SDCSerializer
+        return json.loads(SDCSerializer().serialize([obj]))[0]
+
+    def test_filter_model_fields_applies_to_model_fields(self):
+        from sdc_core.sdc_extentions.models import filter_model_fields
+
+        class Obj:
+            class SdcMeta:
+                fields = '__all__'
+                exclude = ['secret']
+
+        self.assertEqual(filter_model_fields(Obj, {'a': 1, 'secret': 2}), {'a': 1})
+        Obj.SdcMeta.fields, Obj.SdcMeta.exclude = ['a'], None
+        self.assertEqual(filter_model_fields(Obj, {'a': 1, 'secret': 2}), {'a': 1})
+        Obj.SdcMeta.fields, Obj.SdcMeta.exclude = ['a'], ['secret']
+        with self.assertRaises(Exception):
+            filter_model_fields(Obj, {'a': 1})
+
+    def test_serializer_keeps_structure_and_hides_password(self):
+        data = self.serialize(self.user)
+        self.assertEqual(set(data.keys()), {'model', 'pk', 'fields'})
+        self.assertEqual(data['pk'], self.user.pk)
+        self.assertIn('username', data['fields'])
+        self.assertNotIn('password', data['fields'])
+
+    def test_password_is_not_filterable(self):
+        from django.core.exceptions import PermissionDenied
+        from sdc_core.sdc_extentions.models import sanitize_filter_query
+        with self.assertRaises(PermissionDenied):
+            sanitize_filter_query(User, {'password__startswith': 'pbkdf2'})
+
+    def test_default_sdc_user_authorisation(self):
+        from django.contrib.auth.models import AnonymousUser
+        anonymous = AnonymousUser()
+        for action in ('connect', 'create_form', 'create'):
+            self.assertTrue(User.is_authorised(anonymous, action, {}), action)
+        for action in ('load', 'list_view', 'save', 'edit_form', 'delete', 'upload'):
+            self.assertFalse(User.is_authorised(anonymous, action, {}), action)
+        for action in ('load', 'save', 'edit_form', 'named_form'):
+            self.assertTrue(User.is_authorised(self.user, action, {}), action)
+        for action in ('delete', 'upload'):
+            self.assertFalse(User.is_authorised(self.user, action, {}), action)
+            self.assertTrue(User.is_authorised(self.admin, action, {}), action)
+        self.assertEqual(list(User.get_queryset(self.user, 'load', {})), [self.user])
+
+    def test_inactive_user_token_is_rejected(self):
+        response = self.client.post(
+            "/sdc_api/login",
+            data=json.dumps({"username": self.user.username, "password": self.password}),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        tokens = response.json()
+        headers = {"HTTP_AUTHORIZATION": f"Bearer {tokens['access_token']}"}
+        self.assertEqual(self.client.get("/sdc_api/SdcUser", **headers).status_code, 200)
+
+        self.user.is_active = False
+        self.user.save()
+        self.assertEqual(self.client.get("/sdc_api/SdcUser", **headers).status_code, 401)
+        refresh_headers = {"HTTP_AUTHORIZATION": f"Bearer {tokens['refresh_token']}"}
+        self.assertEqual(self.client.get("/sdc_api/login", **refresh_headers).status_code, 401)

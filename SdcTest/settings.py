@@ -94,10 +94,11 @@ SDC_USER_IS_AUTHORISED = "sdc_user.models.sdc_user_is_authorised"
 SDC_USER_FIELDS = "__all__"
 SDC_USER_FIELDS_EXCLUDE = None
 
-EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST ='smtp.1und1.de'
-EMAIL_PORT = 587
-EMAIL_HOST_USER = 'noreplay@sport.martin-starman.com'
-DEFAULT_FROM_EMAIL = 'noreplay@sport.martin-starman.com'
-EMAIL_HOST_PASSWORD = '(#KN6E29{c.BsZzB' #This is not your gmail password.
+# E-mail credentials are read from the environment; never commit them.
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = True

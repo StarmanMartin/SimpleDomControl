@@ -133,26 +133,11 @@ may use (see :ref:`sdc-model-filter-sanitising`), the fields that
 ``sdc_make_model_js`` puts into the generated JavaScript class, and the
 serializer output sent to clients (but see the warning below). The rules are:
 
-- ``fields`` is ``None``/``"__all__"``/``"*"`` and ``exclude`` is ``None``: all
-  fields.
-- ``fields`` is an iterable and ``exclude`` is ``None``: only those fields.
-- ``fields`` is ``None`` and ``exclude`` is an iterable: all except those.
-- anything else (both set) raises an exception: the two are mutually exclusive.
-
-.. note::
-
-   ``fields`` defaults to ``"__all__"``, and ``"__all__"`` short-circuits the
-   check before ``exclude`` is looked at. Setting only ``exclude`` therefore has
-   no effect; set ``fields = None`` together with ``exclude``.
-
-.. warning::
-
-   In the serializer output the rules are applied to the top-level keys of each
-   serialized object (``model``, ``pk``, ``fields``), not to the model fields.
-   ``exclude`` therefore removes no field from the data sent to clients, and a
-   ``fields`` list produces empty objects. Do not rely on ``fields`` /
-   ``exclude`` to hide data from clients; restrict access with
-   ``is_authorised()`` / ``get_queryset()`` instead.
+- ``fields`` is ``None``/``"__all__"``/``"*"``: all fields except those listed
+  in ``exclude`` (if set). To hide a field, keep the default ``fields`` and set
+  ``exclude = ["secret_field"]``.
+- ``fields`` is an iterable: only those fields. ``exclude`` must then be
+  ``None``; setting both raises an exception.
 
 Ways to declare the metadata
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -313,9 +298,8 @@ Serialization
 Instances are serialized with ``SDCSerializer``, based on Django's JSON
 serializer (``[{"model": ..., "pk": ..., "fields": {...}}]``):
 
-- ``fields``/``exclude`` from ``SdcMeta`` are passed to the output filter, but
-  applied to the wrong level (see the warning in `Server model metadata`_), so
-  in practice all fields are sent.
+- only the fields allowed by ``SdcMeta.fields`` / ``exclude`` are included in
+  ``fields``.
 - A ``FileField`` becomes ``{"name": <basename>, "url": <file.url>}``, or
   ``null`` if empty.
 - Foreign keys are the related primary key; many-to-many fields are a list of

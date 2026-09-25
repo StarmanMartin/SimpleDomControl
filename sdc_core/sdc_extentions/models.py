@@ -62,27 +62,33 @@ def all_models() -> CaseInsensitiveDict:
 
 
 def filter_model_fields(obj, data):
+    """
+    Restricts ``data`` (a dict keyed by model field name) to the fields exposed by
+    ``SdcMeta.fields`` / ``SdcMeta.exclude``:
+
+    - ``fields`` is ``None``, ``"__all__"`` or ``"*"``: all fields except those in
+      ``exclude`` (if set).
+    - ``fields`` is an iterable of names: only those fields. ``exclude`` must then
+      be ``None``.
+    """
     meta = getattr(obj, "SdcMeta", None)
 
     whitelist = getattr(meta, "fields", None)
     blacklist = getattr(meta, "exclude", None)
-    if whitelist is None and blacklist is None or whitelist == '__all__' or whitelist == '*':
-        return data
-    filtered = {}
+    all_fields = whitelist is None or whitelist == '__all__' or whitelist == '*'
 
-    if whitelist is None and isinstance(blacklist, Iterable):
-        for key, value in data.items():
-            if key not in blacklist:
-                filtered[key] = value
-    elif blacklist is None and isinstance(whitelist, Iterable):
-        for key, value in data.items():
-            if key in whitelist:
-                filtered[key] = value
-    else:
+    if all_fields:
+        if not blacklist:
+            return data
+        if isinstance(blacklist, str) or not isinstance(blacklist, Iterable):
+            raise Exception("SdcMeta.exclude must be None or an iterable of field names.")
+        return {key: value for key, value in data.items() if key not in blacklist}
+
+    if isinstance(whitelist, str) or not isinstance(whitelist, Iterable) or blacklist:
         raise Exception(
-            "SdcMeta.fields and SdcMeta.exclude are mutually exclusive. If fields is set, exclude must be None and fields must be an iterable or \"__all__\". If exclude is set, fields must be None and exclude must be an iterable.")
-
-    return filtered
+            "SdcMeta.fields and SdcMeta.exclude are mutually exclusive. If fields is a list of names, exclude must be None. "
+            "To exclude fields, set fields to None or \"__all__\" and exclude to an iterable.")
+    return {key: value for key, value in data.items() if key in whitelist}
 
 
 def get_filterable_fields(model_cls) -> set[str]:
@@ -124,8 +130,8 @@ class SDCSerializer(Serializer):
 
     def get_dump_object(self, obj):
         data = super().get_dump_object(obj)
-
-        return filter_model_fields(obj, data)
+        data['fields'] = filter_model_fields(obj, data['fields'])
+        return data
 
     def handle_field(self, obj, field):
         value = field.value_from_object(obj)

@@ -11,8 +11,26 @@ from django.utils.translation import gettext_lazy as _
 from sdc_user.mails import send_confirm_email
 from django.utils.module_loading import import_string
 
+# Actions anyone may use: connecting and self-registration (create form + create).
+SDC_USER_PUBLIC_ACTIONS = ('connect', 'create_form', 'create')
+# Actions logged-in users may use. Which rows they reach is limited by
+# SDC_USER_GET_QUERYSET (by default: only their own user).
+SDC_USER_AUTHENTICATED_ACTIONS = ('load', 'list_view', 'detail_view', 'named_view',
+                                  'edit_form', 'named_form', 'save')
+
+
 def sdc_user_is_authorised(user, action, obj):
-    return True
+    """
+    Default authorization for SdcUser. Superusers may do everything, anonymous
+    users may only register, and logged-in users may read and edit the rows
+    returned by SDC_USER_GET_QUERYSET. ``delete`` and ``upload`` are for
+    superusers only.
+    """
+    if user.is_superuser:
+        return True
+    if action in SDC_USER_PUBLIC_ACTIONS:
+        return True
+    return user.is_authenticated and action in SDC_USER_AUTHENTICATED_ACTIONS
 
 _sdc_user_is_authorised = import_string(settings.SDC_USER_IS_AUTHORISED)
 
@@ -23,6 +41,24 @@ def sdc_user_get_queryset(sdc_user_cls, user, action, obj):
         return sdc_user_cls.objects.filter(pk=user.pk)
 
 _sdc_user_get_queryset = import_string(settings.SDC_USER_GET_QUERYSET)
+
+# Never sent to clients, whatever SDC_USER_FIELDS / SDC_USER_FIELDS_EXCLUDE say.
+SDC_USER_HIDDEN_FIELDS = ('password',)
+
+
+def _sdc_user_field_config():
+    fields = getattr(settings, 'SDC_USER_FIELDS', '__all__')
+    exclude = getattr(settings, 'SDC_USER_FIELDS_EXCLUDE', None)
+    if fields is None or fields == '__all__' or fields == '*':
+        exclude = list(exclude or [])
+        exclude += [name for name in SDC_USER_HIDDEN_FIELDS if name not in exclude]
+    else:
+        fields = [name for name in fields if name not in SDC_USER_HIDDEN_FIELDS]
+    return fields, exclude
+
+
+_SDC_USER_FIELDS, _SDC_USER_FIELDS_EXCLUDE = _sdc_user_field_config()
+
 
 class SdcUser(AbstractUser, SdcModel):
     email_confirmed = models.BooleanField(default=False)
@@ -49,8 +85,8 @@ class SdcUser(AbstractUser, SdcModel):
         password_form = "sdc_user.forms.SdcUserPassword"
         html_list_template = "sdc_user/models/SdcUser/SdcUser_list.html"
         html_detail_template = "sdc_user/models/SdcUser/SdcUser_details.html"
-        fields = settings.SDC_USER_FIELDS
-        exclude = settings.SDC_USER_FIELDS_EXCLUDE
+        fields = _SDC_USER_FIELDS
+        exclude = _SDC_USER_FIELDS_EXCLUDE
 
     @classmethod
     def render(cls, template_name, context=None, request=None, using=None):

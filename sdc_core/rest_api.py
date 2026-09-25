@@ -98,6 +98,12 @@ def get_api_token(request):
         )
 
 
+def _serialize_instance(instance):
+    # Same format as GET on a single object; never echo the submitted form data
+    # (it may contain passwords and non-JSON values such as model instances).
+    return json.loads(SDCSerializer().serialize([instance]))[0]
+
+
 @method_decorator(jwt_required, name="dispatch")
 @method_decorator(csrf_exempt, name='dispatch')
 class AdcApi(View):
@@ -159,10 +165,10 @@ class AdcApi(View):
                 "errors": form.errors,
             }, status=400)
 
-        form.save()
+        instance = form.save()
         return JsonResponse({
             "success": True,
-            "data": form.cleaned_data,
+            "data": _serialize_instance(instance),
         })
 
     def put(self, request, model, id):
@@ -191,10 +197,10 @@ class AdcApi(View):
                 "errors": form.errors,
             }, status=400)
 
-        form.save()
+        instance = form.save()
         return JsonResponse({
             "success": True,
-            "data": form.cleaned_data,
+            "data": _serialize_instance(instance),
         })
 
     def patch(self, request, model, id):
@@ -237,10 +243,10 @@ class AdcApi(View):
                 "errors": form.errors,
             }, status=400)
 
-        form.save()
+        instance = form.save()
         return JsonResponse({
             "success": True,
-            "data": form.cleaned_data,
+            "data": _serialize_instance(instance),
         })
 
     def delete(self, request, model, id):

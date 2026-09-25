@@ -344,8 +344,15 @@ imported.
    model (``connect``, ``load``, ``create``, ``save``, ``delete``, …, see
    :ref:`sdc-model-label`).
 
-   Default: ``sdc_user.models.sdc_user_is_authorised``, which returns ``True``
-   for every action and every user, including anonymous users.
+   Default: ``sdc_user.models.sdc_user_is_authorised``:
+
+   - superusers may do everything;
+   - anyone, including anonymous users, may use ``connect``, ``create_form``
+     and ``create`` (this is what makes ``register`` work);
+   - logged-in users may use ``load``, ``list_view``, ``detail_view``,
+     ``named_view``, ``edit_form``, ``named_form`` and ``save``, on the rows
+     returned by ``SDC_USER_GET_QUERYSET`` (by default only their own user);
+   - ``delete`` and ``upload`` are for superusers only.
 
 ``SDC_USER_GET_QUERYSET``
    Import path of a function ``(sdc_user_cls, user, action, obj)`` used as
@@ -361,41 +368,22 @@ imported.
    ``SdcMeta.exclude`` of ``SdcUser``. Default ``None``. Only one of
    ``SDC_USER_FIELDS`` and ``SDC_USER_FIELDS_EXCLUDE`` may be set to a list.
 
-.. warning::
+The ``password`` field (the password hash) is never sent to clients and cannot
+be used in filters, whatever these two settings say.
 
-   **The default authorization allows everything.** ``sdc_user_is_authorised``
-   returns ``True`` for every action and every user, so any client — logged in
-   or not — may connect, load, create, save and delete ``SdcUser`` rows over
-   the WebSocket, and any holder of an API token may do the same over the
-   REST API. Only ``sdc_user_get_queryset`` limits normal users to their own
-   row. Anonymous users can create users (this is what makes ``register``
-   work). A user may also change ``username``, ``first_name``, ``last_name``
-   and ``email`` of their own row and delete it.
+.. note::
 
-   Set ``SDC_USER_IS_AUTHORISED`` to your own function in production, for
-   example:
+   The default lets every user read and edit their own ``username``,
+   ``first_name``, ``last_name`` and ``email``, and still exposes fields such as
+   ``is_staff`` and ``last_login`` of rows a user may load. To change this, set
+   ``SDC_USER_IS_AUTHORISED`` to your own function and list the fields to hide
+   in ``SDC_USER_FIELDS_EXCLUDE``, for example:
 
    .. code-block:: python
 
-      def sdc_user_is_authorised(user, action, obj):
-          if action in ('connect', 'create_form', 'create'):
-              return True          # keep self-registration
-          if action == 'delete':
-              return user.is_superuser
-          return user.is_authenticated
-
-   *./root_dir/main_app/user_access.py* (``SDC_USER_IS_AUTHORISED =
-   "main_app.user_access.sdc_user_is_authorised"``)
-
-.. warning::
-
-   With the default ``SDC_USER_FIELDS = "__all__"`` the serialized user
-   contains every model field, including the password **hash**,
-   ``is_superuser`` and ``is_staff``. Because of the serializer behaviour
-   described in :ref:`sdc-rest-api-label` (``SdcMeta.fields`` / ``exclude``
-   are applied to the wrong level), ``SDC_USER_FIELDS_EXCLUDE = ['password']``
-   does not remove the hash, and a list in ``SDC_USER_FIELDS`` produces empty
-   objects. Both settings do restrict which fields clients may filter on.
+      SDC_USER_IS_AUTHORISED = "main_app.user_access.sdc_user_is_authorised"
+      SDC_USER_FIELDS_EXCLUDE = ["is_superuser", "is_staff", "groups",
+                                 "user_permissions", "last_login"]
 
 ReadOnlyPassword widget
 -----------------------
