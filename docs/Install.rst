@@ -8,7 +8,7 @@ To use SDC comfortably you should have:
 
 - Python 3.13 or newer
 - Django 6.0 or newer
-- Node.js 18 or newer
+- Node.js 22 or newer
 - npm or yarn for the client asset/runtime package
 
 Install the Python package
@@ -35,7 +35,14 @@ The Python installation gives you the Django integration:
 
 The JavaScript runtime used by generated projects is handled in the project
 itself through ``npm install`` or ``yarn install`` after ``sdc_init`` has added
-the client asset setup.
+the client asset setup. ``sdc_init`` writes a ``package.json`` with these
+dependencies:
+
+.. include:: snippets/js_deps.rst
+
+and these development dependencies (build and test tools):
+
+.. include:: snippets/js_dev_deps.rst
 
 Next step
 ---------

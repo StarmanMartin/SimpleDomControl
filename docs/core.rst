@@ -5,13 +5,14 @@ The *SDC* package, which consists of three Django apps:
 *sdc_core*, *sdc_tools*, and *sdc_user*. The *sdc_core* Django app serves as the foundation of
 *SDC*. It encompasses essential components such as management command scripts and a *consumer.py*,
 which acts as a handler for all *SDC* websocket requests. Additionally, the *sdc_core* app houses a
-Python package named *sdc_extensions*.
+Python package named *sdc_extentions* (this spelling is the real package name,
+e.g. ``from sdc_core.sdc_extentions.views import SDCView``).
 
 
 Management command
 ------------------
 
-The commands provided by *SDC* are yous to simplify the Development. It allows to create controller and models as well as updating the urls.
+The commands provided by *SDC* simplify development. They create controllers and models and update the URLs.
 Let us first list all important commands:
 
 .. code-block:: sh
@@ -49,19 +50,24 @@ Make sure that you are in the same directory as the *manage.py* and run:
 
     $ python manage.py sdc_cc
 
-You will need two answer two questions in the terminal to finish the process.
-Firstly, it needs to know in witch Django app (we choose  *mypage* in the example below)
-the controller has to be created. Secondly, you have to give the new controller a name
-(in the example the name is *about_me*). Importante, only use snake case for the controller
-name. See :ref:`sdc-controller-label` for more details.
+The command asks three questions in the terminal. Firstly, it needs to know in
+which Django app the controller has to be created (we choose *mypage* in the
+example below; the project package is also listed). Secondly, you have to give
+the new controller a name (in the example the name is *about_me*). Important:
+only use snake_case for the controller name. Thirdly, you can select
+controllers to add as mixins. In a terminal, the app and mixin questions are
+interactive selection lists. See :ref:`sdc-controller-label` for more details.
+
+The questions can be answered with options instead:
 
 .. code-block:: sh
 
-    Enter number to select a Django app:
-    1 -> mypage
-    2 -> ...
-    Enter number: [2] 1
-    Enter the name of the new controller (use snake_case): about_me
+    $ python manage.py sdc_cc -a mypage -c about_me -m
+    $ python manage.py sdc_cc -a mypage -c about_me -m sdc_auto_submit,sdc_update_on_change
+
+``-a`` selects the app and ``-c`` sets the controller name. ``-m`` takes a
+comma-separated list of mixin controllers in snake_case; a bare ``-m`` adds no
+mixins and skips the question.
 
 .. _sdc-new_model-core:
 
@@ -75,36 +81,33 @@ Make sure that you are in the same directory as the *manage.py* and run:
 
     $ python manage.py sdc_new_model
 
-You will need two answer two questions in the terminal to finish the process.
-Firstly, it needs to know in witch Django app (we choose  *mypage* in the example below)
-the Model has to be created. Secondly, you have to give the new Model a name
-(in the example the name is *BookCover*). Importante, only use CamelCase for the Model
-name. See :ref:`sdc-model-label` for more details.
+The command asks two questions in the terminal. Firstly, it needs to know in
+which Django app the model has to be created (we choose *mypage* in the example
+below). Secondly, you have to give the new model a name (in the example the
+name is *BookCover*). Important: only use CamelCase for the model name. See
+:ref:`sdc-model-label` for more details.
+
+The questions can be answered with options instead:
 
 .. code-block:: sh
 
-    Enter number to select a Django app:
-    1 -> mypage
-    2 -> ...
-    Enter number: [2] 1
-    Enter the name of the new Model class name (use CamelCase): BookCover
+    $ python manage.py sdc_new_model -a mypage -m BookCover
 
 
 4 - sdc_update_url
 ******************
 
-The *sdc_update_url* updated the *contentUrl* property of the sdc controller.
-This command is only needed if you change the auto generated path in the *sdc_urls.py*
-files manually. For example let us a numeric parameter to the url path of the about me controller.
+The *sdc_update_url* command updates the *contentUrl* property of the SDC controllers.
+This command is only needed if you change the auto-generated path in the *sdc_urls.py*
+files manually. For example, let us add a numeric parameter to the URL path of the about me controller.
 
 .. code-block:: diff
 
-    +from django.conf.urls import url
      ...
      urlpatterns = [
         # scd view below
-    -   path('about_me', sdc_views.AboutMe.as_view(), name='scd_view_about_me'),
-    +   url('about_me/(?P<key>[0-9]{1,20})', sdc_views.AboutMe.as_view(), name='scd_view_about_me'),
+    -   path('about_me', sdc_views.AboutMe.as_view(), name='scd_view_mypage_about_me'),
+    +   path('about_me/<int:key>', sdc_views.AboutMe.as_view(), name='scd_view_mypage_about_me'),
      ]
      ...
 
@@ -127,11 +130,11 @@ It automatically checks the content URL paths of each controller. If a path has 
         constructor() {
             super();
 
-    -       this.contentUrl = '/sdc_view/main_view/about_me';    //<about-me></about-me>
-    +       this.contentUrl = '/sdc_view/main_view/about_me/%(key)s'; //<about-me data-key=""></about-me>
+    -       this.contentUrl = "/sdc_view/mypage/about_me"; //<about-me></about-me>
+    +       this.contentUrl = "/sdc_view/mypage/about_me/%(key)s"; //<about-me data-key=""></about-me>
     ...
 
-*mysite/mypage/static/mypage/js/sdc/about_me.js*
+*mysite/mypage/Assets/src/mypage/controller/about_me/about_me.js*
 
 5 - sdc_update_links
 ********************

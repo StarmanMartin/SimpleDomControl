@@ -1,2 +1,2 @@
-python precomplie.py
+python precompile.py
 make html

@@ -39,15 +39,20 @@ Bootstrap flow
 
 When ``app.init_sdc()`` runs, the client:
 
-1. initializes DOM event delegation
+1. on the first call, installs the safe jQuery helpers (see below)
 2. prepares server-call connectivity
-3. creates root controller objects
-4. scans the DOM for all registered controller tags
-5. instantiates those controllers
-6. reads ``data-*`` attributes into ``this.params``
-7. loads HTML from ``contentUrl`` if configured
-8. resolves nested controllers recursively
-9. wires DOM events and runs ``onRefresh()``
+3. initializes DOM event delegation
+4. creates the root controller objects
+5. creates the controllers registered with ``app.registerGlobal()``
+6. scans the page body for all registered controller tags and instantiates
+   those controllers
+7. reads ``data-*`` attributes into ``this.params``
+8. loads HTML from ``contentUrl`` if configured and runs ``onLoad()``
+9. resolves nested controllers recursively and runs ``willShow()``
+10. wires DOM events and runs ``onRefresh()``
+
+``app.init_sdc()`` returns a promise that resolves when all controllers on the
+page are loaded.
 
 Tag registration
 ----------------
@@ -115,6 +120,17 @@ The runtime supports handler-bound placeholders such as ``<this.listview>``.
 During refresh, the client calls the matching controller method and reconciles
 its result back into the DOM.
 
+- The method name is the tag name in lower case (HTML tag names are not
+  case-sensitive), so ``<this.listView>`` calls ``listview()``. Use lower-case
+  or snake_case method names for placeholders.
+- The method receives the placeholder's ``data-*`` attributes as one object:
+  ``<this.borrow_btn data-pk="7">`` calls ``borrow_btn({pk: 7})``.
+- The method may return HTML, a jQuery object, or a promise of either.
+- The method is looked up on the closest controller that contains the
+  placeholder. A placeholder inside a model list template shown by
+  ``<sdc-list-view>`` is therefore resolved on the list view, not on the page
+  controller around it.
+
 That is how SDC supports server-rendered HTML plus smaller client-side dynamic
 regions without introducing a separate template engine.
 
@@ -127,8 +143,10 @@ SDC augments jQuery with safe DOM helpers:
 - ``$elem.safeEmpty()``
 - ``$elem.safeReplace($new)``
 
-These call controller removal logic before changing the DOM so child
-controllers, model sockets, and event subscriptions are cleaned up correctly.
+These call ``remove()`` on the affected controllers before changing the DOM, so
+child controllers, model sockets, and event subscriptions are cleaned up. The
+DOM change always happens, even if a controller's ``onRemove()`` returns
+``false``. ``safeEmpty()`` removes the element children only, not text nodes.
 
 Client asset structure
 ----------------------

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'Simple-Dom-Control'
-copyright = '2023, Martin Starman <martin.starman@kit.edu>'
+copyright = '2023-2026, Martin Starman <martin.starman@kit.edu>'
 author = 'Martin Starman <martin.starman@kit.edu>'
 
 

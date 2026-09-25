@@ -1,11 +1,13 @@
 .. code-block:: python
 
+    from django.conf import settings
     ...
     class Book(models.Model, SdcModel):
         title = models.CharField(max_length=100)
         author = models.CharField(max_length=100)
-        text = models.CharField(max_length=255, default=default_text)
-        borrowed_by = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
+        text = models.CharField(max_length=255, default="")
+        # SDC sets AUTH_USER_MODEL = "sdc_user.SdcUser", so refer to the user model through the setting.
+        borrowed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
 
         class SearchForm(AbstractSearchForm):
             """Default search form for the list view."""
@@ -14,7 +16,7 @@
             DEFAULT_CHOICES = CHOICES[0][0]
             SEARCH_FIELDS = ("title", "author")
 
-        class _SdcMeta:
+        class SdcMeta:
             """Metadata needed to manage SDC model operations."""
             edit_form = "main_app.forms.BookForm"
             create_form = "main_app.forms.BookForm"
@@ -30,7 +32,7 @@
 
         @classmethod
         def is_authorised(cls, user, action, obj):
-                return True
+            return True
 
         @classmethod
         def get_queryset(cls, user, action, obj):

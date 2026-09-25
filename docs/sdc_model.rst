@@ -21,10 +21,17 @@ Use CamelCase for the model name.
 
 The command generates:
 
-- a Django model class
+- a Django model class with a nested ``SearchForm``, an ``SdcMeta`` class and a
+  ``render()`` classmethod that applies the search form to list views
 - a form class
-- default list/detail templates
-- the metadata and runtime hooks required by SDC
+- default list/detail templates in ``<app>/templates/<app>/models/<Model>/``,
+  linked into ``<app>/Assets/src/<app>/models/<Model>/``
+- ``is_authorised()`` and ``get_queryset()`` classmethods
+
+.. warning::
+
+   The generated ``is_authorised()`` returns ``False``, so a new model is closed
+   to every client action until you edit it.
 
 Server model metadata
 ---------------------
@@ -59,11 +66,15 @@ work together:
 
 ``is_authorised(cls, user, action, obj)``
    Returns whether ``user`` may perform ``action``. ``action`` is one of:
-   ``connect``, ``load``, ``list_view``, ``detail_view``, ``edit_form``,
-   ``named_form``, ``create_form``, ``save``, ``create``, ``upload``, ``delete``.
+   ``connect``, ``load``, ``list_view``, ``detail_view``, ``named_view``,
+   ``edit_form``, ``named_form``, ``create_form``, ``save``, ``create``,
+   ``upload``, ``delete``. ``obj`` is the filter dict (``model_query``) sent by
+   the client queryset, not a model instance.
 
 ``get_queryset(cls, user, action, obj)``
-   Returns the rows this user may see or operate on for the given action.
+   Returns the rows this user may see or operate on for the given action. It is
+   also called with the action ``disconnect`` when a queryset connection
+   closes.
 
 .. warning::
 
@@ -143,22 +154,28 @@ Loading and re-synchronizing data
 ``update({ modelQuery = null, item = null })``
    Alternative to ``load()`` when an existing queryset should be synchronized
    again. It can refresh the current filter, a supplied filter, or one specific
-   item.
+   item. The argument object is required: call ``update({})``, not ``update()``.
 
 Typical usage:
 
 - use ``load()`` for the initial fetch
-- use ``update()`` to re-sync an existing queryset
+- use ``update({})`` to re-sync an existing queryset
 - use ``update({ item })`` when one known model should be refreshed
+
+``update``, ``delete``, ``listView``, ``detailView`` and ``view`` all take one
+options object without a default, so always pass at least ``{}``.
 
 Other queryset methods
 ----------------------
 
-``new()``
-   Creates a new empty model instance and attaches it to the queryset.
+``new(values = {})``
+   Creates a new model instance, pre-filled with ``values``, and attaches it to
+   the queryset. Nothing is sent to the server.
 
-``get(modelQuery = null)``
-   Loads and returns exactly one item. Raises if the result count is not one.
+``get(modelQuery = null, doNotLoad = false)``
+   Async. Loads and returns exactly one item; the promise is rejected if the
+   result count is not one. With ``doNotLoad = true`` it returns the cached item
+   with the given ``id`` (or a new instance) without a server request.
 
 ``setFilter(modelQuery)`` / ``addFilter(modelQuery)``
    Replace or merge queryset filters.
@@ -166,14 +183,20 @@ Other queryset methods
 ``setIds(ids)``
    Rebuild the queryset from ids, another queryset, or an existing model.
 
-``save({ pk = null, formName = "edit_form", data = null })``
-   Save one or more existing items.
+``save({ pk = null, id = null, formName = "edit_form", data = null } = {})``
+   Save existing items. With ``pk`` (or its alias ``id``) only that item is
+   saved; without it, every item in the queryset is saved, one request each.
+   ``data`` replaces the serialized model values. Resolves to an array of
+   responses.
 
-``create({ elem, data = null })``
-   Create a new backend item.
+``create(data)`` / ``create({ elem, data })``
+   Create a new backend item. Pass the field values directly
+   (``create({title: "Dune"})``) or an options object with ``elem`` (an existing
+   unsaved ``SdcModel``) and/or ``data``. Without ``elem``, a new instance is
+   created with ``new(data)``.
 
-``delete({ pk = null, elem = null })``
-   Delete an item by id or model object.
+``delete({ pk = null, id = null, elem = null })``
+   Delete an item by id (``pk`` or ``id``) or model object.
 
 Server-rendered views
 ---------------------
@@ -228,8 +251,10 @@ The ``SdcModel`` object therefore remains the source of truth across:
 How rendered forms are attached
 -------------------------------
 
-When the client requests a create or edit form, it attaches the metadata needed
-by the controller submit flow:
+``form()`` and ``namedForm()`` return a ``<div>`` that is filled when the server
+responds. Put that div inside a ``<form>`` element: the client attaches the
+metadata needed by the controller submit flow to the closest ``<form>``, and
+without one nothing is attached:
 
 - ``data("model", modelObj)``
 - ``data("model_pk", pk)``
@@ -252,8 +277,9 @@ Relationships
 
 Client-side model tests show two main serialization rules:
 
-- many-to-one relations serialize as one related primary key
-- one-to-many relations serialize as a list of related primary keys
+- many-to-one and one-to-one relations serialize as one related primary key
+- one-to-many and many-to-many relations serialize as a list of related primary
+  keys
 
 This allows richer client-side relation handling while keeping backend payloads
 simple.
@@ -269,4 +295,6 @@ Each queryset also manages its own connection state:
 - ``isConnected()`` ensures the WebSocket handshake is complete
 - ``close()`` closes the queryset connection
 - ``noOpenRequests()`` resolves when all outstanding requests are complete
-- ``onUpdate`` and ``onCreate`` can react to pushed model events
+- ``onUpdate`` and ``onCreate`` can react to pushed model events. The handlers
+  receive an array of models. Updates are pushed only for rows this queryset
+  has loaded, new rows only if they match its filter.

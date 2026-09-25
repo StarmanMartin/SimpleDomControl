@@ -84,14 +84,11 @@ Now that the *main_app* has been created, we can add a new SDC controller to the
 
 New Controller
 --------------
-This is followed by the following CLI prompts:
-
-.. code-block:: sh
-
-    Enter number to select an django App:
-    1 -> main_app
-    Enter number: [1] 1
-    Enter the name of the new controller (use snake_case): dashboard
+The command asks three questions: select the Django app (``main_app``; the
+project package ``Library`` is also listed), enter the controller name in
+snake_case (``dashboard``), and select mixins for the new controller (select
+none for now). In a terminal the app and mixin selection are interactive
+lists.
 
 The sdc_cc command creates the following files and links:
 
@@ -118,33 +115,48 @@ The sdc_cc command creates the following files and links:
                                 ├─ dashboard.js
                                 └─ dashboard.scss
                         ├─ main_app.organizer.js
-                        └─ main_app.organizer.scss
+                        └─ main_app.style.scss
+                ├─ tests
+                    └─ main_app.test.js
+             ├─ sdc_urls.py
+             ├─ sdc_views.py
                  └─ ...
           ├─ Library
              └─ ...
           └─ ...
 
 
-Next, we will add two more controllers: the 'catalog' controller and the 'my_list' controller.
+``sdc_urls.py`` and ``sdc_views.py`` hold the server side of the controller
+(the URL of its HTML fragment and its ``SDCView`` class), and
+``main_app.test.js`` receives a generated Jest test.
+
+Next, we will add the other controllers we need: the 'catalog' and 'my_list'
+pages, a reusable 'book_list' controller that both pages use, and a
+'book_edit' controller for staff (used later on).
 
 .. code-block:: sh
 
-    python manage.py sdc_cc -a main_app -c catalog
-    python manage.py sdc_cc -a main_app -c my_list
+    python manage.py sdc_cc -a main_app -c catalog -m
+    python manage.py sdc_cc -a main_app -c my_list -m
+    python manage.py sdc_cc -a main_app -c book_list -m
+    python manage.py sdc_cc -a main_app -c book_edit -m sdc_model_form
 
-These two commands are equivalent to the dashboard controller and generate JS, SCSS and HTML files for both controllers.
-Before we work with the two two controllers we set up the in app navigation.
+``-a`` and ``-c`` answer the first two questions. ``-m`` selects the mixins:
+a bare ``-m`` means "no mixins" and skips the question, ``-m sdc_model_form``
+adds the ``sdc-model-form`` mixin. These commands generate the same files as
+for the dashboard controller.
+Before we work with these controllers we set up the in-app navigation.
 
 Basic Navigation
 ----------------
 
-Let us fist add the dashboard controller as default view to the main navigation.
+Let us first add the dashboard controller as default view to the main navigation.
 
 .. code-block:: html
 
     ...
-    <!-- nav view controller ind sdc_tools -->
-    <!-- TODO: data-default-controller sets the default view -->
+    <!-- The navigator controller from sdc_tools. -->
+    <!-- data-default-controller sets the view shown for the root path. -->
     <sdc-navigator data-default-controller="dashboard">
     ...
 
@@ -183,7 +195,9 @@ Next we need to edit the HTML file of the *dashboard* controller:
 
 *./Library/main_app/templates/main_app/sdc/dashboard.html*
 
-If you reload the page now, you will see that there is a basic navigation bar on the left-hand side of the page, containing two links and a main view of the catalog controller content.
+Once the app is built and running (see `Running the app`_), you will see a
+basic navigation bar on the left-hand side of the page, containing two links
+and a main view of the catalog controller content.
 
 
 .. include:: snippets/basic_navigation.rst
@@ -216,12 +230,14 @@ This command generates the following:
 
 3. Two new HTML view templates for the Book model:
 
-    - ./Library/Assets/src/main_app/models/Book/Book_details.html
-    - ./Library/Assets/src/main_app/models/Book/Book_list.html
+    - ./Library/main_app/templates/main_app/models/Book/Book_details.html
+    - ./Library/main_app/templates/main_app/models/Book/Book_list.html
 
-see more: :ref:`new-model-label`
+   They are also linked into ``./Library/main_app/Assets/src/main_app/models/Book/``.
 
-Now, we need to populate. In this example, a book has a title, an author, text and a user relation field called 'borrowed by'.
+see more: :ref:`sdc-new_model-core`
+
+Now, we need to add the model fields. In this example, a book has a title, an author, text and a user relation field called 'borrowed by'.
 
 .. include:: snippets/book_model.rst
 
@@ -262,6 +278,23 @@ In SDC, the model is responsible for managing its own access rights. To ensure s
 
 *./Library/main_app/models.py*
 
+Create the database table and register the model in the Django admin, so you
+can add some books:
+
+.. code-block:: sh
+
+    python manage.py makemigrations main_app
+    python manage.py migrate
+
+.. code-block:: python
+
+    from django.contrib import admin
+    from main_app.models import Book
+
+    admin.site.register(Book)
+
+*./Library/main_app/admin.py*
+
 Since we do not need the forms for the books (User can not alter or create books),
 the Form classes can be ignored in this case. First, we should take care of the
 representation in the client.
@@ -269,7 +302,7 @@ representation in the client.
 Client-Side Data Models
 -----------------------
 
-The user should be able to browse the books as a list and read a details of the individual books. SDC offers a ListView and a DetailView for the client for this purpose.
+The user should be able to browse the books as a list and read the details of the individual books. SDC offers a ListView and a DetailView for the client for this purpose.
 
 .. code-block:: html
 
@@ -293,6 +326,7 @@ The user should be able to browse the books as a list and read a details of the 
     <table class="table">
         <tbody>
         {% for instance in instances %}
+            <tr>
             <td>
                 <this.borrow_btn data-instance="{{ instance|serialize }}" data-user="{{ user.id }}"></this.borrow_btn>
             </td>
@@ -311,7 +345,7 @@ The user should be able to browse the books as a list and read a details of the 
         </tbody>
     </table>
 
-*./Library/Assets/src/main_app/models/Book/Book_list.html*
+*./Library/main_app/templates/main_app/models/Book/Book_list.html*
 
 .. code-block:: html
 
@@ -329,7 +363,7 @@ The user should be able to browse the books as a list and read a details of the 
         </div>
     </div>
 
-*./Library/Assets/src/main_app/models/Book/Book_details.html*
+*./Library/main_app/templates/main_app/models/Book/Book_details.html*
 
 The list template contains two SDC concepts that go beyond plain Django
 templating:
@@ -339,46 +373,43 @@ templating:
   ``total_count``, and ``search_form`` context variables are produced by the
   ``handle_search_form`` helper on the model's ``render()`` classmethod.
 - ``<this.borrow_btn ...>`` is a *dynamic DOM fragment*. When the runtime
-  refreshes the list, it calls the ``borrow_btn`` method on the current
-  ``Catalog`` controller (we will add it below) and reconciles its return value
-  back into the DOM.
+  refreshes the list, it calls the ``borrow_btn`` method on the closest
+  controller around the list (the ``book_list`` controller, which we will add
+  below) and reconciles its return value back into the DOM.
 
 Wiring up the Catalog
 ---------------------
 
-The catalog page renders the book list. Since ``sdc_tools`` already ships a
-generic ``sdc-list-view`` controller, the catalog template itself stays tiny:
+The catalog page and the "My List" page both show the book list with borrow
+buttons. ``sdc_tools`` ships a generic ``sdc-list-view`` controller that loads
+a model list and renders it. We extend it in the ``book_list`` controller and
+add the ``borrow_btn`` fragment and the borrow/return handlers there, so both
+pages can use ``<book-list>``.
+
+The template of ``book_list`` only needs the container the list view renders
+into:
 
 .. code-block:: html
 
-    <h2>Catalog</h2>
+    <div class="list-container"></div>
 
-    <sdc-list-view data-model="Book"></sdc-list-view>
-
-*./Library/main_app/templates/main_app/sdc/catalog.html*
-
-``<sdc-list-view>`` reads ``data-model="Book"``, creates a client-side
-``SdcQuerySet``, calls the model's ``list_view`` on the server, and drops the
-rendered HTML into its ``.list-container`` child. After every ``save``,
-``create``, or ``delete`` event on the queryset the list refreshes itself.
-
-The JavaScript side of the controller only needs to declare which dynamic
-fragments are used in the list template. We implement the ``borrow_btn``
-handler on a dedicated ``catalog`` controller so the list template stays
-framework-agnostic.
+*./Library/main_app/templates/main_app/sdc/book_list.html*
 
 .. code-block:: javascript
 
-    import {AbstractSDC, app, trigger} from 'sdc_client';
+    import {app} from 'sdc_client';
+    import {SdcListViewController} from '#lib/sdc_tools/controller/sdc_list_view/sdc_list_view.js';
 
-    class CatalogController extends AbstractSDC {
+    class BookListController extends SdcListViewController {
         constructor() {
             super();
-            this.contentUrl = "/sdc_view/main_app/catalog";
+            this.contentUrl = "/sdc_view/main_app/book_list"; //<book-list></book-list>
+            this.model_name = 'Book';
         }
 
         onLoad($html) {
-            this.books = this.querySet('Book');
+            // Optional context for Book_list.html, e.g. data-template-context='{"my_list": true}'
+            this.template_context = this.params.templateContext ?? null;
             return super.onLoad($html);
         }
 
@@ -392,7 +423,7 @@ framework-agnostic.
             const action = isMine ? 'returnBook' : 'borrowBook';
             return `<button class="btn btn-primary"
                             sdc_click="${action}"
-                            data-pk="${instance.pk}">${label}</button>`;
+                            data-pk="${instance.id}">${label}</button>`;
         }
 
         borrowBook($btn, ev) {
@@ -404,15 +435,31 @@ framework-agnostic.
         }
     }
 
-    app.register(CatalogController);
+    app.register(BookListController);
 
-*./Library/main_app/Assets/src/main_app/controller/catalog/catalog.js*
+*./Library/main_app/Assets/src/main_app/controller/book_list/book_list.js*
+
+``SdcListViewController`` creates a client-side ``SdcQuerySet`` for
+``model_name``, asks the server for the model's ``html_list_template`` and
+drops the rendered HTML into ``.list-container``. When a listed book changes
+on the server, the list refreshes itself. ``|serialize`` turns each book into
+an object whose primary key is ``instance.id``.
+
+The catalog template itself stays tiny:
+
+.. code-block:: html
+
+    <h2>Catalog</h2>
+
+    <book-list></book-list>
+
+*./Library/main_app/templates/main_app/sdc/catalog.html*
 
 The ``sdc_click`` attribute is the declarative counterpart of the ``events``
 map. Either one calls the method with the controller as ``this`` and passes
 ``($element, event)``.
 ``serverCall(...)`` invokes a matching Python method on the server-side view
-that we will add next.
+of the ``book_list`` controller, which we will add next.
 
 Server methods on a controller view
 -----------------------------------
@@ -429,8 +476,8 @@ calls ``borrow`` on the view. No prefix is added.
     from main_app.models import Book
 
 
-    class Catalog(SdcLoginRequiredMixin, SDCView):
-        template_name = 'main_app/sdc/catalog.html'
+    class BookList(SdcLoginRequiredMixin, SDCView):
+        template_name = 'main_app/sdc/book_list.html'
 
         def get_content(self, request, *args, **kwargs):
             return render(request, self.template_name)
@@ -477,11 +524,12 @@ A few things worth knowing about ``serverCall``:
 
    **HTTP vs WebSocket transport.** ``serverCall`` uses one transport for the whole
    app, chosen by a single flag — there is no per-call option. The default is
-   **HTTP POST**. To send server calls (and model sync) over the WebSocket instead,
-   set ``SERVER_CALL_VIA_WEB_SOCKET = True`` in ``settings.py``; SDC passes it into
+   **HTTP POST**. To send server calls over the WebSocket instead, set
+   ``SERVER_CALL_VIA_WEB_SOCKET = True`` in ``settings.py``; SDC passes it into
    the page as ``window.SERVER_CALL_VIA_WEB_SOCKET`` in ``base.html``. Leave it
    ``False`` (the default) to use plain HTTP, which needs no ASGI/WebSocket wiring
-   for the call itself.
+   for the call itself. The flag only affects ``serverCall``: model querysets
+   always use the WebSocket.
 
 Registering the model on the client
 -----------------------------------
@@ -515,18 +563,26 @@ Live updates over WebSocket
 ``SdcQuerySet`` opens a WebSocket channel while it is alive. When another
 browser updates a ``Book`` the matching queryset instance receives the event
 and re-renders the list view automatically. No extra code is needed for the
-catalog — ``sdc-list-view`` subscribes on your behalf.
+catalog — the list view subscribes on your behalf.
 
-To react to model pushes yourself, assign handlers to the queryset:
+To react to model pushes yourself, for example on the dashboard, create a
+queryset, load it, and assign handlers. The handlers receive an **array** of
+the changed models. Updates are only pushed for rows the queryset has loaded,
+and new rows only if they match the queryset's filter.
 
 .. code-block:: javascript
 
-    this.books.onUpdate = (book) => {
-        trigger('pushMsg', `${book.title} was updated`);
-    };
-    this.books.onCreate = (book) => {
-        trigger('pushMsg', `New book: ${book.title}`);
-    };
+    async onLoad($html) {
+        this.books = this.querySet('Book');
+        await this.books.load();
+        this.books.onUpdate = (books) => {
+            books.forEach((book) => trigger('pushMsg', `${book.title} was updated`));
+        };
+        this.books.onCreate = (books) => {
+            books.forEach((book) => trigger('pushMsg', `New book: ${book.title}`));
+        };
+        return super.onLoad($html);
+    }
 
 The global ``pushMsg`` and ``pushErrorMsg`` events are picked up by the
 ``sdc-alert-messenger`` controller that ``sdc_tools`` injects into the shell.
@@ -534,26 +590,27 @@ The global ``pushMsg`` and ``pushErrorMsg`` events are picked up by the
 The "My List" page
 ------------------
 
-The "My List" page reuses ``sdc-list-view`` but narrows the queryset to the
-current user. ``sdc-list-view`` reads ``model``, ``filter`` and ``onUpdate``
-from its ``data-*`` attributes (``this.params``).
+The "My List" page reuses ``<book-list>`` but narrows the queryset to the
+current user. The list view reads ``filter`` from its ``data-*`` attributes
+(``this.params``); ``BookListController`` also reads ``templateContext``.
 
 .. code-block:: html
 
     <h2>My books</h2>
 
-    <sdc-list-view
-        data-model="Book"
-        data-filter='{"borrowed_by": "{{ user.id }}"}'
+    <book-list
+        data-filter='{"borrowed_by": {{ user.id }}}'
         data-template-context='{"my_list": true}'>
-    </sdc-list-view>
+    </book-list>
 
 *./Library/main_app/templates/main_app/sdc/my_list.html*
 
 ``data-*`` attributes are parsed into native JavaScript values, so the
-``data-filter`` JSON is delivered to ``this.params.filter`` as an object. The
-``template_context`` payload is passed through to ``render()`` and is what the
-``{% if template_context.my_list %}`` branch in ``Book_list.html`` keys off of.
+``data-filter`` JSON is delivered to ``this.params.filter`` as an object.
+jQuery turns ``data-template-context`` into the key ``templateContext``.
+``BookListController`` passes it on as ``template_context``, which the server
+provides to ``Book_list.html`` as the variable ``template_context``; that is
+what the ``{% if template_context.my_list %}`` branch keys off of.
 
 Book details and modal navigation
 ---------------------------------
@@ -601,22 +658,21 @@ First, widen the authorization so staff can edit:
         if action in ('connect', 'load', 'list_view', 'detail_view'):
             return True
         if user.is_authenticated and user.is_staff:
-            return action in ('edit_form', 'create_form',
+            return action in ('edit_form', 'create_form', 'named_form',
                               'save', 'create', 'delete')
         return False
 
-Then drop a form controller into an admin-only page:
+The simplest way to show a form is the ready-made ``<sdc-model-form>``
+controller. Put it into any template; without ``data-pk`` it creates a new
+book, with ``data-pk`` it edits that book:
 
 .. code-block:: html
 
     <sdc-model-form
         data-model="Book"
-        data-pk="{{ pk|default_if_none:'' }}"
-        data-form_header="{% if pk %}Edit book{% else %}New book{% endif %}"
+        data-form_header="New book"
         data-next="..">
     </sdc-model-form>
-
-*./Library/main_app/templates/main_app/sdc/book_edit.html*
 
 ``data-next=".."`` navigates one level up after a successful save. Other
 supported options are covered in :ref:`sdc-controller-label`, including
@@ -624,8 +680,20 @@ supported options are covered in :ref:`sdc-controller-label`, including
 Write multi-word option names with an underscore: jQuery turns dashed names
 such as ``data-form-header`` into camelCase keys, which the form ignores.
 
-If a controller needs its own behavior on top of the generic form, register it
-as a mixin:
+If a page needs its own behavior on top of the generic form, use
+``sdc-model-form`` as a mixin instead. That is what the ``book_edit``
+controller does: we created it with ``-m sdc_model_form``, so its generated
+registration already reads ``.addMixin("sdc-model-form")``. With the mixin, the
+page template must provide the form and its ``.form-container`` itself:
+
+.. code-block:: html
+
+    <form>
+        <div class="form-container"></div>
+        <button class="btn btn-success" type="submit">Save</button>
+    </form>
+
+*./Library/main_app/templates/main_app/sdc/book_edit.html*
 
 .. code-block:: javascript
 
@@ -647,19 +715,44 @@ as a mixin:
         }
     }
 
-    app.register(BookEditController, false).addMixin('sdc-model-form');
+    app.register(BookEditController, false).addMixin("sdc-model-form");
 
 *./Library/main_app/Assets/src/main_app/controller/book_edit/book_edit.js*
 
 Mixing in ``sdc-model-form`` adds its event map and submit pipeline to the
-concrete controller. ``this.model`` on the mixin is the bound ``SdcModel``
-instance — mutating it is enough, because the form fields stay in sync.
+concrete controller. ``model_name`` must be set before ``super.onLoad()``,
+because the mixin's ``onLoad`` loads the model. ``this.model`` is then the bound
+``SdcModel`` instance — mutating it is enough, because the form fields stay in
+sync.
+
+The page gets the book to edit from ``this.params``, so staff can open it with a
+navigation link, for example in ``Book_list.html``:
+
+.. code-block:: html
+
+    {% if user.is_staff %}
+        <a class="navigation-links" href="./book-edit?pk={{ instance.pk }}&next=..">Edit</a>
+    {% endif %}
+
+Without ``pk`` (``./book-edit?next=..``) the same page creates a new book.
 
 Named forms
 -----------
 
-A model can expose several forms. Declare each one in ``SdcMeta`` and select
-it per controller with ``data-form_name``:
+A model can expose several forms. Define the form class:
+
+.. code-block:: python
+
+    class SmallBookForm(ModelForm):
+        class Meta:
+            model = Book
+            fields = ["title"]
+
+*./Library/main_app/forms.py*
+
+Declare each form in ``SdcMeta`` and select it per controller with
+``data-form_name``. The staff ``is_authorised`` above already allows the
+``named_form`` action that loading a named form needs.
 
 .. code-block:: python
 
@@ -673,8 +766,10 @@ it per controller with ``data-form_name``:
 .. code-block:: html
 
     <sdc-model-form data-model="Book"
-                    data-pk="{{ pk }}"
+                    data-pk="{{ instance.pk }}"
                     data-form_name="small"></sdc-model-form>
+
+*For example in ./Library/main_app/templates/main_app/models/Book/Book_details.html*
 
 You can also select a named form through a navigator link with a ``form_name``
 query parameter, which arrives in ``this.params.form_name``:
@@ -684,16 +779,17 @@ query parameter, which arrives in ``this.params.form_name``:
     <a class="navigation-links"
        href="./sdc-model-form?model=Book&pk={{ instance.pk }}&form_name=small&next=..">Quick edit</a>
 
-The server looks the name up on ``SdcMeta`` and falls back to ``edit_form`` if it
-is not found, so an unknown name is safe. The chosen form name is remembered on
-the form and sent back on save, so edits go through the same named form.
+The server looks the name up on ``SdcMeta``. Loading a form with an unknown
+name fails with an error; when saving, an unknown name falls back to
+``edit_form``. The chosen form name is remembered on the form and sent back on
+save, so edits go through the same named form.
 
 Feedback and auto-submitting forms
 ----------------------------------
 
 The ``sdc-alert-messenger`` controller displays short-lived notifications from
 the ``pushMsg`` and ``pushErrorMsg`` events. ``sdc_init`` already adds it to
-``base.html``; you can fire messages from anywhere:
+``templates/index.html``; you can fire messages from anywhere:
 
 .. code-block:: javascript
 
@@ -701,10 +797,13 @@ the ``pushMsg`` and ``pushErrorMsg`` events. ``sdc_init`` already adds it to
     trigger('pushMsg', 'Saved!');
     trigger('pushErrorMsg', 'Something went wrong');
 
-For classic Django forms that do not need the full model pipeline, add the
-``ajax-form`` class and ``sdc-auto-submit`` takes over: it intercepts submit,
-posts over AJAX, maps server-rendered field errors back, and emits ``pushMsg``
-or ``pushErrorMsg`` automatically.
+For classic Django forms that do not need the full model pipeline, use the
+``sdc-auto-submit`` mixin: create the controller that contains the form with
+``python manage.py sdc_cc -a main_app -c contact -m sdc_auto_submit`` (or add
+``.addMixin("sdc-auto-submit")`` to its registration) and give the form the
+``ajax-form`` class. The mixin then intercepts submit, posts over AJAX, maps
+server-rendered field errors back, and emits ``pushMsg`` or ``pushErrorMsg``
+automatically. The ``ajax-form`` class alone does nothing.
 
 .. code-block:: html
 
@@ -735,6 +834,7 @@ or to a group, use the server-side mixins:
             return render(request, self.template_name)
 
 
+    # Created with: python manage.py sdc_cc -a main_app -c admin_only -m
     class AdminOnly(SdcGroupRequiredMixin, SDCView):
         group_required = ['Editor']
         staff_allowed = True    # defaults to False — opt in to allow staff
@@ -791,7 +891,7 @@ alongside :ref:`sdc-controller-label`:
    controllers load.
 4. ``willShow()`` — run once children are ready but before the first refresh.
 5. ``onRefresh()`` — called every time ``refresh()``/``reload()`` runs.
-6. ``onRemove()`` — cleanup; return ``false`` to cancel removal.
+6. ``onRemove()`` — cleanup. It cannot cancel the removal.
 
 A minimal annotated controller for the dashboard:
 
@@ -840,20 +940,41 @@ connections, and events are torn down cleanly:
 Testing the app
 ---------------
 
-``sdc_init`` scaffolds a Jest test setup under ``Assets/tests``. A controller
-test usually renders its tag and asserts on the resulting DOM or on state
-changes:
+``sdc_init`` scaffolds a Jest test setup under ``Assets/tests``, and ``sdc_cc``
+adds a test for every new controller to ``main_app/Assets/tests/main_app.test.js``.
+Test files must be named ``*.test.js`` and live in ``<app>/Assets/tests/``.
+Run them from the project root with:
+
+.. code-block:: sh
+
+    npm run sdc_test
+
+The test setup starts a Django test server with its own database. A controller
+test creates the controller with ``test_utils.get_controller()`` and asserts on
+the resulting DOM or on state changes:
 
 .. code-block:: javascript
 
-    import {app} from 'sdc_client';
-    import '../src/main_app/controller/catalog/catalog.js';
+    import {test_utils} from 'sdc_client';
 
-    test('catalog borrow button toggles label', async () => {
-        const $root = $('<catalog></catalog>').appendTo('body');
-        await app.init_sdc();
-        // ... assert against the rendered list container.
+    describe('Catalog', () => {
+        let controller;
+
+        beforeEach(async () => {
+            controller = await test_utils.get_controller('catalog', {}, '');
+        });
+
+        test('Load Content', async () => {
+            expect($('body').find('catalog').length).toBeGreaterThan(0);
+        });
     });
+
+Pages that require a login, like the catalog, need a logged-in test user. Seed
+the test database with a Python script (``DB_PYTHON_SCRIPT`` in
+``Assets/.sdc_env``) that calls
+``sdc_core.sdc_extentions.test_utils.register_test_user(username, password)``,
+and switch users in the test with ``test_utils.login(username)`` and
+``test_utils.logout()``.
 
 The Django side can be tested with the regular test runner. Server-call
 methods and authorization rules are plain Python and do not need WebSocket
@@ -862,7 +983,8 @@ plumbing to be exercised.
 General styling and HTML header
 -------------------------------
 
-Let us now add a background images and a favicon to the static directory:
+Let us now add a background image and a favicon to the static directory
+(``sdc_init`` already created ``Assets/static/img/`` with a default favicon):
 
 ::
 
@@ -870,8 +992,9 @@ Let us now add a background images and a favicon to the static directory:
        └─ Library/
           ├─ Assets/
              ├─ static
-                ├─ favicon.png
-                └─ lib.png
+                └─ img
+                   ├─ favicon.png
+                   └─ lib.png
              └─ ...
           ├─ Library
              └─ ...
@@ -901,7 +1024,7 @@ Then you need to add the background image to the *index.style.scss*
 
 *./Library/Assets/src/index.style.scss*
 
-and the favicon image to the *template/base.html*
+and the favicon image to the *templates/base.html*
 
 .. code-block:: html
 
@@ -910,13 +1033,13 @@ and the favicon image to the *template/base.html*
         <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
         ...
 
-        <link href="{% static '/img/favicon.png' %}" rel="shortcut icon">
+        <link href="{% static 'img/favicon.png' %}" rel="shortcut icon">
 
         ...
         {% block scripts %}{% endblock %}
     </head>
 
-*./Library/template/base.html*
+*./Library/templates/base.html*
 
 Running the app
 ---------------
@@ -927,12 +1050,16 @@ development server:
 .. code-block:: sh
 
     # From the project root in one terminal:
-    cd Assets
-    npx gulp          # rebuilds bundles on file change
+    npm run develop   # builds once, then rebuilds on file change
 
     # And in another terminal:
     python manage.py migrate
     python manage.py runserver
+
+``npm run build`` builds once for production. The build also regenerates the
+client model classes (``sdc_make_model_js``) and the file links. The watcher of
+``npm run develop`` only rebuilds the JavaScript and styles; after adding a new
+model or controller, restart it.
 
 Open ``http://127.0.0.1:8000/`` and log in. The dashboard should render with
 the navigation menu, the catalog list should populate, and borrowing a book

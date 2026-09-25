@@ -140,7 +140,10 @@ Parameters passed through a navigation link (``/view-a?name=Max``) end up in
 ^^^^^^^^^^^^^^^^
 
 Runs after the HTML fragment has been fetched and before nested controllers are
-replaced. This is the normal place to mutate or extend the loaded HTML.
+replaced. This is the normal place to read ``this.params`` and to mutate or
+extend the loaded HTML. ``$html`` is a jQuery object, or ``null`` when the
+controller has no ``contentUrl``. ``onLoad()`` runs only once per controller
+instance.
 
 ``willShow()``
 ^^^^^^^^^^^^^^
@@ -156,7 +159,10 @@ Runs after event wiring and DOM updates are complete.
 ``onRemove()``
 ^^^^^^^^^^^^^^
 
-Runs when the controller is being removed. Returning ``false`` cancels removal.
+Runs when the controller is being removed, after its querysets are closed and
+its child controllers are removed. The return value does not stop the removal:
+``safeRemove()``, ``safeEmpty()`` and ``safeReplace()`` always remove the DOM
+element. Use ``onRemove()`` for cleanup only.
 
 Example controller
 ------------------
@@ -236,8 +242,11 @@ Controllers expose three important DOM update helpers:
    controller subtree.
 
 ``reload()``
-   Reloads the HTML fragment from ``contentUrl`` and reconciles it into the
-   existing DOM.
+   Loads the HTML fragment for ``contentUrl`` and reconciles it into the
+   existing DOM. The fragment is cached per tag name, so ``reload()`` fetches it
+   again from the server only if ``contentReload`` is ``true`` (or the URL
+   contains ``%(...)s`` placeholders, which sets ``contentReload``
+   automatically). ``app.cleanCache()`` clears the cache for all tags.
 
 ``reconcile($virtualNode, $realNode = null)``
    Diffs virtual and real DOM trees and preserves matching branches where
@@ -252,6 +261,20 @@ Mixins
 Controllers can aggregate other controller classes as mixins through
 ``app.register(...).addMixin(...)``. Mixin methods and event definitions are
 merged into the concrete controller instance.
+
+.. code-block:: javascript
+
+   app.register(BookEditController).addMixin("sdc-model-form");
+
+- ``addMixin`` only works on the object returned by the first registration of
+  a tag. If the tag is already registered and ``overwrite`` is not set
+  (``app.register(Controller, true)``), ``addMixin`` does nothing.
+- Lifecycle methods of a mixin (``onLoad``, ``willShow``, ``onRefresh``, …) run
+  only if the controller calls the matching ``super`` method, for example
+  ``return super.onLoad($html);``.
+- A mixin can also be applied to a single element by appending its tag name to
+  the controller tag with an underscore:
+  ``<book-edit_sdc-auto-submit></book-edit_sdc-auto-submit>``.
 
 Server calls
 ------------
@@ -398,8 +421,10 @@ Important conventions:
 - Controller arguments are appended after ``~&``, for example
   ``/~catalog~detail~&model=Book&pk=7``.
 - When the navigator loads a target controller named ``catalog``, it injects a
-  custom element named ``<catalog_sdc-navigation-client>``. In practice, that
-  means the page controller should extend ``SdcNavigationClientController``.
+  custom element named ``<catalog_sdc-navigation-client>``. The suffix applies
+  ``sdc-navigation-client`` as a mixin, so page controllers get its behavior
+  without extending ``SdcNavigationClientController``. Extend it only if you
+  want to override its methods, such as ``controller_name()``.
 
 The navigator keeps browser history in sync with the controller path and
 rebuilds breadcrumbs from the loaded page controllers by calling each page
@@ -503,7 +528,10 @@ turns dashed attribute names into camelCase keys, which the form does not read:
 - ``form_name``: generated named form variant
 - ``reset_on_save``: clear form after create
 - ``editing_after_save``: convert create form into edit mode after save
-- ``auto_save``: if true, edit mode submits automatically on change
+- ``auto_save``: default ``true``. Only affects edit mode with a named form
+  (``form_name``): if ``true``, changes are submitted automatically; if
+  ``false``, the form is submitted with a save button. Plain edit mode (without
+  ``form_name``) always submits on change.
 
 Example:
 

@@ -18,6 +18,7 @@ From a development directory:
    python -m venv venv
    source venv/bin/activate
    pip install simpledomcontrol
+   sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = ['sdc_core',/g" ./$PROJECT_NAME/settings.py
    python manage.py sdc_init
    npm install
 
@@ -52,13 +53,26 @@ Manual setup flow
 
    pip install simpledomcontrol
 
-4. Initialize the project.
+4. Add ``'sdc_core'`` to ``INSTALLED_APPS`` in ``mysite/settings.py``, so the
+   SDC management commands are available:
+
+.. code-block:: python
+
+   INSTALLED_APPS = [
+       'sdc_core',
+       'django.contrib.admin',
+       ...
+   ]
+
+5. Initialize the project. ``sdc_init`` moves your settings to
+   ``base_settings.py`` and writes a new ``settings.py`` that imports them and
+   adds the SDC configuration.
 
 .. code-block:: sh
 
    python manage.py sdc_init
 
-5. Install client dependencies.
+6. Install client dependencies.
 
 .. code-block:: sh
 
@@ -131,9 +145,10 @@ Generate a controller:
 
 .. code-block:: sh
 
-   python manage.py sdc_cc -a main_app -c dashboard
+   python manage.py sdc_cc -a main_app -c dashboard -m
 
-This creates the linked controller files in the app-specific asset directory and
+``-m`` without a value means "no mixins"; without ``-m`` the command asks
+which mixins to add. This creates the linked controller files in the app-specific asset directory and
 the Django template/view wiring for the controller.
 
 Your first model
