@@ -29,6 +29,9 @@ This documentation now covers both parts of the system:
    core
    library
    navigation
+   build
+   testing
+   settings
 
 .. toctree::
    :maxdepth: 2
@@ -37,6 +40,8 @@ This documentation now covers both parts of the system:
    client
    sdc_controller
    sdc_model
+   sdc_user
+   rest_api
 
 
 Indices and tables

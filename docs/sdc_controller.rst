@@ -232,6 +232,11 @@ arguments:
 
    <button sdc_click="save">Save</button>
 
+The attribute may list several method names separated by spaces. The method is
+also called on every parent controller that defines it, until a handler calls
+``event.stopPropagation()``. See :ref:`sdc-client-dom-events` for the exact
+dispatch rules.
+
 Refresh and reconciliation
 --------------------------
 
@@ -320,6 +325,32 @@ only over WebSocket.
    as ``window.SERVER_CALL_VIA_WEB_SOCKET``) to route calls over the WebSocket
    instead; that transport requires an ASGI server such as ``daphne``.
 
+Server call details:
+
+- ``serverCall`` reads the Django app name from ``contentUrl``, which must
+  contain ``sdc_view/<app>``. Otherwise it logs an error and returns
+  ``undefined`` instead of a promise.
+- ``args`` must be a plain object; its keys become keyword arguments.
+- Over HTTP the call is a POST to the controller's content URL, with
+  ``%(...)s`` placeholders already filled in. The promise resolves with the
+  return value of the Python method. If the method returns an ``HttpResponse``,
+  that response is sent unchanged: an error status (for example
+  ``send_error()``) rejects the promise with the jQuery XHR object, a success
+  response resolves it with ``undefined``.
+- Over WebSocket the promise resolves with the return value (the first yielded
+  value for a generator). If the method raises an exception or
+  ``PermissionDenied``, the promise rejects with ``null``. Pending calls reject
+  with ``{}`` when the socket closes; the socket reconnects after one second.
+- Messages: if the HTTP return value is an object with ``msg`` or ``header``,
+  the client triggers ``pushMsg(header, msg)``. Error responses with ``msg`` or
+  ``header`` (HTTP error JSON, WebSocket errors) trigger
+  ``pushErrorMsg(header, msg)``. ``sdc-alert-messenger`` displays both.
+
+.. note::
+
+   Over WebSocket, ``msg`` and ``header`` keys in the return value do not
+   trigger ``pushMsg``; only the HTTP transport does this.
+
 Forms and models
 ----------------
 
@@ -336,6 +367,169 @@ The default model form flow:
   callbacks
 
 See :doc:`sdc_model` for the model side of that behavior.
+
+Model form hooks
+^^^^^^^^^^^^^^^^
+
+Forms rendered by a model (edit or create form) get the attribute
+``sdc_submit="submitModelFormDistributor"`` unless they already have an
+``sdc_submit`` attribute. On submit, the closest controller's
+``submitModelFormDistributor($form, event)`` picks the first available handler:
+
+1. ``_submitModelForm($form, event)``
+2. ``submitModelForm($form, event)``
+3. ``defaultSubmitModelForm($form, event)``
+
+Define ``submitModelForm()`` to customize the submit and call
+``super.defaultSubmitModelForm($form, e)`` for the default behavior, as
+``sdc-model-form`` does:
+
+.. code-block:: javascript
+
+   submitModelForm($form, e) {
+     return super.defaultSubmitModelForm($form, e).then((res) => {
+       // res is the result of model.save() / model.create()
+     });
+   }
+
+``defaultSubmitModelForm($form, event)``
+   Calls ``event.stopPropagation()`` and ``event.preventDefault()``, copies the
+   form values into the model bound to the form (``model.syncForm($form)``),
+   and calls ``model.save({formName, data})`` if the model has an id ``>= 0``,
+   otherwise ``model.create({data})``. Returns a promise:
+
+   - On success it clears the form errors, calls
+     ``submit_model_form_success(res[0])`` on the controller and on every
+     descendant controller (``iterateAllChildren()``) that defines it, and
+     resolves with ``res``.
+   - On failure it reconciles the returned form HTML (``data.html``) into the
+     form's first ``.container-fluid``, calls ``submit_model_form_error(data)``
+     on the controller and its descendants, and rejects with ``data``.
+
+.. note::
+
+   The submit is a normal DOM event (see :ref:`sdc-client-dom-events`), so
+   without ``stopPropagation()`` it would also reach the parent controllers.
+   A custom ``submitModelForm()`` that does not call
+   ``defaultSubmitModelForm()`` should call ``e.preventDefault()`` and
+   ``e.stopPropagation()`` itself.
+
+.. _sdc-controller-api-reference:
+
+Controller API reference
+------------------------
+
+This section lists the ``AbstractSDC`` members that are not described above.
+
+Properties
+^^^^^^^^^^
+
+``params``
+   Object with the converted ``data-*`` values of the controller tag. See
+   :ref:`sdc-controller-label-params`.
+
+``parentController``
+   Read-only. The controller that contains this controller. Top-level
+   controllers in the page have ``app.rootController`` as parent; global
+   controllers have ``app.globalRootController``.
+
+``childController``
+   Read-only. Object mapping the camelCase tag name of each child controller
+   to an array of instances, for example
+   ``this.childController.bookList[0]`` for a ``<book-list>`` child. Only
+   direct children are listed.
+
+``mixins``
+   Object mapping mixin class names to the mixin instances of this controller
+   (see `Mixins`_).
+
+``autoRedirect``
+   Set by the runtime when the request for the controller HTML is answered
+   with a 301 redirect (``send_redirect()`` in ``get_content()``): the value is
+   the redirect link (``url-link``). It is not set if ``contentReload`` is
+   true, and other loading errors reset it to ``null``. ``sdc-navigator``
+   reads it to follow the redirect.
+
+``$container``
+   jQuery object of the controller element. After reconciliation it can point
+   to a different (kept) DOM node, so do not store it elsewhere.
+
+``contentUrl``, ``contentReload``, ``load_async``, ``events``
+   See `Important instance properties`_.
+
+Methods
+^^^^^^^
+
+``find(selector)``
+   Short form of ``this.$container.find(selector)``. Also finds elements
+   inside child controllers.
+
+``refresh()``, ``reload()``, ``reconcile($virtualNode, $realNode = null)``
+   See `Refresh and reconciliation`_.
+
+``post(url, args)`` and ``get(url, args)``
+   Send an AJAX request to ``url`` with ``args`` (``app.post`` /
+   ``app.get``). The request carries ``_method=api``, so a Django ``SDCView``
+   handles it in ``post_api()`` / ``get_api()``. The promise resolves with the
+   response body. Afterwards the controller is refreshed, unless the body has
+   ``status: "redirect"``; then ``onNavLink`` is triggered with its
+   ``url-link``.
+
+``submitForm(form, url = form.action, method = form.method)``
+   Sends the DOM form ``form`` as ``FormData`` (files included) and refreshes
+   the controller. Redirect responses (``status: "redirect"`` or HTTP 301 from
+   ``send_redirect()``) trigger ``onNavLink`` instead. See
+   ``app.submitFormAndUpdateView`` in :ref:`sdc-client-app`.
+
+``serverCall(methodName, args)``
+   See `Server calls`_.
+
+``querySet(modelName, modelQuery = {})``
+   Creates an ``SdcQuerySet`` for the model and registers it with the
+   controller. ``remove()`` closes all registered querysets. See
+   :doc:`sdc_model`.
+
+``newModel(modelName, modelQuery = {})``
+   Deprecated alias of ``querySet()``; logs a warning.
+
+``noOpenModelRequests()``
+   Returns a promise that resolves when none of the controller's querysets has
+   an open request.
+
+``controller_name()``
+   Human-readable name of the controller. The default is built from the tag
+   name (``book-list`` → ``Book List``). ``sdc-navigator`` uses it for the
+   breadcrumbs; override it for a better title.
+
+``addEvent(event, selector, handler)``
+   Adds one handler to the controller's event map, like an entry in
+   ``events``. It applies to matching elements from the next refresh on.
+
+``getEvents()``
+   Returns the merged event map of ``events`` and the mixins' ``events``. The
+   result is built on the first call and cached, so changes to ``this.events``
+   after that are ignored; use ``addEvent()`` instead.
+
+``iterateAllChildren()``
+   Returns a flat array of all descendant controllers (depth first).
+
+``remove()``
+   Closes the controller's querysets, removes its child controllers, calls
+   ``onRemove()``, unsubscribes it from all application events (``allOff``),
+   removes it from its parent's ``childController`` and removes its element
+   (plain jQuery ``remove()``). If a child's ``remove()`` or this
+   controller's ``onRemove()`` returns ``false``, it stops and returns
+   ``false``. Normally called through ``safeRemove()``, ``safeEmpty()`` or
+   ``safeReplace()``.
+
+.. note::
+
+   Reconciliation resets ``childController`` without filling it again. This
+   happens on ``reload()``, ``reconcile()`` and whenever a ``<this.*>``
+   placeholder is rendered, including the first render. In such controllers
+   ``childController`` and ``iterateAllChildren()`` are empty, so
+   ``submit_model_form_success`` and ``submit_model_form_error`` do not reach
+   the child controllers. ``app.getController()`` and ``find()`` still work.
 
 Built-in controllers in ``sdc_tools``
 -------------------------------------
