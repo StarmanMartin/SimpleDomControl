@@ -10,6 +10,9 @@ User = get_user_model()
 auther_list = []
 book_list = []
 
+# Placeholder so the test authors get the ids 2-4 the JS tests expect.
+Author.objects.create(name='Test', age=0)
+
 auther_list.append(Author.objects.create(name='Martin', age=22))
 auther_list.append(Author.objects.create(name='Nina', age=23))
 auther_list.append(Author.objects.create(name='Artin', age=24))

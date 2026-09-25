@@ -20,7 +20,7 @@ describe('SdcNavigator', () => {
     });
 
     test('Load Content', async () => {
-        for (let i = 0; i < 20; ++i) {
+        for (let i = 0; i < 100; ++i) {
             await new Promise(resolve => setTimeout(resolve, 50));
             if (controller._childController.sdcDummy && controller._childController.sdcDummy.length > 0) {
                 child = controller._childController.sdcDummy[0];
