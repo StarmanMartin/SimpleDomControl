@@ -95,19 +95,46 @@ Lifecycle
 The controller lifecycle has these main steps:
 
 1. constructor
-2. ``onInit(...)``
-3. ``onLoad(html)``
+2. ``this.params`` is set from the controller tag's ``data-*`` attributes
+3. ``onLoad($html)``
 4. nested controller/content preparation
 5. ``willShow()``
 6. ``onRefresh(originController)``
 7. repeated refreshes as needed
 8. ``onRemove()`` during cleanup
 
-``onInit(...)``
+.. _sdc-controller-label-params:
+
+``this.params``
 ^^^^^^^^^^^^^^^
 
-Runs immediately after the controller is created. Parameters are taken from the
-controller tag's ``data-*`` attributes.
+Before ``onLoad()`` runs, the runtime reads all ``data-*`` attributes of the
+controller tag into the object ``this.params``. Values are converted to numbers,
+booleans, or strings where possible.
+
+The keys follow jQuery's ``.data()`` naming: dashes in attribute names become
+camelCase, underscores are kept.
+
+.. code-block:: html
+
+   <book-list data-user-id="7" data-active="true" data-form_name="small"></book-list>
+
+.. code-block:: javascript
+
+   onLoad($html) {
+     this.params.userId;    // 7
+     this.params.active;    // true
+     this.params.form_name; // "small"
+   }
+
+Parameters passed through a navigation link (``/view-a?name=Max``) end up in
+``this.params`` in the same way, with the query key unchanged
+(``this.params.name``).
+
+.. note::
+
+   ``onInit()`` is no longer called by the runtime. Read ``this.params`` in
+   ``onLoad()`` instead.
 
 ``onLoad(html)``
 ^^^^^^^^^^^^^^^^
@@ -142,18 +169,17 @@ Example controller
        this.contentUrl = "/sdc_view/main_app/catalog";
        this.events.unshift({
          click: {
-           ".reload-button": "reloadList",
+           ".reload-button": function ($elem, event) {
+             this.reloadList();
+           },
          },
        });
      }
 
-     onInit(category = "all") {
-       this.category = category;
-     }
-
-     onLoad(html) {
-       $(html).find(".heading").text(`Category: ${this.category}`);
-       return super.onLoad(html);
+     onLoad($html) {
+       this.category = this.params.category ?? "all";
+       $html.find(".heading").text(`Category: ${this.category}`);
+       return super.onLoad($html);
      }
 
      reloadList() {
@@ -167,21 +193,34 @@ DOM events
 SDC delegates browser events through the runtime rather than binding handlers
 directly to each node every time content changes.
 
-You can define events declaratively:
+You can define events declaratively. The values of the map must be functions.
+They are called with the controller as ``this`` and the arguments
+``($elem, event)``:
 
 .. code-block:: javascript
 
    this.events.unshift({
      click: {
-       ".save-button": "save",
-       ".delete-button": "removeItem",
+       ".save-button": function ($elem, event) {
+         this.save();
+       },
+       ".delete-button": function ($elem, event) {
+         this.removeItem($elem.data("id"));
+       },
      },
      submit: {
-       "form": "submitForm",
+       "form": function ($form, event) {
+         event.preventDefault();
+         this.submitForm($form[0]);
+       },
      },
    });
 
-Or directly in HTML with ``sdc_<event>`` attributes:
+Use ``function`` rather than arrow functions so that ``this`` is the controller.
+
+Or directly in HTML with ``sdc_<event>`` attributes. The attribute value is the
+name of a controller method, which is called with the same ``($elem, event)``
+arguments:
 
 .. code-block:: html
 
@@ -228,9 +267,21 @@ Example:
      return this.serverCall("approve", { approved: true });
    }
 
-``serverCall("approve", …)`` invokes a method named exactly ``call_approve`` on
-the ``SDCView`` that serves the controller (use ``call_async_<name>`` for async
-work). The method name is matched verbatim.
+``serverCall("approve", …)`` invokes the method named exactly ``approve`` on the
+``SDCView`` that serves the controller. No prefix is added. The keys of ``args``
+are passed as keyword arguments, and the return value is sent back to the client
+as the result of the ``serverCall`` promise:
+
+.. code-block:: python
+
+   class Catalog(SDCView):
+       def approve(self, request, approved=False, **kwargs):
+           return {"approved": approved}
+
+The first argument depends on the transport. Over HTTP (the default) it is the
+Django ``HttpRequest``. Over WebSocket it is the ``SDCConsumer``, and the user is
+available as ``consumer.scope["user"]``. ``async def`` methods are supported
+only over WebSocket.
 
 .. warning::
 
@@ -365,10 +416,11 @@ Example:
 
 .. code-block:: javascript
 
-   import {SdcNavigationClientController} from "sdc_tools";
+   import {SdcNavigationClientController} from "#lib/sdc_tools/controller/sdc_navigation_client/sdc_navigation_client.js";
 
    export class CatalogController extends SdcNavigationClientController {
-     onInit() {
+     constructor() {
+       super();
        this.menu_id = 2;
      }
 
@@ -384,14 +436,14 @@ to highlight.
 List, detail, and search controllers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-``sdc-list-view`` expects a model name or a queryset source in ``onInit()`` and
-renders ``model.listView()`` into ``.list-container``.
+``sdc-list-view`` reads a model name or a queryset source from ``this.params``
+in ``onLoad()`` and renders ``model.listView()`` into ``.list-container``.
 
 .. code-block:: html
 
    <sdc-list-view data-model="Book"></sdc-list-view>
 
-Supported ``onInit(model, filter, onUpdate)`` inputs:
+Supported parameters (``data-model``, ``data-filter``, ``data-on-update``):
 
 - ``model``: model name or preconfigured model/query source
 - ``filter``: plain object or callback returning a filter object
@@ -437,7 +489,10 @@ supports both create and edit modes:
 - Create mode is selected when no ``pk`` is provided.
 - Named forms are supported through the ``form_name`` argument.
 
-Common parameters from ``onInit(...)``:
+Common parameters, read from ``this.params``. Pass them as ``data-*``
+attributes with the names written exactly as below. Multi-word names use an
+underscore (``data-form_header``, not ``data-form-header``), because jQuery
+turns dashed attribute names into camelCase keys, which the form does not read:
 
 - ``model``: model name or a model instance
 - ``pk``: primary key for edit mode
@@ -457,8 +512,8 @@ Example:
    <sdc-model-form
        data-model="Book"
        data-next=".."
-       data-form-header="Create Book"
-       data-reset-on-save="true">
+       data-form_header="Create Book"
+       data-reset_on_save="true">
    </sdc-model-form>
 
 When autosave is disabled for edit mode, the controller renders an explicit

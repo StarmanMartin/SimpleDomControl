@@ -17,21 +17,25 @@ Parametrized Navigation
 There are two types of parameters that can be passed to the subsequent controller. Parameters that are intended for
 the Python server view class and parameters that are to be passed directly to the JS SDC controller.
 
-To pass parameters to the client, you can use the onInit method of the controller. This is part of: :ref:`sdc-controller-label-live`.
-To address these, you must write the parameters in the link separated by ‘&’ after the ‘?’. For example:
+Parameters for the client arrive in ``this.params`` of the target controller
+(see :ref:`sdc-controller-label-params`).
+To pass them, write the parameters in the link separated by ‘&’ after the ‘?’. For example:
 
 .. code-block:: html
 
-    <a class="navigation-links" href="/view-a/view-b?name=Max&age=3"
+    <a class="navigation-links" href="/view-a/view-b?name=Max&age=3">View B</a>
 
-And in the *ViewA* Controller the matching counterpart with:
+And in the *ViewB* controller the matching counterpart:
 
 .. code-block:: JavaScript
 
-    function ClassA() {
+    class ViewBController extends AbstractSDC {
         ...
-        onInit(name, age) {
-        ...
+        onLoad($html) {
+            const {name, age} = this.params; // "Max", 3
+            ...
+            return super.onLoad($html);
+        }
     }
 
 To pass parameters to the server, add the necessary parameters to the relevant URL path in the sdc_url.py file, as well as to the SDCView class, as shown below.
@@ -77,7 +81,7 @@ as follows:
 
     import {AbstractSDC, app, trigger} from 'sdc_client';
     ...
-    class ViewA(AbstractSDC) {
+    class ViewAController extends AbstractSDC {
         ...
         sameHandler() {
             const age = 3;

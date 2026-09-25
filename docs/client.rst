@@ -44,7 +44,7 @@ When ``app.init_sdc()`` runs, the client:
 3. creates root controller objects
 4. scans the DOM for all registered controller tags
 5. instantiates those controllers
-6. resolves ``data-*`` attributes into ``onInit()`` arguments
+6. reads ``data-*`` attributes into ``this.params``
 7. loads HTML from ``contentUrl`` if configured
 8. resolves nested controllers recursively
 9. wires DOM events and runs ``onRefresh()``
@@ -76,9 +76,10 @@ Example:
 DOM parameter binding
 ---------------------
 
-``onInit()`` arguments are populated from the controller element's
-``data-*`` attributes. The parser converts common literal values into native
-JavaScript types.
+The controller element's ``data-*`` attributes are collected into the object
+``this.params``, which is available from ``onLoad()`` onward. The parser
+converts common literal values into native JavaScript types. Dashed attribute
+names become camelCase keys (jQuery ``.data()`` naming); underscores are kept.
 
 Example:
 
@@ -89,12 +90,14 @@ Example:
 .. code-block:: javascript
 
    class BookList extends AbstractSDC {
-     onInit(userId, active, rest) {
-       this.userId = userId;   // 7
-       this.active = active;   // true
-       this.rest = rest;       // remaining data attributes
+     onLoad($html) {
+       this.userId = this.params.userId;   // 7
+       this.active = this.params.active;   // true
+       return super.onLoad($html);
      }
    }
+
+``onInit()`` is no longer called by the runtime.
 
 ``contentUrl`` and HTML loading
 -------------------------------
@@ -130,24 +133,35 @@ controllers, model sockets, and event subscriptions are cleaned up correctly.
 Client asset structure
 ----------------------
 
-In a generated SDC project, client source files are typically organized under
-``Assets``:
+In a generated SDC project, the controller files live in each Django app and
+are linked into the top-level ``Assets`` directory, which also holds the build
+setup:
 
 ::
 
-    Assets/
-    ├─ src/
-    │  ├─ <django_app>/
-    │  ├─ sdc_tools/
-    │  ├─ sdc_user/
-    │  ├─ index.organizer.js
-    │  └─ index.style.scss
-    ├─ webpack.config/
-    ├─ gulpfile.js
-    └─ package.json
+    mysite/
+    ├─ package.json                  # JS dependencies and yarn/npm scripts
+    ├─ Assets/
+    │  ├─ src/
+    │  │  ├─ <django_app>/           # links to <django_app>/Assets/src/<django_app>/
+    │  │  ├─ models/                 # generated client model classes
+    │  │  ├─ index.organizer.js
+    │  │  └─ index.style.scss
+    │  ├─ libs/
+    │  │  ├─ sdc_tools/              # links to the installed sdc_tools controllers
+    │  │  └─ sdc_user/
+    │  ├─ tests/
+    │  ├─ webpack.config/
+    │  └─ gulpfile.jsx
+    └─ <django_app>/
+       └─ Assets/src/<django_app>/controller/<controller_name>/
+          ├─ <controller_name>.js
+          ├─ <controller_name>.html
+          └─ <controller_name>.scss
 
-Older SDC projects use this directory both for the runtime package and for
-application-specific controllers, styles, and linked templates.
+Library controllers from ``sdc_tools`` and ``sdc_user`` can be imported through
+the ``#lib/`` alias, for example
+``#lib/sdc_tools/controller/sdc_navigation_client/sdc_navigation_client.js``.
 
 Where to read next
 ------------------

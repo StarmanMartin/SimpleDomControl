@@ -94,12 +94,17 @@ The browser-side model layer is built around:
    A live collection wrapper used to load, update, create, save, delete, and
    render models.
 
-Model classes must be registered on the client:
+Model classes must be registered on the client. You normally don't write this
+yourself: ``python manage.py sdc_make_model_js`` generates one class per SDC
+model in ``Assets/src/models/<Model>.js`` plus ``Assets/src/models/src.js``,
+which registers all of them. ``index.organizer.js`` imports ``src.js``, and the
+gulp build (``yarn build`` / ``yarn develop``) runs ``sdc_make_model_js``
+automatically. The generated registration looks like this:
 
 .. code-block:: javascript
 
    import { registerModel } from "sdc_client";
-   import Book from "./models/Book.js";
+   import Book from "./Book.js";
 
    registerModel("Book", Book);
 
@@ -111,13 +116,10 @@ Controllers usually create querysets through ``this.querySet(...)``:
 .. code-block:: javascript
 
    class CatalogController extends AbstractSDC {
-     onInit() {
+     async onLoad($html) {
        this.books = this.querySet("Book", { available: true });
-     }
-
-     async onLoad(html) {
        await this.books.load();
-       return super.onLoad(html);
+       return super.onLoad($html);
      }
    }
 

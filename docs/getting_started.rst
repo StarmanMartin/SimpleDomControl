@@ -91,19 +91,26 @@ Project layout after initialization
 ::
 
     mysite/
+    ├─ .devcontainer/
     ├─ Assets/
+    │  ├─ libs/
     │  ├─ src/
+    │  ├─ static/
+    │  ├─ tests/
     │  ├─ webpack.config/
-    │  ├─ gulpfile.js
-    │  └─ package.json
+    │  ├─ babel.config.json
+    │  └─ gulpfile.jsx
     ├─ templates/
     │  ├─ base.html
     │  ├─ index.html
     │  └─ elements/
     ├─ manage.py
+    ├─ package.json
     └─ mysite/
+       ├─ base_settings.py
        ├─ settings.py
        ├─ routing.py
+       ├─ asgi.py
        └─ ...
 
 Create your first app

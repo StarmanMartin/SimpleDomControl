@@ -377,8 +377,9 @@ framework-agnostic.
             this.contentUrl = "/sdc_view/main_app/catalog";
         }
 
-        onInit() {
+        onLoad($html) {
             this.books = this.querySet('Book');
+            return super.onLoad($html);
         }
 
         borrow_btn({instance, user}) {
@@ -394,12 +395,12 @@ framework-agnostic.
                             data-pk="${instance.pk}">${label}</button>`;
         }
 
-        borrowBook(ev, $btn) {
+        borrowBook($btn, ev) {
             return this.serverCall('borrow', {pk: $btn.data('pk')});
         }
 
-        returnBook(ev, $btn) {
-            return this.serverCall('return', {pk: $btn.data('pk')});
+        returnBook($btn, ev) {
+            return this.serverCall('return_book', {pk: $btn.data('pk')});
         }
     }
 
@@ -408,7 +409,8 @@ framework-agnostic.
 *./Library/main_app/Assets/src/main_app/controller/catalog/catalog.js*
 
 The ``sdc_click`` attribute is the declarative counterpart of the ``events``
-map. Either one calls the method by name and passes ``(event, $element)``.
+map. Either one calls the method with the controller as ``this`` and passes
+``($element, event)``.
 ``serverCall(...)`` invokes a matching Python method on the server-side view
 that we will add next.
 
@@ -416,8 +418,8 @@ Server methods on a controller view
 -----------------------------------
 
 ``serverCall`` is dispatched to a method on the ``SDCView`` that serves the
-controller. Methods must be named ``call_<name>`` (for synchronous calls) or
-``call_async_<name>`` (for async calls).
+controller. The method name is used exactly as given: ``serverCall('borrow', …)``
+calls ``borrow`` on the view. No prefix is added.
 
 .. code-block:: python
 
@@ -433,24 +435,25 @@ controller. Methods must be named ``call_<name>`` (for synchronous calls) or
         def get_content(self, request, *args, **kwargs):
             return render(request, self.template_name)
 
-        def call_borrow(self, channel=None, pk=None, **kwargs):
+        def borrow(self, request, pk=None, **kwargs):
             book = Book.objects.get(pk=pk)
             if book.borrowed_by_id is None:
-                book.borrowed_by = channel.user
+                book.borrowed_by = request.user
                 book.save()
             return {'ok': True}
 
-        def call_return(self, channel=None, pk=None, **kwargs):
+        def return_book(self, request, pk=None, **kwargs):
             book = Book.objects.get(pk=pk)
-            if book.borrowed_by_id == channel.user.id:
+            if book.borrowed_by_id == request.user.id:
                 book.borrowed_by = None
                 book.save()
             return {'ok': True}
 
 *./Library/main_app/sdc_views.py*
 
-The ``channel`` argument exposes the current user and lets you redirect the
-client programmatically. ``SdcLoginRequiredMixin`` (or
+The first argument is the Django ``HttpRequest``, because server calls use
+HTTP by default. The keys of the ``serverCall`` arguments arrive as keyword
+arguments. ``SdcLoginRequiredMixin`` (or
 ``SdcGroupRequiredMixin`` for group-based access) hides the controller from
 anonymous visitors. See :ref:`sdc-controller-label` for the full list of
 ``AbstractSDC`` hooks available on the client.
@@ -458,9 +461,12 @@ anonymous visitors. See :ref:`sdc-controller-label` for the full list of
 A few things worth knowing about ``serverCall``:
 
 - **The method name is matched verbatim.** ``serverCall('borrow', …)`` invokes a
-  method named exactly ``call_borrow``. The ``call_`` prefix is a convention, not
-  magic. Use ``async def call_async_<name>(self, channel=None, **kwargs)`` for
-  async work.
+  method named exactly ``borrow``. ``return`` is a Python keyword, so the view
+  method for returning a book is called ``return_book``.
+- **The first argument depends on the transport.** Over HTTP (the default) it is
+  the ``HttpRequest``. With ``SERVER_CALL_VIA_WEB_SOCKET = True`` it is the
+  ``SDCConsumer`` instead, and the user is ``consumer.scope["user"]``. Methods
+  can be ``async def`` only over WebSocket; over HTTP they are not awaited.
 - **Name guard (security):** method names that start with ``_`` or that collide
   with framework internals (``dispatch``, ``get_queryset``, ``is_authorised``, …)
   are rejected. Name your callables plainly.
@@ -480,25 +486,23 @@ A few things worth knowing about ``serverCall``:
 Registering the model on the client
 -----------------------------------
 
-The generated ``Book`` model class needs to be available to the browser so
-``querySet('Book')`` knows what to instantiate. ``sdc_new_model`` already wired
-the import into the app organizer, but it is useful to see what that looks
-like:
+The ``Book`` model class needs to be available to the browser so
+``querySet('Book')`` knows what to instantiate. You don't write this class
+yourself: ``python manage.py sdc_make_model_js`` generates
+``Assets/src/models/Book.js`` from the Django model, together with
+``Assets/src/models/src.js``, which registers every SDC model.
+``index.organizer.js`` imports ``src.js``. The gulp build (``yarn build`` or
+``yarn develop``) runs ``sdc_make_model_js`` for you, so after ``sdc_new_model``
+a rebuild is enough. The generated registration looks like this:
 
 .. code-block:: javascript
 
-    import {app, Model} from 'sdc_client';
-    import './controller/dashboard/dashboard.js';
-    import './controller/catalog/catalog.js';
-    import './controller/my_list/my_list.js';
+    import Book from './Book.js';
+    import { registerModel } from 'sdc_client';
 
-    class Book extends Model {
-        static name = 'Book';
-        // Extra client-only methods can be attached here.
-    }
-    app.registerModel(Book);
+    registerModel("Book", Book);
 
-*./Library/main_app/Assets/src/main_app/main_app.organizer.js*
+*./Library/Assets/src/models/src.js* (generated, do not edit)
 
 The client-side ``Book`` class mirrors the fields of the Django model. The
 runtime synchronizes field values through ``syncForm()`` and
@@ -531,8 +535,8 @@ The "My List" page
 ------------------
 
 The "My List" page reuses ``sdc-list-view`` but narrows the queryset to the
-current user. ``onInit(model, filter, onUpdate)`` accepts the filter as the
-second argument.
+current user. ``sdc-list-view`` reads ``model``, ``filter`` and ``onUpdate``
+from its ``data-*`` attributes (``this.params``).
 
 .. code-block:: html
 
@@ -547,7 +551,7 @@ second argument.
 *./Library/main_app/templates/main_app/sdc/my_list.html*
 
 ``data-*`` attributes are parsed into native JavaScript values, so the
-``data-filter`` JSON is delivered to ``onInit()`` as an object. The
+``data-filter`` JSON is delivered to ``this.params.filter`` as an object. The
 ``template_context`` payload is passed through to ``render()`` and is what the
 ``{% if template_context.my_list %}`` branch in ``Book_list.html`` keys off of.
 
@@ -567,7 +571,7 @@ model name and primary key:
 Any ``<a>`` with the class ``navigation-links`` is intercepted by the navigator:
 it cancels the browser navigation and calls ``goTo`` with the link's ``href``.
 The ``href`` is an SDC path, not a real URL, and it carries client params as a
-query string that arrive as ``onInit`` arguments on the target controller.
+query string that arrive in ``this.params`` of the target controller.
 
 When the navigator resolves the link it injects a ``<sdc-detail-view
 data-model="Book" data-pk="...">`` element into a nested ``sdc_detail_view``
@@ -608,7 +612,7 @@ Then drop a form controller into an admin-only page:
     <sdc-model-form
         data-model="Book"
         data-pk="{{ pk|default_if_none:'' }}"
-        data-form-header="{% if pk %}Edit book{% else %}New book{% endif %}"
+        data-form_header="{% if pk %}Edit book{% else %}New book{% endif %}"
         data-next="..">
     </sdc-model-form>
 
@@ -616,7 +620,9 @@ Then drop a form controller into an admin-only page:
 
 ``data-next=".."`` navigates one level up after a successful save. Other
 supported options are covered in :ref:`sdc-controller-label`, including
-``data-reset-on-save``, ``data-auto-save``, and ``data-editing-after-save``.
+``data-reset_on_save``, ``data-auto_save``, and ``data-editing_after_save``.
+Write multi-word option names with an underscore: jQuery turns dashed names
+such as ``data-form-header`` into camelCase keys, which the form ignores.
 
 If a controller needs its own behavior on top of the generic form, register it
 as a mixin:
@@ -631,8 +637,9 @@ as a mixin:
             this.contentUrl = "/sdc_view/main_app/book_edit";
         }
 
-        onInit() {
+        onLoad($html) {
             this.model_name = 'Book';
+            return super.onLoad($html);
         }
 
         titleUpper() {
@@ -652,7 +659,7 @@ Named forms
 -----------
 
 A model can expose several forms. Declare each one in ``SdcMeta`` and select
-it per controller with ``data-form-name``:
+it per controller with ``data-form_name``:
 
 .. code-block:: python
 
@@ -667,10 +674,10 @@ it per controller with ``data-form-name``:
 
     <sdc-model-form data-model="Book"
                     data-pk="{{ pk }}"
-                    data-form-name="small"></sdc-model-form>
+                    data-form_name="small"></sdc-model-form>
 
 You can also select a named form through a navigator link with a ``form_name``
-query parameter, which arrives as an ``onInit`` argument:
+query parameter, which arrives in ``this.params.form_name``:
 
 .. code-block:: html
 
@@ -778,8 +785,9 @@ Every controller goes through the same lifecycle, which is worth reading
 alongside :ref:`sdc-controller-label`:
 
 1. ``constructor`` — define ``contentUrl`` and event maps.
-2. ``onInit(...)`` — receive ``data-*`` attributes.
-3. ``onLoad(html)`` — mutate the freshly-fetched HTML before nested
+2. ``this.params`` is filled from the ``data-*`` attributes (``onInit()`` is
+   no longer called).
+3. ``onLoad($html)`` — read ``this.params`` and mutate the freshly-fetched HTML before nested
    controllers load.
 4. ``willShow()`` — run once children are ready but before the first refresh.
 5. ``onRefresh()`` — called every time ``refresh()``/``reload()`` runs.
@@ -797,16 +805,15 @@ A minimal annotated controller for the dashboard:
             this.contentUrl = "/sdc_view/main_app/dashboard";
             this.events.unshift({
                 click: {
-                    '.refresh-btn': 'refresh',
+                    '.refresh-btn': function ($elem, ev) {
+                        this.refresh();
+                    },
                 },
             });
         }
 
-        onInit(welcome = 'Welcome') {
-            this.welcome = welcome;
-        }
-
         onLoad($html) {
+            this.welcome = this.params.welcome ?? 'Welcome';
             $html.find('.heading').text(this.welcome);
             return super.onLoad($html);
         }
@@ -940,11 +947,11 @@ Naming map::
     controller "catalog"  →  class CatalogController  →  server class Catalog
                           →  tag <catalog>  →  contentUrl /sdc_view/main_app/catalog
     model "Book"          →  registerModel("Book", Book)  →  this.querySet('Book')
-    serverCall('borrow', a)  →  server method  def call_borrow(self, channel=None, **a)
+    serverCall('borrow', a)  →  server method  def borrow(self, request, **a)
 
 Lifecycle order::
 
-    constructor → onInit(...tagAttrs) → onLoad($html) → willShow() → onRefresh()   …   onRemove()
+    constructor → this.params = data-* → onLoad($html) → willShow() → onRefresh()   …   onRemove()
 
 CLI you will use constantly:
 
