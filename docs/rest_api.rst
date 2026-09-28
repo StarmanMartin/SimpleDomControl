@@ -216,9 +216,10 @@ Model endpoints (``AdcApi``)
      - Partial update with ``SdcMeta.edit_form``. Form fields missing in the
        request are filled with the current values of the row.
    * - ``DELETE /sdc_api/<model>/<id>/``
-     - none
-     - Not implemented. Always ``501`` with
-       ``{"success": false, "error": "Delete is not supported"}``.
+     - ``is_authorised(user, 'delete', {'pk': id})``,
+       ``get_queryset(user, 'delete', {'pk': id})``
+     - Delete the row and answer ``{"success": true}``. ``404`` if it does not
+       exist or is not in ``get_queryset()``.
 
 Filtering lists
 ^^^^^^^^^^^^^^^
@@ -240,17 +241,14 @@ parameter is repeated, the last value is used.
 Request bodies
 ^^^^^^^^^^^^^^
 
-The model endpoints read form data, not JSON:
+``POST``, ``PUT`` and ``PATCH`` accept three body formats:
 
-- ``POST`` reads ``request.POST`` / ``request.FILES``, so send
-  ``application/x-www-form-urlencoded`` or ``multipart/form-data``. Files can
-  only be uploaded this way.
-- ``PUT`` and ``PATCH`` parse the raw body as
-  ``application/x-www-form-urlencoded``. Multipart bodies and files are not
-  supported for them.
+- ``application/json``: a JSON object with the form fields (no files)
+- ``application/x-www-form-urlencoded``
+- ``multipart/form-data``, which is also the way to upload files
 
-A JSON body is not parsed; the form then sees no data and returns validation
-errors.
+A JSON body that is not an object returns ``400``. For ``PATCH``, fields that are
+missing in the body keep their current values.
 
 Responses
 ^^^^^^^^^
@@ -304,21 +302,16 @@ Error responses
    allowed (plain-text message).
 
 ``404``
-   Unknown model name (Django's standard ``Http404`` page), row not found or not
-   part of ``get_queryset()`` (empty body), or ``POST`` to an instance URL
-   (``Cannot create with id``).
+   Unknown model name (Django's standard ``Http404`` page), or row not found or
+   not part of ``get_queryset()`` (empty body).
 
 ``400``
-   Form validation failed (``{"success": false, "errors": {...}}``).
+   Form validation failed (``{"success": false, "errors": {...}}``) or the JSON
+   body is not an object.
 
-``501``
-   ``DELETE``.
-
-.. note::
-
-   ``PUT``, ``PATCH`` and ``DELETE`` on a collection URL (without id) end in a
-   server error (``500``), because these handlers require the ``id`` URL
-   argument.
+``405``
+   ``POST`` to an instance URL, or ``PUT``, ``PATCH`` or ``DELETE`` to a
+   collection URL (``{"success": false, "error": ...}``).
 
 OpenAPI description (``sdc_open_api``)
 --------------------------------------
@@ -333,17 +326,22 @@ The command writes *openapi.generated.yaml* into the current working directory
 (run it next to *manage.py*). It contains:
 
 - ``/sdc_api/login/`` with ``POST`` (login, no security) and ``GET`` (refresh)
-- for every SDC model ``/sdc_api/<model>/`` (``GET`` list, ``POST`` create) and
-  ``/sdc_api/<model>/{id}/`` (``GET``, ``PUT``, ``PATCH``); ``<model>`` is the
-  lower-case class name
-- the schemas ``<Model>`` (from the model fields), ``<Model>Create`` (from
-  ``SdcMeta.create_form``), ``<Model>Edit`` (from ``SdcMeta.edit_form``) and
-  ``<Model>Patch`` (``edit_form`` without required fields)
+- for every SDC model ``/sdc_api/<model>/`` (``GET`` list with filter query
+  parameters, ``POST`` create) and ``/sdc_api/<model>/{id}/`` (``GET``,
+  ``PUT``, ``PATCH``, ``DELETE``); ``<model>`` is the lower-case class name
+- the schemas ``<Model>`` (a serialized row: ``model``, ``pk``, ``fields``),
+  ``<Model>Fields`` (the exposed fields, following ``SdcMeta.fields`` /
+  ``exclude``), ``<Model>Create`` (from ``SdcMeta.create_form``),
+  ``<Model>Edit`` (from ``SdcMeta.edit_form``) and ``<Model>Patch``
+  (``edit_form`` without required fields)
+- request bodies as JSON, form-encoded or multipart; forms with file fields
+  only as ``multipart/form-data``
+- the error responses (``400``, ``401``, ``403``, ``404``)
 - a global ``BearerAuth`` (HTTP bearer, JWT) security scheme
 
-Every SDC model must define **both** ``SdcMeta.edit_form`` and
-``SdcMeta.create_form``, because the command imports them for every model. A
-model without them makes the command fail.
+A model without ``SdcMeta.create_form`` gets no ``POST``, a model without
+``SdcMeta.edit_form`` no ``PUT`` / ``PATCH``. The file is plain YAML and valid
+OpenAPI 3.0.
 
 To browse or try the API, load the file into Swagger UI or any OpenAPI tool,
 for example:
@@ -357,24 +355,6 @@ Authorize with the ``access_token`` from ``/sdc_api/login/``. Requests from
 Swagger UI to your Django server are cross-origin, so they may need CORS
 headers on the server.
 
-.. note::
-
-   The generated file is a starting point and differs from the real API in some
-   places:
-
-   - request bodies of forms without file fields are declared as
-     ``application/json``, but the endpoints only read form-encoded data
-     (see `Request bodies`_)
-   - the model schemas describe a flat object (``id`` plus fields), while the
-     responses use the ``{"model", "pk", "fields"}`` format
-   - ``POST`` is documented as ``201``, the endpoint answers ``200``
-   - ``DELETE`` is not listed
-   - ``DateTimeField`` values are declared with ``format: date``
-   - safe strings used as help texts (e.g. Django's password validator
-     help) are written with a Python-specific YAML tag
-     (``!!python/object/new:django.utils.safestring.SafeString``), which some
-     YAML parsers reject; remove these tags by hand if your tool fails to load
-     the file
 
 Example with curl
 -----------------

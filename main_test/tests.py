@@ -591,23 +591,9 @@ class OpenApiHttpApiTest(TestCase):
         super().setUpClass()
         openapi_path = Path(settings.BASE_DIR) / "openapi.generated.yaml"
 
-        class OpenApiLoader(yaml.SafeLoader):
-            pass
-
-        def construct_python_object_new(loader, tag_suffix, node):
-            if isinstance(node, yaml.SequenceNode):
-                value = loader.construct_sequence(node)
-                if len(value) == 1:
-                    return value[0]
-                return value
-            return loader.construct_scalar(node)
-
-        OpenApiLoader.add_multi_constructor(
-            "tag:yaml.org,2002:python/object/new:",
-            construct_python_object_new,
-        )
+        # safe_load: the file must not contain Python-specific YAML tags.
         with open(openapi_path, "r") as f:
-            cls.openapi = yaml.load(f, Loader=OpenApiLoader)
+            cls.openapi = yaml.safe_load(f)
 
     def setUp(self):
         self.password = "api-test-password"
@@ -652,8 +638,9 @@ class OpenApiHttpApiTest(TestCase):
         self.assertIn(str(status_code), operation["responses"])
 
     def assert_openapi_schema_fields(self, schema_name, actual_fields):
-        schema = self.openapi["components"]["schemas"][schema_name]
-        self.assertEqual(set(schema["properties"]), set(actual_fields))
+        schemas = self.openapi["components"]["schemas"]
+        self.assertEqual(set(schemas[schema_name]["properties"]), {"model", "pk", "fields"})
+        self.assertEqual(set(schemas[f"{schema_name}Fields"]["properties"]), set(actual_fields) - {"id"})
 
     def auth_headers(self, token=None):
         return {"HTTP_AUTHORIZATION": f"Bearer {token or self.access_token}"}
@@ -759,6 +746,62 @@ class OpenApiHttpApiTest(TestCase):
             self.flatten_sdc_instance(patch_response.json()["data"]),
             {"id": created_author.pk, "name": "Ada Lovelace", "age": 38},
         )
+
+    def test_write_operations_are_documented(self):
+        self.assert_documented_response("/sdc_api/author/", "post", 200)
+        self.assert_documented_response("/sdc_api/author/", "post", 400)
+        self.assert_documented_response("/sdc_api/author/{id}/", "delete", 200)
+        put = self.openapi["paths"]["/sdc_api/author/{id}/"]["put"]["requestBody"]["content"]
+        self.assertIn("application/json", put)
+        file_put = self.openapi["paths"]["/sdc_api/bookcontent/{id}/"]["put"]["requestBody"]["content"]
+        self.assertEqual(list(file_put), ["multipart/form-data"])
+        user_fields = self.openapi["components"]["schemas"]["SdcUserFields"]["properties"]
+        self.assertNotIn("password", user_fields)
+        self.assertEqual(user_fields["last_login"]["format"], "date-time")
+
+    def test_json_bodies_and_missing_ids(self):
+        created = self.client.post(self.api_url("Author"), data=json.dumps({"name": "Ada", "age": 36}),
+                                   content_type="application/json", **self.auth_headers())
+        self.assertEqual(created.status_code, 200)
+        pk = created.json()["data"]["pk"]
+
+        patched = self.client.patch(self.api_url("Author", pk), data=json.dumps({"age": 37}),
+                                    content_type="application/json", **self.auth_headers())
+        self.assertEqual(patched.status_code, 200)
+        self.assertEqual(self.flatten_sdc_instance(patched.json()["data"]), {"id": pk, "name": "Ada", "age": 37})
+
+        invalid = self.client.post(self.api_url("Author"), data="[1]", content_type="application/json",
+                                   **self.auth_headers())
+        self.assertEqual(invalid.status_code, 400)
+
+        for method in ("put", "patch", "delete"):
+            response = getattr(self.client, method)(self.api_url("Author"), **self.auth_headers())
+            self.assertEqual(response.status_code, 405, method)
+        self.assertEqual(self.client.post(self.api_url("Author", pk), **self.auth_headers()).status_code, 405)
+
+    def test_multipart_put_uploads_a_file(self):
+        from django.test.client import encode_multipart, BOUNDARY, MULTIPART_CONTENT
+        body = encode_multipart(BOUNDARY, {
+            "user": str(self.user.pk),
+            "text": ContentFile(b"new content", name="api_new.txt"),
+        })
+        response = self.client.put(self.api_url("BookContent", self.book_content.pk), data=body,
+                                   content_type=MULTIPART_CONTENT, **self.auth_headers())
+        self.assertEqual(response.status_code, 200)
+        self.book_content.refresh_from_db()
+        self.assertTrue(self.book_content.text.name.endswith(".txt"))
+        self.assertIn("api_new", self.book_content.text.name)
+
+    def test_delete(self):
+        other_content = BookContent.objects.get(user=self.other_user)
+        forbidden = self.client.delete(self.api_url("BookContent", other_content.pk), **self.auth_headers())
+        self.assertEqual(forbidden.status_code, 404)
+        self.assertTrue(BookContent.objects.filter(pk=other_content.pk).exists())
+
+        response = self.client.delete(self.api_url("BookContent", self.book_content.pk), **self.auth_headers())
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"success": True})
+        self.assertFalse(BookContent.objects.filter(pk=self.book_content.pk).exists())
 
     def test_book_list_and_detail_match_openapi_description(self):
         self.assert_documented_response("/sdc_api/book/", "get", 200)

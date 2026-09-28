@@ -40,6 +40,13 @@ The server and the client are released with the same version number.
   navigation parameters arrive in `this.params`, readable from `onLoad()` on.
 
 ### Fixed
+- REST API: `POST`, `PUT` and `PATCH` accept JSON, form-encoded and multipart bodies (file uploads now also
+  work with `PUT` / `PATCH`); `DELETE` deletes the row (was always `501`); `PUT`, `PATCH` and `DELETE`
+  without id (and `POST` with id) answer `405` instead of a server error.
+- `sdc_open_api` describes the real API: `{model, pk, fields}` response schemas that follow
+  `SdcMeta.fields` / `exclude`, JSON / form / multipart request bodies, `200` for `POST`, `DELETE` and the
+  error responses, correct formats for date-time, e-mail and URL fields, and plain YAML without
+  Python-specific tags. Models without `create_form` / `edit_form` no longer make the command fail.
 - Model WebSocket connections track which rows the client has received and the filter of the last full
   load separately, so form and detail requests no longer change which live updates (`on_update`,
   `on_create`, `on_delete`) are forwarded.

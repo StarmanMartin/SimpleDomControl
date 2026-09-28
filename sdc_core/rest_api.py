@@ -5,7 +5,9 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
+from django.forms.models import model_to_dict
 from django.http import Http404, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
+from django.utils.datastructures import MultiValueDict
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -103,6 +105,44 @@ def _serialize_instance(instance):
     return json.loads(SDCSerializer().serialize([instance]))[0]
 
 
+def _parse_body(request):
+    """
+    Returns ``(data, files)`` of a POST, PUT or PATCH request. Supported bodies:
+    ``application/json`` (an object), ``application/x-www-form-urlencoded`` and
+    ``multipart/form-data`` (with file uploads).
+    """
+    content_type = request.content_type or ''
+    if content_type == 'application/json':
+        body = json.loads(request.body or b'{}')
+        if not isinstance(body, dict):
+            raise ValueError("The JSON body must be an object")
+        return body, MultiValueDict()
+    if request.method == 'POST':
+        return request.POST, request.FILES
+    if content_type == 'multipart/form-data':
+        return request.parse_file_upload(request.META, request)
+    return QueryDict(request.body), MultiValueDict()
+
+
+def _patch_data(form_class, instance, data):
+    """Form data for a partial update: the current values, overwritten by the submitted ones."""
+    field_names = list(form_class(instance=instance).fields.keys())
+    current = model_to_dict(instance, fields=field_names)
+    if isinstance(data, QueryDict):
+        merged = QueryDict(mutable=True)
+        for key, value in current.items():
+            values = value if isinstance(value, list) else [value]
+            merged.setlist(key, ['' if v is None else v for v in values])
+        for key in data.keys():
+            merged.setlist(key, data.getlist(key))
+        return merged
+    return current | dict(data)
+
+
+def _error(message, status):
+    return JsonResponse({"success": False, "error": message}, status=status)
+
+
 @method_decorator(jwt_required, name="dispatch")
 @method_decorator(csrf_exempt, name='dispatch')
 class AdcApi(View):
@@ -148,16 +188,16 @@ class AdcApi(View):
 
     def post(self, request, model, id=None):
         if id is not None:
-            return HttpResponseNotFound("Cannot create with id")
+            return _error("Create with POST on the list URL (without id)", 405)
         model_class = self.get_element(model)
         if not model_class.is_authorised(request.user, 'create', {}):
             return HttpResponseForbidden()
+        try:
+            data, files = _parse_body(request)
+        except ValueError as e:
+            return _error(f"Invalid request body: {e}", 400)
         Form = resolve_form(model_class.SdcMeta.create_form)
-        form = Form(
-            instance=None,
-            data=request.POST,
-            files=request.FILES
-        )
+        form = Form(instance=None, data=data, files=files)
         if not form.is_valid():
             return JsonResponse({
                 "success": False,
@@ -170,9 +210,15 @@ class AdcApi(View):
             "data": _serialize_instance(instance),
         })
 
-    def put(self, request, model, id):
+    def put(self, request, model, id=None):
+        return self._update(request, model, id, partial=False)
+
+    def patch(self, request, model, id=None):
+        return self._update(request, model, id, partial=True)
+
+    def _update(self, request, model, id, partial):
         if id is None:
-            return HttpResponseNotFound("Cannot update without id")
+            return _error("Update with PUT or PATCH on the object URL (with id)", 405)
         qs = {'pk': id}
         model_class = self.get_element(model)
         if not model_class.is_authorised(request.user, 'save', {}):
@@ -183,13 +229,14 @@ class AdcApi(View):
         except model_class.DoesNotExist:
             return HttpResponseNotFound()
 
+        try:
+            data, files = _parse_body(request)
+        except ValueError as e:
+            return _error(f"Invalid request body: {e}", 400)
         Form = resolve_form(model_class.SdcMeta.edit_form)
-        data = QueryDict(request.body.decode())
-        form = Form(
-            instance=model_obj,
-            data=data,
-            files=request.FILES
-        )
+        if partial:
+            data = _patch_data(Form, model_obj, data)
+        form = Form(instance=model_obj, data=data, files=files)
         if not form.is_valid():
             return JsonResponse({
                 "success": False,
@@ -202,57 +249,17 @@ class AdcApi(View):
             "data": _serialize_instance(instance),
         })
 
-    def patch(self, request, model, id):
-
+    def delete(self, request, model, id=None):
         if id is None:
-            return HttpResponseNotFound("Cannot update without id")
+            return _error("Delete with DELETE on the object URL (with id)", 405)
         qs = {'pk': id}
         model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'save', {}):
+        if not model_class.is_authorised(request.user, 'delete', qs):
             return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'save', qs)
+        model_qs = model_class.get_queryset(request.user, 'delete', qs)
         try:
             model_obj = model_qs.get(**qs)
         except model_class.DoesNotExist:
             return HttpResponseNotFound()
-
-        Form = resolve_form(model_class.SdcMeta.edit_form)
-
-        data = QueryDict(request.body.decode(), mutable=True)
-
-        form = Form(
-            instance=model_obj,
-            data=data,
-            files=request.FILES
-        )
-
-        for f in form.fields.keys():
-            if f not in data and hasattr(model_obj, f):
-                data.update({f: getattr(model_obj, f)})
-
-        form = Form(
-            instance=model_obj,
-            data=data,
-            files=request.FILES
-        )
-
-        if not form.is_valid():
-            return JsonResponse({
-                "success": False,
-                "errors": form.errors,
-            }, status=400)
-
-        instance = form.save()
-        return JsonResponse({
-            "success": True,
-            "data": _serialize_instance(instance),
-        })
-
-    def delete(self, request, model, id):
-        # Not implemented. Return an explicit response so the endpoint does not
-        # raise a 500 ("view didn't return an HttpResponse"). See ISSUES.md §2 —
-        # full implementation needs is_authorised('delete') + get_queryset gating.
-        return JsonResponse(
-            {"success": False, "error": "Delete is not supported"},
-            status=501,
-        )
+        model_obj.delete()
+        return JsonResponse({"success": True})

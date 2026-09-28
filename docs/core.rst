@@ -422,16 +422,11 @@ Writes an OpenAPI 3.0.3 description of the REST API to
 ``/sdc_api/login/`` (``GET`` refreshes, ``POST`` logs in and returns JWT
 tokens) and for every SDC model ``/sdc_api/<model>/`` (``GET`` list,
 ``POST`` create) and ``/sdc_api/<model>/{id}/`` (``GET``, ``PUT``,
-``PATCH``). The model name in the path is lowercase. The schemas
-``<Model>``, ``<Model>Create``, ``<Model>Edit`` and ``<Model>Patch`` are built
-from the model fields and from ``SdcMeta.create_form`` / ``SdcMeta.edit_form``.
-If a form has a file field, the request body uses *multipart/form-data*.
-See :doc:`rest_api`.
-
-.. note::
-
-    The generated file has no ``DELETE`` operation, although the REST API
-    view handles ``DELETE``.
+``PATCH``, ``DELETE``). The model name in the path is lowercase. The schemas
+``<Model>``, ``<Model>Fields``, ``<Model>Create``, ``<Model>Edit`` and
+``<Model>Patch`` are built from the exposed model fields and from
+``SdcMeta.create_form`` / ``SdcMeta.edit_form``. If a form has a file field,
+the request body uses *multipart/form-data*. See :doc:`rest_api`.
 
 12 - sdc_db_tools
 *****************
