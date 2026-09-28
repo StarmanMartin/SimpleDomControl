@@ -237,8 +237,8 @@ The questions can be answered with options instead:
     The name of the model class in CamelCase.
 
 The same settings check as for *sdc_cc* runs first. If a model with this
-name already exists in the app, the command exits with code 1 without a
-message. An empty name also exits with code 1.
+name already exists in the app, the command prints an error and exits with
+code 1. An empty name also exits with code 1.
 
 Files created or changed:
 
@@ -432,8 +432,8 @@ the request body uses *multipart/form-data*. See :doc:`rest_api`.
 *****************
 
 Database helpers. Exactly one of ``-b``, ``-r``, ``-c`` or
-``--update_to_sdc_user`` must be set; otherwise the command raises a
-``ValueError``.
+``--update_to_sdc_user`` must be set; otherwise the command stops with an
+error.
 
 .. code-block:: sh
 
@@ -445,10 +445,15 @@ Database helpers. Exactly one of ``-b``, ``-r``, ``-c`` or
 ``-b``, ``--backup``
     Writes the rows of every model as Django JSON, one file per model with
     rows: *<app_label>__<Model>.json*. The directory must be new or empty.
+    Content types and permissions are not saved (``migrate`` creates them);
+    references to them are written as natural keys, so the backup can be
+    loaded into a new database.
 ``-r``, ``--restore``
-    Loads all *\*.json* files of the directory and saves each object. If
-    saving fails with a foreign key error, all files are read again until no
-    foreign key error is left. Other integrity errors are ignored.
+    Loads all *\*.json* files of the directory with ``loaddata`` in one
+    transaction; foreign keys are checked after everything is loaded, so the
+    file order does not matter. If the data cannot be loaded, the command
+    stops with the error and nothing is restored. A missing or empty directory
+    is an error.
 ``-c``, ``--clear``
     Makes a backup and then drops all tables.
 ``--update_to_sdc_user``
@@ -458,10 +463,6 @@ Database helpers. Exactly one of ``-b``, ``-r``, ``-c`` or
     users to ``sdc_user.sdcuser``, drops all tables, runs ``makemigrations``
     and ``migrate`` and restores the backup.
 
-.. note::
-
-    In version 0.159.0 ``--clear`` makes the backup and then fails with a
-    ``TypeError`` before any table is dropped.
 
 13 - sdc_shell_execute_script
 *****************************
@@ -471,7 +472,7 @@ Database helpers. Exactly one of ``-b``, ``-r``, ``-c`` or
     $ python manage.py sdc_shell_execute_script -s ./scripts/prepare_db.py
 
 ``-s``, ``--script``
-    Path of a Python file. The file is run with ``exec`` inside the command,
+    Required. Path of a Python file. The file is run with ``exec`` inside the command,
     so Django is set up and ``self`` (the command) is available.
 
 If the file does not exist the command fails with exit code 2. An exception
@@ -496,24 +497,32 @@ build then uses the copy instead of the library file; see
 :ref:`sdc-build-label` for details and limits (styles cannot be overwritten
 this way).
 
-15 - Creating a new project (sdc/__main__.py)
-*********************************************
+15 - Creating a new project (``sdc new``)
+*****************************************
 
-The package does not install a console script. The source repository contains
-a small *click* program in *sdc/__main__.py*, which is not part of the
-installed package. It only works from a source checkout:
+The package installs the command line tool ``sdc`` (also ``python -m sdc``). It
+creates a complete new project in a subdirectory of the current directory:
 
 .. code-block:: sh
 
-    $ python -m sdc new --name mysite
+    $ pip install simpledomcontrol
+    $ sdc new --name mysite
 
-It runs *sdc/init.sh* in a temporary directory: it creates a *virtualenv*
-*venv*, installs *django* and *simpledomcontrol* from PyPI, runs
-``django-admin startproject``, adds ``sdc_core`` to ``INSTALLED_APPS`` and
-``BASE_DIR / 'templates'`` to the template dirs (GNU ``sed``), runs
-``sdc_init`` and ``npm install``. The directory is then moved to
-*./<name>*. The output is shown after the script has finished. For the
-normal setup see :ref:`getting-started-label`.
+It creates the virtualenv *mysite/venv*, installs ``simpledomcontrol`` (the same
+version as the one running ``sdc``) into it, runs ``django-admin startproject``,
+adds ``sdc_core`` to ``INSTALLED_APPS``, runs ``sdc_init -y`` and ``npm install``.
+The target directory must not exist or be empty.
+
+``--name``
+    Name of the project, a valid Python identifier (asked for if missing).
+``--package``
+    pip requirement to install instead of the running version, e.g. a path to a
+    wheel or ``simpledomcontrol==0.159.0``.
+``--skip-npm``
+    Do not run ``npm install`` (it is also skipped with a hint if ``npm`` is not
+    found).
+
+For the manual setup see :ref:`getting-started-label`.
 
 
 SDC extensions

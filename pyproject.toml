@@ -6,7 +6,7 @@ description = "Simple DOM control -> a django MVC framework"
 readme = "README.md"
 license = 'Apache License 2.0'
 
-packages = [{include = "sdc_core"}, {include = "sdc_user"}, {include = "sdc_tools"}]
+packages = [{include = "sdc_core"}, {include = "sdc_user"}, {include = "sdc_tools"}, {include = "sdc"}]
 keywords = ["django", "MVC",]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -16,6 +16,9 @@ classifiers = [
     "Operating System :: OS Independent",
     ]
 homepage = "https://github.com/StarmanMartin/sdc"
+
+[tool.poetry.scripts]
+sdc = "sdc.__main__:cli"
 
 [tool.poetry.dependencies]
 python = ">=3.13,<4.0"

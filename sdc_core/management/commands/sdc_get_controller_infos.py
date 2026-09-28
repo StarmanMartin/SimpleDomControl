@@ -72,7 +72,7 @@ class Command(BaseCommand):
         if(not os.path.exists(self.src_path)):
             raise CommandError('SDC not installed: Assets/src not found', 3)
         if(not os.path.exists(self.libs_path)):
-            raise CommandError('SDC not installed: Assets/src not found', 3)
+            raise CommandError('SDC not installed: Assets/libs not found', 3)
 
         for p in (self.libs_path, self.src_path):
             for app_name in os.listdir(p):

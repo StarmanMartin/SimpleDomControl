@@ -6,11 +6,10 @@ import subprocess
 import sys
 import os
 from django.utils import timezone
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.apps import apps
 from django.core import serializers
 from django.db import connection
-from django.db.utils import IntegrityError
 from django.test.utils import override_settings
 from django.core.management import call_command
 from sdc_core.management.commands.init_add import settings_manager
@@ -57,6 +56,9 @@ def update_to_sdc_user(backup_directory: str | Path):
         restore_backup(backup_directory)
 
 
+BACKUP_EXCLUDED_MODELS = ("contenttypes.ContentType", "auth.Permission")
+
+
 def make_backup(backup_directory: str | Path):
     backup_directory = Path(backup_directory)
     backup_directory.mkdir(parents=True, exist_ok=True)
@@ -65,14 +67,17 @@ def make_backup(backup_directory: str | Path):
     if any(backup_directory.iterdir()):
         raise OSError(errno.ENOTEMPTY, "Folder is not empty", str(backup_directory.absolute()))
     for model in apps.get_models():
-        model_name = f"{model._meta.app_label}.{model.__name__}"
+        # Content types and permissions are created by migrate; references to them are
+        # written as natural keys, so they stay valid in a new database.
+        if f"{model._meta.app_label}.{model.__name__}" in BACKUP_EXCLUDED_MODELS:
+            continue
         filename = f"{model._meta.app_label}__{model.__name__}.json"
 
-        qs = model.objects.all()
+        qs = model._base_manager.all()
         if not qs.exists():
             continue
 
-        data = serializers.serialize("json", qs)
+        data = serializers.serialize("json", qs, use_natural_foreign_keys=True)
 
         with open(backup_directory / filename, "w") as f:
             f.write(data)
@@ -91,26 +96,23 @@ def drop_all_tables():
 
 
 def restore_backup(backup_directory):
+    """
+    Loads all ``*.json`` files of a backup with ``loaddata``: all files in one
+    transaction, with foreign-key checks deferred until everything is loaded, so
+    the order of the files does not matter. Raises an error (and loads nothing)
+    if the data is inconsistent.
+    """
     backup_directory = Path(backup_directory)
-    backup_directory.mkdir(parents=True, exist_ok=True)
     if not backup_directory.is_dir():
-        raise FileNotFoundError(backup_directory)
-    re_run = True
-    while re_run:
-        re_run = False
-        for file in backup_directory.glob("*.json"):
-            with file.open() as f:
-                data = f.read()
-
-            for obj in serializers.deserialize("json", data):
-                try:
-                    obj.save()
-                except IntegrityError as e:
-                    re_run = re_run or e.__str__().startswith('FOREIGN KEY')
+        raise CommandError(f"Backup directory not found: {backup_directory.absolute()}")
+    files = sorted(str(file.absolute()) for file in backup_directory.glob("*.json"))
+    if not files:
+        raise CommandError(f"No backup files (*.json) in {backup_directory.absolute()}")
+    call_command("loaddata", *files)
 
 
 class Command(BaseCommand):
-    help = 'This function inits SDC in your django Project'
+    help = 'Backs up, restores or clears the database, or migrates auth.User to sdc_user.SdcUser.'
 
     def add_arguments(self, parser):
         parser.add_argument('-p', '--path', type=str, help='Path to write Backup [./backup/<TIMESTAMP>]')
@@ -119,13 +121,13 @@ class Command(BaseCommand):
                             help="Update from Djangos auth.User model to SDCs sdc_user.SdcUser")
         parser.add_argument('-c', '--clear',
                             action='store_true',
-                            help="Clears the databes DROPS all tables")
+                            help="Makes a backup and then DROPS all tables of the database")
         parser.add_argument('-b', '--backup',
                             action='store_true',
                             help="If set a (only values) backup will be generated")
         parser.add_argument('-r', '--restore',
                             action='store_true',
-                            help="If set the (value) backup in the path will be reastored")
+                            help="If set the (value) backup in the path will be restored")
 
     def handle(self, *args, **ops):
         self._is_restore = ops.get('restore', False)
@@ -134,7 +136,8 @@ class Command(BaseCommand):
         self._update_to_sdc_user = ops.get('update_to_sdc_user', False)
 
         if self._is_restore + self._is_backup + self._is_clear + self._update_to_sdc_user != 1:
-            raise ValueError(f'Exactly one of restore, backup, update_to_sdc_user or clear must be set!')
+            raise CommandError('Exactly one of -r/--restore, -b/--backup, -c/--clear or --update_to_sdc_user '
+                               'must be set.')
         formatted_now = timezone.now().strftime("%Y_%m_%d_%H_%M_%S")
         self._backup_directory = ops.get('path') or f'./backup/{formatted_now}'
         if self._is_restore:
@@ -146,6 +149,6 @@ class Command(BaseCommand):
                 make_backup(self._backup_directory)
             except OperationalError:
                 pass
-            drop_all_tables(self._backup_directory)
+            drop_all_tables()
         elif self._update_to_sdc_user:
             update_to_sdc_user(self._backup_directory)

@@ -10,7 +10,8 @@ class Command(BaseCommand):
         super(Command, self).__init__(*args, **kwargs)
 
     def add_arguments(self, parser):
-        parser.add_argument('-s', '--script', type=str, help='The path to the executable python script.')
+        parser.add_argument('-s', '--script', type=str, required=True,
+                            help='The path to the executable python script.')
 
     def switch_default_database(self, database_alias):
         # Check if the specified database alias exists in DATABASES

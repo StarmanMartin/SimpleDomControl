@@ -57,7 +57,6 @@ class Command(BaseCommand):
         if not self.check_snake_name(controller_name):
             exit(1)
         mixin_apps = ops.get('mixin_apps')
-        print(mixin_apps)
         if mixin_apps is True:
             mixin_apps = []
         else:

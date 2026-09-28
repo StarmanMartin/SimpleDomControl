@@ -40,6 +40,7 @@ class Command(BaseCommand):
             model_name = str(input(text))
 
         if model_name in [model.__name__ for model in apps.get_app_config(app_name).get_models()]:
+            print(options.CMD_COLORS.as_error(f"The model {model_name} already exists in {app_name}!"))
             exit(1)
         if len(model_name) == 0:
             print(options.CMD_COLORS.as_error("Controller name must not be empty!"))

@@ -22,6 +22,9 @@ The server and the client are released with the same version number.
   for forms with foreign keys or files.
 
 ### Added
+- Console script `sdc` (`sdc new --name <project>`, also `python -m sdc`): creates a new project with its
+  virtualenv, installs the same SDC version, runs `startproject`, `sdc_init -y` and `npm install`. Replaces
+  the unpackaged `sdc/init.sh`.
 - Setting `SDC_USER_REQUIRE_CONFIRMED_EMAIL` (default `False`): only users with a confirmed e-mail address
   (and superusers) can log in.
 - `sdc_core.sdc_extentions.test_utils.register_test_user(username, password)` logs a test user in and
@@ -42,6 +45,13 @@ The server and the client are released with the same version number.
   navigation parameters arrive in `this.params`, readable from `onLoad()` on.
 
 ### Fixed
+- `sdc_db_tools`: `--clear` drops the tables (it crashed with a `TypeError`); `--restore` uses `loaddata`
+  (one transaction, deferred foreign-key checks) instead of a retry loop that ignored errors and could loop
+  forever; backups leave out content types and permissions and use natural keys, so they load into a new
+  database; errors are reported as command errors.
+- `sdc_shell_execute_script` requires `-s`; `sdc_new_model` reports an existing model;
+  `sdc_get_controller_infos` names the missing `Assets/libs`; `sdc_cc` no longer prints the raw `-m` value;
+  corrected `sdc_init -u` help text.
 - `sdc_user`: the confirmation e-mail is sent once per e-mail change (it was sent on every later save);
   e-mail errors are logged instead of silently ignored, and *Password forgotten* reports them.
 - `sdc_user`: `sdc-login` triggers the `login` event before the page reloads; the global `sdc-user`

@@ -30,6 +30,14 @@ That gives you:
 - an ``Assets`` directory for client code
 - a ready-to-install JavaScript toolchain and runtime package
 
+Alternatively, the ``sdc`` command line tool (installed with the package) does all
+of this in one step and creates the virtualenv inside the project:
+
+.. code-block:: sh
+
+   pip install simpledomcontrol
+   sdc new --name mysite
+
 Manual setup flow
 -----------------
 

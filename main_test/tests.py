@@ -1153,3 +1153,54 @@ class SdcUserFlowTest(TestCase):
                 '_method': 'sdc_server_call', '_sdc_func_name': name, 'data': json.dumps({'a': 1})})
             self.assertEqual(response.status_code, 200, name)
             self.assertEqual(response.json()['_return_data'], {'a': 1}, name)
+
+
+class DbToolsTest(TestCase):
+    """Regression tests for sdc_db_tools and sdc_shell_execute_script."""
+
+    def test_backup_and_restore_round_trip(self):
+        from django.contrib.admin.models import LogEntry, ADDITION
+        from django.contrib.contenttypes.models import ContentType
+        from django.core.management import call_command
+        admin = User.objects.create_superuser('db-admin', password='pw')
+        author = Author.objects.create(name='Restored', age=40)
+        Book.objects.create(title='Restored book', author=author)
+        LogEntry.objects.create(user=admin, content_type=ContentType.objects.get_for_model(Author),
+                                object_id=str(author.pk), object_repr='Restored', action_flag=ADDITION)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'backup'
+            call_command('sdc_db_tools', '-b', '-p', str(path))
+            self.assertFalse((path / 'contenttypes__ContentType.json').exists())
+            LogEntry.objects.all().delete()
+            Book.objects.all().delete()
+            Author.objects.all().delete()
+            # Files are loaded in name order (Book before Author); loaddata resolves the references.
+            call_command('sdc_db_tools', '-r', '-p', str(path))
+
+        book = Book.objects.get(title='Restored book')
+        self.assertEqual(book.author.name, 'Restored')
+        self.assertEqual(LogEntry.objects.get().content_type.model_class(), Author)
+
+    def test_restore_errors_are_reported(self):
+        from django.core.management import call_command, CommandError
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(CommandError):
+                call_command('sdc_db_tools', '-r', '-p', str(Path(tmp) / 'missing'))
+            with self.assertRaises(CommandError):
+                call_command('sdc_db_tools', '-r', '-p', tmp)
+        with self.assertRaises(CommandError):
+            call_command('sdc_db_tools')
+
+    def test_clear_drops_the_tables(self):
+        from unittest import mock
+        from django.core.management import call_command
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch('sdc_core.management.commands.sdc_db_tools.drop_all_tables') as drop:
+            call_command('sdc_db_tools', '-c', '-p', str(Path(tmp) / 'backup'))
+        drop.assert_called_once_with()
+
+    def test_shell_execute_script_requires_a_script(self):
+        from django.core.management import call_command, CommandError
+        with self.assertRaises(CommandError):
+            call_command('sdc_shell_execute_script')

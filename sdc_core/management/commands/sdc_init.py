@@ -17,7 +17,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('-u', '--update', action='store_true',
-                            help='The name of the new controller as snake_case')
+                            help='Update an existing SDC setup (needed if SDC is already installed)')
         parser.add_argument('-y', '--assume-yes',
                             action='store_true',
                             help="Automatically assume 'yes' for all prompts.")
