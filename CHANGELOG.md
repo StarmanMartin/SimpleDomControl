@@ -45,6 +45,13 @@ The server and the client are released with the same version number.
   navigation parameters arrive in `this.params`, readable from `onLoad()` on.
 
 ### Fixed
+- JS test setup (`pre-test-setup.js`): failing `migrate`, `flush`, `loaddata` or seed-script commands stop
+  the run with their error output (they were ignored); the dev DB is only exported when `JSON_DATA_DUMP` is
+  set (no more file named `false`), and a failing export is a warning; the test server starts after the
+  database is ready and the setup waits until it answers. `test-setup.js` fails with a message instead of
+  hanging when the server does not answer.
+- `register_test_user` raises an error when the login fails (it printed the session key `None`).
+- The project `gulpfile.jsx` reads the `--mode` flag of the npm scripts.
 - `sdc_db_tools`: `--clear` drops the tables (it crashed with a `TypeError`); `--restore` uses `loaddata`
   (one transaction, deferred foreign-key checks) instead of a retry loop that ignored errors and could loop
   forever; backups leave out content types and permissions and use natural keys, so they load into a new

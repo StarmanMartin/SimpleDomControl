@@ -36,11 +36,10 @@ relative to ``Assets/``. ``../static`` is the ``static/`` directory in the
 project root, which is part of ``STATICFILES_DIRS`` (see
 :ref:`sdc-settings-label`).
 
-.. note::
-
-   The ``--mode`` argument is not read by the gulpfile. The webpack
-   configuration is chosen by ``NODE_ENV``: the ``develop`` task sets it to
-   ``development``, every other task uses the production configuration.
+The gulpfile reads ``--mode`` and sets ``NODE_ENV`` (and ``BABEL_ENV``) from
+it. ``NODE_ENV=development`` selects the development webpack configuration,
+every other value the production configuration. Without ``--mode``, the
+``develop`` task still uses ``development``.
 
 What ``npm run build`` does
 ---------------------------
@@ -99,7 +98,7 @@ The ``develop`` task:
 Both watchers follow symlinks, so they see the app directories linked into
 ``Assets/src``.
 
-The watchers only react to changes of existing files, and they do not run
+The watchers react to changed, added and deleted files, but they do not run
 ``link_files`` again. After you add a controller (``sdc_cc``), a model, or a
 new app, the new links, organizer entries and generated model classes are not
 picked up reliably. Restart ``npm run develop`` in that case. Changes to

@@ -36,7 +36,8 @@ if (!File.prototype.text) {
   };
 }
 
-await new Promise(resolve => {
+// Read the window.* settings (CSRF token, DEBUG, ...) from the index page of the test server.
+await new Promise((resolve, reject) => {
   $.get('/').then((res) => {
     for (let line of res.split('\n')) {
       line = line.trim();
@@ -46,7 +47,8 @@ await new Promise(resolve => {
     }
     resolve();
   }).catch((e) => {
-    console.error(e);
+    reject(new Error(`The test server did not answer GET / (status ${e?.status}). ` +
+      'See the server log in Assets/tests/logs/.'));
   });
 });
 

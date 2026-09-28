@@ -9,6 +9,13 @@ const through = require('through2');
 const gulp = require('gulp');
 process.env.JS_CILENT_FILE_EXTENTIONS = ['.js', '.json'];
 
+// The npm scripts pass --mode=production or --mode=development; it selects the webpack config.
+const modeArg = process.argv.find((arg) => arg.startsWith('--mode='));
+if (modeArg) {
+  process.env.NODE_ENV = modeArg.slice('--mode='.length);
+  process.env.BABEL_ENV = process.env.NODE_ENV;
+}
+
 const {
   sdc_scss,
   sdc_clean,

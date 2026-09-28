@@ -1204,3 +1204,15 @@ class DbToolsTest(TestCase):
         from django.core.management import call_command, CommandError
         with self.assertRaises(CommandError):
             call_command('sdc_shell_execute_script')
+
+    def test_register_test_user_checks_the_login(self):
+        import io
+        from contextlib import redirect_stdout
+        from sdc_core.sdc_extentions.test_utils import register_test_user
+        User.objects.create_user('seed-user', password='right')
+        with self.assertRaises(RuntimeError):
+            register_test_user('seed-user', 'wrong')
+        out = io.StringIO()
+        with redirect_stdout(out):
+            register_test_user('seed-user', 'right')
+        self.assertRegex(out.getvalue(), r'^USER_FOR_SDC_TESTS\$\$\$seed-user\$\$\$\w+\n$')

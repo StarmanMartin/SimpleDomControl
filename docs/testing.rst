@@ -139,26 +139,26 @@ What happens before the tests
 ``pre-test-setup.js`` runs once before all test files:
 
 1. Loads ``Assets/.sdc_env`` and ``Assets/.sdc_python_env``.
-2. If ``COPY_DEFAULT_DB`` is not ``0``: runs ``manage.py dumpdata`` on the
-   development database into ``JSON_DATA_DUMP``.
+2. If ``COPY_DEFAULT_DB`` is not ``0`` and ``JSON_DATA_DUMP`` is set: runs
+   ``manage.py dumpdata`` on the development database into ``JSON_DATA_DUMP``.
+   If that fails (e.g. the development database is not migrated yet), a warning
+   is printed and the data is not copied.
 3. Sets ``DJANGO_DATABASE=jest``. All following commands and the server use
    the ``jest`` database (``test_db.sqlite3``).
-4. Starts ``manage.py runserver 8765`` in the background. Its output goes to
-   ``Assets/tests/logs/jest_server_logs_<date>.log``.
-5. Waits one second, then runs ``manage.py migrate`` and
-   ``manage.py flush --no-input``.
-6. If ``JSON_DATA_DUMP`` is set and the file exists: runs
+4. Runs ``manage.py migrate`` and ``manage.py flush --no-input``.
+5. If ``JSON_DATA_DUMP`` is set and the file exists: runs
    ``manage.py loaddata <JSON_DATA_DUMP>``.
-7. If ``DB_PYTHON_SCRIPT`` is set: runs
+6. If ``DB_PYTHON_SCRIPT`` is set: runs
    ``manage.py sdc_shell_execute_script -s <DB_PYTHON_SCRIPT>`` and stores its
    output in ``SCRIPT_OUTPUT``. The output is printed.
+7. Starts ``manage.py runserver 8765 --noreload`` in the background (output in
+   ``Assets/tests/logs/jest_server_logs_<date>.log``) and waits until it
+   answers, at most 30 seconds.
 
-.. note::
-
-   The output of ``dumpdata``, ``migrate``, ``flush`` and ``loaddata`` is not
-   shown, and failures of these commands do not stop the run. If tests fail
-   unexpectedly, run the commands by hand with ``DJANGO_DATABASE=jest``. If
-   the seed script fails, its error message is printed as ``SCRIPT_OUTPUT``.
+If one of the commands in steps 4–6 fails, or the server does not start, the
+test run stops with the error output of the command (or the path of the server
+log). ``test-setup.js`` also stops with an error if the test server does not
+answer.
 
 ``test-setup.js`` runs before each test file:
 
@@ -204,8 +204,8 @@ Create test data and register the users the tests log in with:
 ``register_test_user(username, password)`` logs in with Django's test
 ``Client`` and prints ``USER_FOR_SDC_TESTS$$$<username>$$$<session_key>``.
 ``test-setup.js`` turns these lines into ``SDC_TEST_USER``. Call it after the
-user has been created. With wrong credentials the printed session key is
-``None``.
+user has been created. If the login fails (wrong password, inactive user), it
+raises a ``RuntimeError``, which stops the test setup.
 
 Client test utilities
 ^^^^^^^^^^^^^^^^^^^^^
