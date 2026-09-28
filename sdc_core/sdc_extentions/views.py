@@ -1,4 +1,7 @@
 import asyncio
+import inspect
+
+from asgiref.sync import async_to_sync
 import json
 
 from channels.db import database_sync_to_async
@@ -148,6 +151,12 @@ class SDCView(View):
                 return self.http_method_not_allowed(request, *args, **kwargs)
             handler = getattr(self, func_name, self.http_method_not_allowed)
             res = handler(request, **json.loads(request.POST.get('data', '{}')))
+            if inspect.isawaitable(res):
+                # async def server methods also work over HTTP.
+                async def wait_for_result():
+                    return await res
+
+                res = async_to_sync(wait_for_result)()
             if isinstance(res, HttpResponse):
                 return res
             return send_success(_return_data=res)

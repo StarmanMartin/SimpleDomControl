@@ -513,7 +513,7 @@ A few things worth knowing about ``serverCall``:
 - **The first argument depends on the transport.** Over HTTP (the default) it is
   the ``HttpRequest``. With ``SERVER_CALL_VIA_WEB_SOCKET = True`` it is the
   ``SDCConsumer`` instead, and the user is ``consumer.scope["user"]``. Methods
-  can be ``async def`` only over WebSocket; over HTTP they are not awaited.
+  can be normal or ``async def`` methods with both transports.
 - **Name guard (security):** method names that start with ``_`` or that collide
   with framework internals (``dispatch``, ``get_queryset``, ``is_authorised``, …)
   are rejected. Name your callables plainly.

@@ -71,7 +71,17 @@ def _resolve_home_url(user: SdcModel, home_url: Optional[str]) -> Optional[str]:
     return home_url.rstrip('/')
 
 
-def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
+def _send(msg: EmailMessage, user: SdcModel) -> bool:
+    """Sends the e-mail. Errors are logged (not raised) so that saving the user never fails."""
+    try:
+        msg.send()
+        return True
+    except Exception:
+        logger.exception("Sending the e-mail to user %s failed", user.pk)
+        return False
+
+
+def send_confirm_email(user: SdcModel, home_url: Optional[str] = None) -> bool:
     email_template_name = 'email/confirm.html'
     now = timezone.now()
     encoded_jwt = jwt.encode({
@@ -84,7 +94,7 @@ def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
 
     home_url = _resolve_home_url(user, home_url)
     if home_url is None:
-        return
+        return False
 
     context = {'jwt': encoded_jwt, 'user': user, 'url': f'{home_url}/~sdc-confirm-email~&1.token={encoded_jwt}'}
 
@@ -92,10 +102,10 @@ def send_confirm_email(user: SdcModel, home_url: Optional[str] = None):
 
     msg = EmailMessage(_('Confirmation'), html_content, from_email=settings.DEFAULT_FROM_EMAIL, to=[user.email])
     msg.content_subtype = "html"
-    msg.send(fail_silently=True)
+    return _send(msg, user)
 
 
-def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None):
+def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None) -> bool:
     email_template_name = 'email/reset_password.html'
     now = timezone.now()
     encoded_jwt = jwt.encode({
@@ -108,7 +118,7 @@ def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None):
 
     home_url = _resolve_home_url(user, home_url)
     if home_url is None:
-        return
+        return False
 
     context = {'jwt': encoded_jwt, 'user': user, 'url': f'{home_url}/~sdc-reset-password~&1.token={encoded_jwt}'}
 
@@ -116,4 +126,4 @@ def send_email_reset_email(user: SdcModel, home_url: Optional[str] = None):
 
     msg = EmailMessage(_('Reset Password'), html_content, from_email=settings.DEFAULT_FROM_EMAIL, to=[user.email])
     msg.content_subtype = "html"  # Main content is now text/html
-    msg.send(fail_silently=True)
+    return _send(msg, user)

@@ -3,7 +3,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import authenticate, login, logout, get_user_model
 from django.contrib.auth.views import RedirectURLMixin
-from django.http import HttpResponse
+from django.http import HttpResponse, HttpRequest
 from django.utils.html import escape
 
 from sdc_core.sdc_extentions.views import SDCView, SdcLoginRequiredMixin
@@ -17,6 +17,39 @@ from sdc_user.mails import (send_confirm_email, send_email_reset_email,
                             reset_token_fingerprint, confirm_token_fingerprint)
 
 
+def _is_websocket(channel):
+    # Server calls get the HttpRequest over HTTP and the consumer over WebSocket.
+    return not isinstance(channel, HttpRequest) and isinstance(getattr(channel, 'scope', None), dict)
+
+
+def _channel_user(channel):
+    if _is_websocket(channel):
+        return channel.scope.get('user')
+    return getattr(channel, 'user', None)
+
+
+def _channel_origin(channel):
+    """Base URL of the site the request came from, or None (then settings.HOME_URL is used)."""
+    if _is_websocket(channel):
+        for name, value in channel.scope.get('headers', []):
+            if name == b'origin':
+                return value.decode('utf-8')
+        return None
+    return f"{channel.scheme}://{channel.get_host()}"
+
+
+def _call_error(channel, msg):
+    """An error result of a server call, shown with pushErrorMsg on the client."""
+    if _is_websocket(channel):
+        return {'is_error': True, 'header': 'Upss!', 'msg': msg}
+    return send_error(msg=msg)
+
+
+def _requires_confirmed_email(user):
+    return getattr(settings, 'SDC_USER_REQUIRE_CONFIRMED_EMAIL', False) and not user.is_superuser \
+        and not getattr(user, 'email_confirmed', True)
+
+
 class SdcLogin(SDCView, RedirectURLMixin):
     template_name = 'sdc_user/sdc/sdc_login.html'
 
@@ -26,9 +59,16 @@ class SdcLogin(SDCView, RedirectURLMixin):
             username = form.cleaned_data.get('username')
             password = form.cleaned_data.get('password')
             user = authenticate(username=username, password=password)
-            if user is not None:  # and user.is_email_confirmed:
+            if user is not None and _requires_confirmed_email(user):
+                send_confirm_email(user, _channel_origin(request))
+                return send_error(self.template_name, context={'form': form}, request=request, header='Upss!',
+                                  msg=escape(_('Please confirm your e-mail address first. We have sent you a '
+                                               'new confirmation e-mail.')))
+            if user is not None:
                 login(request, user)
 
+                # Without a "next" parameter, go to settings.LOGIN_SUCCESS.
+                self.next_page = getattr(settings, 'LOGIN_SUCCESS', '/')
                 redirect_to = self.get_success_url()
                 if redirect_to == self.request.path:
                     raise ValueError(
@@ -107,9 +147,10 @@ class SdcConfirmEmail(SDCView):
 
 class SdcUser(SDCView):
 
-    def get_user_id(self, request):
-        if request.user.is_authenticated:
-            return request.user.id
+    def get_user_id(self, channel):
+        user = _channel_user(channel)
+        if user is not None and user.is_authenticated:
+            return user.id
         return None
 
     def get_content(self, request, *args, **kwargs):
@@ -127,17 +168,17 @@ class SdcChangePassword(SdcLoginRequiredMixin, SDCView):
 class SdcPasswordForgotten(SDCView):
     template_name = 'sdc_user/sdc/sdc_password_forgotten.html'
 
-    def send_email(self, request, mail):
+    def send_email(self, channel, mail=None, **kwargs):
         User = get_user_model()  # gets the active AUTH_USER_MODEL
 
         username_field = User.USERNAME_FIELD
         try:
             user = User.objects.get(Q(**{username_field: mail}) | Q(email=mail))
-            origin = f"{request.scheme}://{request.get_host()}"
-            send_email_reset_email(user, origin)
-            return {'msg': _('E-mail has been sent.')}
         except (User.DoesNotExist, User.MultipleObjectsReturned):
-            return send_error(msg=_('User not found'))
+            return _call_error(channel, _('User not found'))
+        if not send_email_reset_email(user, _channel_origin(channel)):
+            return _call_error(channel, _('The e-mail could not be sent. Please try again later.'))
+        return {'msg': _('E-mail has been sent.')}
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)

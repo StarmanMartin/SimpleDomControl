@@ -38,17 +38,13 @@ describe('WS server call', () => {
     expect(res).toStrictEqual(sentData);
   });
 
-  test('Call echo websocket', async () => {
+  test('Call sync echo websocket', async () => {
+    // Sync server methods run in a worker thread, so they may use the database.
     const sentData = { 'a': 1, 'b': true, 'c': null, 'd': 'test' };
     window.SERVER_CALL_VIA_WEB_SOCKET = true;
-    await new Promise((resolve, reject) => {
-      controller.serverCall('call_echo', sentData).then(reject).catch(() => {
-        resolve();
-      });
-    });
-
+    let res = await controller.serverCall('call_echo', sentData);
     window.SERVER_CALL_VIA_WEB_SOCKET = false;
-    expect(true).toStrictEqual(true);
+    expect(res).toStrictEqual(sentData);
   });
 
   test('Call no existing', async () => {

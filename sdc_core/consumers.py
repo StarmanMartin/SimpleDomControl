@@ -6,6 +6,7 @@ import traceback
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
 
 from django.utils.datastructures import MultiValueDict
@@ -14,7 +15,7 @@ from django.utils.translation import gettext as _f
 from django.contrib.auth import get_user_model
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 import json
 
 from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query, resolve_form
@@ -114,7 +115,7 @@ class SDCConsumer(AsyncWebsocketConsumer):
             'is_error': True,
             'msg': event.get('msg', ''),
             'header': event.get('header', ''),
-        }))
+        }, cls=DjangoJSONEncoder))
 
     @staticmethod
     def to_camel_case(snake_str):
@@ -146,19 +147,25 @@ class SDCConsumer(AsyncWebsocketConsumer):
                 if asyncio.iscoroutinefunction(method):
                     return_vals = await method(self, **json_data.get('args', {}))
                 else:
-                    return_vals = method(self, **json_data.get('args', {}))
+                    # Sync methods run in a worker thread, so they may use the Django ORM.
+                    return_vals = await sync_to_async(method)(self, **json_data.get('args', {}))
 
                 return_vals_generator = []
                 if isinstance(return_vals, types.GeneratorType):
                     return_vals_generator = return_vals
                     return_vals = next(return_vals, None)
 
+                # {'is_error': True, 'msg': ..., 'header': ...} rejects the serverCall promise.
+                if isinstance(return_vals, dict) and return_vals.get('is_error'):
+                    await self.state_error(return_vals, json_data['id'])
+                    return
+
                 await self.send(text_data=json.dumps({
                     'id': json_data['id'],
                     'type': 'sdc_recall',
                     'data': return_vals,
                     'is_error': False
-                }))
+                }, cls=DjangoJSONEncoder))
                 for x in return_vals_generator: pass
             else:
                 raise ValueError("event must be sdc_call")

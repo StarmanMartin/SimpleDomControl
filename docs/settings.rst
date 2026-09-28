@@ -127,6 +127,10 @@ the setting.
    * - ``SDC_USER_FIELDS_EXCLUDE``
      - ``None``
      - ``SdcMeta.exclude`` of ``SdcUser``.
+   * - ``SDC_USER_REQUIRE_CONFIRMED_EMAIL``
+     - ``False``
+     - If ``True``, only users with a confirmed e-mail address can log in
+       (superusers excepted).
 
 See :doc:`sdc_user` for the ``SDC_USER_*`` settings and the user model.
 
@@ -162,8 +166,7 @@ Settings read but not written
        # EMAIL_HOST_PASSWORD = ''
        # EMAIL_USE_TLS = True
 
-    Mails are sent with ``fail_silently=True``, so a wrong configuration does
-    not raise an error.
+    Sending errors are logged (logger ``sdc_user.mails``) instead of raised.
 
 Environment variables
 ---------------------

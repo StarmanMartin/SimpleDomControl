@@ -1064,3 +1064,92 @@ class ServerRuntimeTest(TestCase):
         html = SearchableSelect(attrs={'data-extra': 'x'}).render('author', None)
         self.assertIn('class="searchable-select"', html)
         self.assertIn('data-extra="x"', html)
+
+
+@override_settings(HOME_URL='https://example.com', DEFAULT_FROM_EMAIL='noreply@example.com')
+class SdcUserFlowTest(TestCase):
+    """Regression tests for sdc_user: e-mails, login check, server calls, password change."""
+
+    def setUp(self):
+        from django.core import mail
+        self.mail = mail
+        self.user = User.objects.create_user(username='flow-user', password='old-Pass-123', email='a@example.com')
+        mail.outbox = []
+
+    def test_confirmation_mail_is_sent_once_per_change(self):
+        self.user.email = 'b@example.com'
+        self.user.save()
+        self.user.save()
+        self.assertEqual(len(self.mail.outbox), 1)
+        self.assertEqual(self.mail.outbox[0].to, ['b@example.com'])
+
+    def test_mail_errors_are_logged_not_raised(self):
+        from unittest import mock
+        from sdc_user.mails import send_email_reset_email
+        with mock.patch('django.core.mail.EmailMessage.send', side_effect=OSError('smtp down')), \
+                self.assertLogs('sdc_user.mails', level='ERROR'):
+            self.user.email = 'c@example.com'
+            self.user.save()
+            self.assertFalse(send_email_reset_email(self.user))
+        self.assertEqual(User.objects.get(pk=self.user.pk).email, 'c@example.com')
+
+    def login(self):
+        from django.urls import reverse
+        return self.client.post(reverse('scd_view_sdc_login'), data={
+            '_method': 'api', 'username': 'flow-user', 'password': 'old-Pass-123'})
+
+    def test_confirmed_email_is_only_required_when_enabled(self):
+        self.assertEqual(self.login().status_code, 301)
+        self.client.logout()
+        with override_settings(SDC_USER_REQUIRE_CONFIRMED_EMAIL=True):
+            response = self.login()
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(len(self.mail.outbox), 1)
+            self.user.email_confirmed = True
+            self.user.save()
+            self.assertEqual(self.login().status_code, 301)
+
+    async def test_server_calls_work_over_websocket(self):
+        async def call(function, **args):
+            communicator = AuthWebsocketCommunicator(application, "/sdc_ws/ws/", user=self.user)
+            await communicator.connect()
+            await communicator.send_json_to({"event": "sdc_call", "id": "1", "app": "sdc_user",
+                                             "controller": function[0], "function": function[1], "args": args})
+            message = json.loads(await communicator.receive_from())
+            await communicator.disconnect()
+            return message
+
+        user_id = await call(('sdc-user', 'get_user_id'))
+        self.assertEqual((user_id['type'], user_id['data']), ('sdc_recall', self.user.pk))
+        sent = await call(('sdc-password-forgotten', 'send_email'), mail='flow-user')
+        self.assertEqual(sent['type'], 'sdc_recall')
+        self.assertIn('msg', sent['data'])
+        self.assertEqual(len(self.mail.outbox), 1)
+        missing = await call(('sdc-password-forgotten', 'send_email'), mail='nobody')
+        self.assertTrue(missing['is_error'])
+        self.assertEqual(missing['msg'], 'User not found')
+
+    def test_password_change_keeps_the_current_session(self):
+        from django.contrib.auth import HASH_SESSION_KEY, SESSION_KEY
+        from django.contrib.sessions.backends.db import SessionStore
+        from sdc_user.forms import SdcUserPassword
+        session = SessionStore()
+        session[SESSION_KEY] = str(self.user.pk)
+        session[HASH_SESSION_KEY] = self.user.get_session_auth_hash()
+        session.save()
+        self.user.scope = {'session': session}
+
+        form = SdcUserPassword(instance=self.user, data={
+            'password_old': 'old-Pass-123', 'password1': 'new-Pass-456!x', 'password2': 'new-Pass-456!x'})
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        self.assertEqual(SessionStore(session.session_key)[HASH_SESSION_KEY], self.user.get_session_auth_hash())
+
+    def test_server_calls_over_http_support_async_methods(self):
+        from django.urls import reverse
+        self.client.force_login(self.user)
+        for name in ('call_echo', 'call_async_echo'):
+            response = self.client.post(reverse('scd_view_main_view'), data={
+                '_method': 'sdc_server_call', '_sdc_func_name': name, 'data': json.dumps({'a': 1})})
+            self.assertEqual(response.status_code, 200, name)
+            self.assertEqual(response.json()['_return_data'], {'a': 1}, name)

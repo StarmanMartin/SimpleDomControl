@@ -308,8 +308,12 @@ as the result of the ``serverCall`` promise:
 
 The first argument depends on the transport. Over HTTP (the default) it is the
 Django ``HttpRequest``. Over WebSocket it is the ``SDCConsumer``, and the user is
-available as ``consumer.scope["user"]``. ``async def`` methods are supported
-only over WebSocket.
+available as ``consumer.scope["user"]``. Server methods can be normal or
+``async def`` methods with both transports; over WebSocket, normal methods run in
+a worker thread, so they can use the Django ORM directly. The return value is
+encoded with Django's ``DjangoJSONEncoder`` (dates, decimals, lazy
+translations). Return ``{"is_error": True, "msg": ...}`` over WebSocket to reject
+the ``serverCall`` promise with an error message.
 
 .. warning::
 

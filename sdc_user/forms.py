@@ -1,3 +1,4 @@
+from django.contrib.auth import HASH_SESSION_KEY, SESSION_KEY
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.password_validation import validate_password, password_validators_help_text_html
@@ -35,6 +36,21 @@ class SdcUserCreationForm(forms.ModelForm):
         return user
 
 
+def keep_session_after_password_change(user):
+    """
+    Like Django's ``update_session_auth_hash()``: after a password change the user's
+    other sessions end, but the session the change was made in stays logged in.
+    SDC model forms are saved over the WebSocket, so the session comes from the
+    scope that the consumer sets on the instance.
+    """
+    scope = getattr(user, 'scope', None) or {}
+    session = scope.get('session')
+    if session is None or str(session.get(SESSION_KEY)) != str(user.pk):
+        return
+    session[HASH_SESSION_KEY] = user.get_session_auth_hash()
+    session.save()
+
+
 class SdcUserPassword(forms.ModelForm):
     password_old = forms.CharField(label="Current password", widget=forms.PasswordInput)
     password1 = forms.CharField(label="Password", widget=forms.PasswordInput,
@@ -67,6 +83,7 @@ class SdcUserPassword(forms.ModelForm):
         user.set_password(self.cleaned_data["password1"])
         if commit:
             user.save()
+            keep_session_after_password_change(user)
         return user
 
 

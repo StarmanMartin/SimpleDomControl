@@ -37,11 +37,12 @@ class SdcLoginController extends AbstractSDC {
     }
 
     onSubmit(serverRes) {
-         if(serverRes.status ==="redirect" ) {
-           location.assign(serverRes.url);
-         } else {
-            trigger('login');
-         }
+        // Tell the application before the page reloads (a reload is needed because
+        // Django issues a new CSRF token and session at login).
+        trigger('login');
+        if (serverRes && serverRes.status === "redirect") {
+            location.assign(serverRes.url);
+        }
     }
 
 }

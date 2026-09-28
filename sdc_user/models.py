@@ -106,4 +106,7 @@ class SdcUser(AbstractUser, SdcModel):
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         if self.email != self._origen_email:
-            send_confirm_email(self)
+            # Remember the new address first, so a failing or repeated save does not send again.
+            self._origen_email = self.email
+            if self.email:
+                send_confirm_email(self)

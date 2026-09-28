@@ -134,9 +134,13 @@ them as tags or navigate to them with navigation links (see
    *Password forgotten* (``/*/sdc-password-forgotten``) and *Register*. The form
    is posted with the ``sdc-auto-submit`` mixin. On success the user is logged
    in with a Django session and the server answers with a redirect to ``next``;
-   the controller then loads that URL with ``location.assign()``, i.e. the whole
-   page reloads. ``next`` is the ``next`` parameter of the login page, or
-   ``LOGIN_SUCCESS`` if it is missing. Errors are shown as an error message.
+   the controller triggers the ``login`` event and then loads that URL with
+   ``location.assign()``, i.e. the whole page reloads (Django issues a new
+   session and CSRF token at login). ``next`` is the ``next`` parameter of the
+   login page, or ``LOGIN_SUCCESS`` if it is missing. Errors are shown as an
+   error message. With ``SDC_USER_REQUIRE_CONFIRMED_EMAIL = True``, users with
+   an unconfirmed e-mail address are refused and get a new confirmation
+   e-mail.
    ``contentReload`` is set, so the form is fetched fresh every time.
 
 ``sdc-logout`` — ``<sdc-logout></sdc-logout>``
@@ -198,13 +202,8 @@ them as tags or navigate to them with navigation links (see
    anonymous users *Login* (``/<LOGIN_CONTROLLER>``) and *Register*. It reloads
    itself on the ``login`` and ``logout`` events.
 
-.. note::
-
-   The ``send_email`` and ``get_user_id`` server methods use the Django request
-   (``request.scheme``, ``request.get_host()``, ``request.user``). They work with
-   the default HTTP transport of server calls, but not with
-   ``SERVER_CALL_VIA_WEB_SOCKET = True``, where the first argument is the
-   consumer instead of a request.
+The ``send_email`` and ``get_user_id`` server methods work with both server-call
+transports (HTTP and ``SERVER_CALL_VIA_WEB_SOCKET = True``).
 
 Login flow settings and events
 ------------------------------
@@ -231,9 +230,9 @@ Login flow settings and events
 Client events:
 
 ``login``
-   Triggered by ``sdc-login`` only if the login response is not a redirect.
-   The built-in view always redirects on success, so after a normal login the
-   page reloads and controllers start again instead.
+   Triggered by ``sdc-login`` after a successful login, just before the page
+   reloads. Use it for work that must happen before the reload; after the
+   reload the controllers start again with the logged-in user.
 
 ``logout``
    Triggered by ``sdc-logout`` after a logout. ``sdc-user-nav-btn`` and
@@ -256,11 +255,10 @@ To react in your own controller, register a handler with ``on``:
      }
    }
 
-.. note::
-
-   Changing the password with ``password_form`` or ``sdc-reset-password`` calls
-   ``set_password()`` without ``update_session_auth_hash()``. Django therefore
-   ends the existing sessions of that user and they have to log in again.
+After a password change with ``password_form`` (e.g. on ``sdc-change-password``)
+the user stays logged in in the session the change was made in; the user's other
+sessions end, as with Django's ``update_session_auth_hash()``. A reset with
+``sdc-reset-password`` ends all sessions.
 
 E-mails
 -------
@@ -318,10 +316,12 @@ Required settings:
    ``EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'`` prints
    the e-mails to the console.
 
-.. note::
+If sending an e-mail fails (e.g. SMTP errors), the error is logged with the
+logger ``sdc_user.mails`` and the user is still saved. *Password forgotten* then
+shows an error message.
 
-   E-mails are sent with ``fail_silently=True``. SMTP errors are not reported;
-   the user simply receives no e-mail.
+The confirmation e-mail is sent once per change of the e-mail address (also when
+the user is saved again).
 
 Access settings
 ---------------
@@ -372,6 +372,13 @@ imported.
 
 The ``password`` field (the password hash) is never sent to clients and cannot
 be used in filters, whatever these two settings say.
+
+``SDC_USER_REQUIRE_CONFIRMED_EMAIL``
+   Optional, default ``False``. If ``True``, users other than superusers can only
+   log in after confirming their e-mail address (``email_confirmed``); a login
+   attempt with an unconfirmed address sends a new confirmation e-mail. Users
+   created in the Django admin or the shell have ``email_confirmed = False``
+   until they confirm; set the field for them if needed.
 
 .. note::
 

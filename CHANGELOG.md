@@ -22,6 +22,8 @@ The server and the client are released with the same version number.
   for forms with foreign keys or files.
 
 ### Added
+- Setting `SDC_USER_REQUIRE_CONFIRMED_EMAIL` (default `False`): only users with a confirmed e-mail address
+  (and superusers) can log in.
 - `sdc_core.sdc_extentions.test_utils.register_test_user(username, password)` logs a test user in and
   prints its session id, so JS tests can switch users with `test_utils.login(username)` /
   `test_utils.logout()` (client 0.159.0).
@@ -40,6 +42,16 @@ The server and the client are released with the same version number.
   navigation parameters arrive in `this.params`, readable from `onLoad()` on.
 
 ### Fixed
+- `sdc_user`: the confirmation e-mail is sent once per e-mail change (it was sent on every later save);
+  e-mail errors are logged instead of silently ignored, and *Password forgotten* reports them.
+- `sdc_user`: `sdc-login` triggers the `login` event before the page reloads; the global `sdc-user`
+  controller finishes loading for anonymous users too.
+- `sdc_user`: after a password change with `password_form` the current session stays logged in.
+- Server calls: normal (sync) methods work over WebSocket and may use the ORM (they run in a worker
+  thread), `async def` methods also work over HTTP, return values are encoded with `DjangoJSONEncoder`,
+  and a WebSocket method can reject the call by returning `{"is_error": True, "msg": ...}`. The
+  `sdc_user` server methods work with both transports.
+- The login view falls back to `LOGIN_SUCCESS` when no `next` parameter is posted.
 - REST API: `POST`, `PUT` and `PATCH` accept JSON, form-encoded and multipart bodies (file uploads now also
   work with `PUT` / `PATCH`); `DELETE` deletes the row (was always `501`); `PUT`, `PATCH` and `DELETE`
   without id (and `POST` with id) answer `405` instead of a server error.

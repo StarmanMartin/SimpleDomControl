@@ -139,6 +139,8 @@ SDC_USER_IS_AUTHORISED = "sdc_user.models.sdc_user_is_authorised"
 # Fields of SdcUser sent to clients. The password hash is never sent.
 SDC_USER_FIELDS = "__all__"
 SDC_USER_FIELDS_EXCLUDE = None
+# If True, users (except superusers) can only log in after confirming their e-mail address.
+SDC_USER_REQUIRE_CONFIRMED_EMAIL = False
 
 # EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST =''
