@@ -1,47 +1,49 @@
-[tool.poetry]
+[project]
 name = "SimpleDomControl"
 version = "0.159.0"
-authors = [ "Martin Starman <private@martin-starman.com>", ]
 description = "Simple DOM control -> a django MVC framework"
+authors = [{ name = "Martin Starman", email = "private@martin-starman.com" }]
 readme = "README.md"
-license = 'Apache License 2.0'
-
-packages = [{include = "sdc_core"}, {include = "sdc_user"}, {include = "sdc_tools"}, {include = "sdc"}]
-keywords = ["django", "MVC",]
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.13,<4.0"
+keywords = ["django", "MVC"]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Framework :: Django",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Environment :: Web Environment",
     "Operating System :: OS Independent",
-    ]
-homepage = "https://github.com/StarmanMartin/sdc"
+]
+dependencies = [
+    "daphne (>=4.2.1,<5.0.0)",
+    "channels (>=4.3.2,<5.0.0)",
+    "channels-redis (>=4.3.0,<5.0.0)",
+    "django (>=6.0.2,<7.0.0)",
+    "attrs (>=25.4.0,<26.0.0)",
+    "regex (>=2026.1.15,<2027.0.0)",
+    "click (>=8.1.0)",
+    "pyjwt (>=2.11.0,<3.0.0)",
+    "inquirerpy (>=0.3.4,<0.4.0)",
+    "pyyaml (>=6.0.3,<7.0.0)",
+]
 
-[tool.poetry.scripts]
+[project.optional-dependencies]
+# PostgreSQL driver: pip install "simpledomcontrol[postgres]"
+postgres = ["psycopg2-binary (>=2.9.11,<3.0.0)"]
+
+[project.urls]
+homepage = "https://github.com/StarmanMartin/SimpleDomControl"
+repository = "https://github.com/StarmanMartin/SimpleDomControl"
+documentation = "https://simpledomcontrol.readthedocs.io/en/latest/"
+changelog = "https://github.com/StarmanMartin/SimpleDomControl/blob/master/CHANGELOG.md"
+
+[project.scripts]
 sdc = "sdc.__main__:cli"
 
-[tool.poetry.dependencies]
-python = ">=3.13,<4.0"
-daphne = "^4.2.1"
-channels = "^4.3.2"
-channels-redis = "^4.3.0"
-django = "^6.0.2"
-psycopg2-binary = "^2.9.11"
-attrs = "^25.4.0"
-regex = "^2026.1.15"
-click = ">=8.1.0"
-pyjwt = "^2.11.0"
-inquirerpy = "^0.3.4"
-poetry-core = "^2.3.1"
-pyyaml = "^6.0.3"
-
-[tool.pytest.ini_options]
-pythonpath = [
-    "."
-]
-testpaths = [
-    "pytests",
-]
+[tool.poetry]
+packages = [{include = "sdc_core"}, {include = "sdc_user"}, {include = "sdc_tools"}, {include = "sdc"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^9.0.2"
@@ -51,6 +53,14 @@ sphinx-toolbox = "^4.1.2"
 sphinx-markdown-builder = "^0.6.9"
 sphinx-rtd-theme = "^3.1.0"
 
+[tool.pytest.ini_options]
+pythonpath = [
+    "."
+]
+testpaths = [
+    "pytests",
+]
+
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

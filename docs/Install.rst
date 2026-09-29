@@ -20,6 +20,12 @@ Install the backend package from PyPI:
 
    pip install simpledomcontrol
 
+To use PostgreSQL, install the driver with the ``postgres`` extra:
+
+.. code-block:: sh
+
+   pip install "simpledomcontrol[postgres]"
+
 The package is also available from the project releases on GitHub, but PyPI is
 the normal installation path for application development.
 

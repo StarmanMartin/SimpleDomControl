@@ -33,7 +33,12 @@ The server and the client are released with the same version number.
 - Documentation for management commands, SDC extensions, the REST API, `sdc_user`, settings and
   deployment, building the client, and testing.
 
+### Changed
+- License: MIT (before declared as Apache License 2.0, without a license file). The package now contains
+  the `LICENSE` file; the client (`sdc_client`) uses the same license.
+
 ### Changed (breaking for existing projects)
+- `psycopg2-binary` is no longer installed by default. Install `simpledomcontrol[postgres]` for PostgreSQL.
 - New projects require `sdc_client ^0.159.0`. In 0.x versions `^0.158.x` does not include 0.159.0, so
   update the `sdc_client` range in the `package.json` of existing projects.
 - The project template `Assets/tests/config/test-setup.js` defines the global `SDC_TEST_USER`, read from
@@ -112,6 +117,9 @@ The server and the client are released with the same version number.
   `https://`; other database aliases are kept; the `SDC_USER_*` comments are corrected.
 
 ### Internal
+- Package metadata uses the standard `[project]` table, correct project URLs, and `poetry-core` is no longer
+  a runtime dependency.
+- IDE settings, a stale lock file and an empty test database are no longer tracked.
 - CI runs pytest, the Django tests and the Jest tests on Python 3.13/3.14 with Node 22.
 - The Jest test database no longer copies the local development database; the test data script
   creates all test data.

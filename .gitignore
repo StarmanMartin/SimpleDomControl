@@ -90,3 +90,10 @@ sdc.zip
 /main_test/Assets/bin/main_test/controller/logged_in/logged_in.js
 /main_test/Assets/bin/main_test/controller/main_view/main_view.js
 /main_test/Assets/bin/main_test/controller/staff_and_admin/staff_and_admin.js
+# IDE settings, stale lock file and local databases
+/.idea/
+*.iml
+/_poetry.lock
+/pytests/test_django_project(DUMMY)/db.sqlite3
+# Test projects created by the pytest fixtures (left over if a run is killed)
+/pytests/????????-????-????-????-????????????/
