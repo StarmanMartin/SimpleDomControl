@@ -32,6 +32,7 @@ This documentation now covers both parts of the system:
    build
    testing
    settings
+   intellij
 
 .. toctree::
    :maxdepth: 2

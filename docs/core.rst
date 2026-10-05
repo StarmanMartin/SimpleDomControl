@@ -329,6 +329,8 @@ for every app in ``INSTALLED_APPS`` that has a *sdc_views.py*:
 The gulp build runs *sdc_update_links* and *sdc_make_model_js* before it
 compiles. On Windows, symbolic links need the developer mode.
 
+.. _sdc-get-infos-core:
+
 6 - sdc_get_model_infos
 ***********************
 
@@ -370,6 +372,8 @@ the controller directories in *Assets/libs/* and *Assets/src/* for apps in
 The keys ``js``, ``scss`` and ``html`` are only present if the file exists.
 If *Assets/src* or *Assets/libs* is missing, the command fails with exit
 code 3. *sdc_cc* uses this command to list the possible mixins.
+
+Both commands are used by the PyCharm plugin (see :ref:`sdc-intellij-label`).
 
 8 - sdc_get_controller_url
 **************************
