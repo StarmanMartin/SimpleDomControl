@@ -85,6 +85,7 @@ export class SdcNavigatorController extends AbstractSDC {
     this._setupButton();
     let data = this._handleUrl(window.location.pathname);
     history.replaceState(data, '', data.url, data);
+    window.sdcNav = this;
     return super.willShow();
   }
 
