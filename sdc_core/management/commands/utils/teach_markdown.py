@@ -30,30 +30,35 @@ def _tree_parent(node, nodes_by_path):
     return None
 
 
+def _effects(b):
+    """Describes the observed outcome of a clicked button or a submitted form."""
+    effect = [b.get('result', '')]
+    if b.get('navigates_to'):
+        effect.append(f'navigates to {_code(b["navigates_to"])}')
+    if b.get('opens'):
+        effect.append('shows ' + ', '.join(map(_code, b['opens'])))
+    if b.get('updates'):
+        effect.append('updates view: ' + ', '.join(f'"{t}"' for t in b['updates']))
+    if b.get('controller_count'):
+        effect.append('controllers {} → {}'.format(*b['controller_count']))
+    if b.get('modal'):
+        effect.append('opens a modal')
+    if b.get('toggles'):
+        effect.append(f'bootstrap toggle `{b["toggles"]}`')
+    for call in b.get('server_calls', []):
+        effect.append(f'{call["via"]} call `{call["target"]}.{call["function"]}({", ".join(call["args"])})`')
+    for alert in b.get('alerts', []):
+        effect.append(f'alert "{alert}"')
+    for dialog in b.get('dialogs', []):
+        effect.append(f'dialog "{dialog}"')
+    return '; '.join(filter(None, effect))
+
+
 def _render_buttons(buttons, pad, lines):
     for b in buttons:
         handler = ', '.join(f'`{h}()`' for h in b['handlers']) or 'no sdc_click handler'
-        effect = [b.get('result', '')]
-        if b.get('navigates_to'):
-            effect.append(f'navigates to {_code(b["navigates_to"])}')
-        if b.get('opens'):
-            effect.append('shows ' + ', '.join(map(_code, b['opens'])))
-        if b.get('updates'):
-            effect.append('updates view: ' + ', '.join(f'"{t}"' for t in b['updates']))
-        if b.get('controller_count'):
-            effect.append('controllers {} → {}'.format(*b['controller_count']))
-        if b.get('modal'):
-            effect.append('opens a modal')
-        if b.get('toggles'):
-            effect.append(f'bootstrap toggle `{b["toggles"]}`')
-        for call in b.get('server_calls', []):
-            effect.append(f'{call["via"]} call `{call["target"]}.{call["function"]}({", ".join(call["args"])})`')
-        for alert in b.get('alerts', []):
-            effect.append(f'alert "{alert}"')
-        for dialog in b.get('dialogs', []):
-            effect.append(f'dialog "{dialog}"')
         lines.append(f'{pad}- "{b["text"] or "(no label)"}" in {_code(b["controller"])} → {handler} — '
-                     f'{"; ".join(filter(None, effect))}')
+                     f'{_effects(b)}')
 
 
 def _render_forms(forms, pad, lines):
@@ -63,7 +68,8 @@ def _render_forms(forms, pad, lines):
             f'{", options: " + "/".join(x["options"]) if x["options"] else ""})'
             for x in f['fields']) or 'no visible fields'
         submit = f'; submit → {", ".join(f"`{h}()`" for h in f["submit_handlers"])}' if f['submit_handlers'] else ''
-        lines.append(f'{pad}- in {_code(f["controller"])}: {fields}{submit}')
+        outcome = f' — {_effects(f)}' if f.get('result') else ''
+        lines.append(f'{pad}- in {_code(f["controller"])}: {fields}{submit}{outcome}')
 
 
 def _render_links(links, pad, lines):
@@ -167,6 +173,8 @@ def render_skill(tree, meta):
         'model-socket calls load/save model data.',
         '- Buttons marked "skipped" were not executed by the crawler because they look destructive '
         '(delete/logout/save/submit); their effect is unknown — confirm with the user before clicking them.',
+        '- Forms were not submitted automatically; "submitted by developer" shows what a manual submit did, '
+        '"not submitted" means the outcome is unknown.',
         '- A view showing `sdc-error 403` needs a logged-in user with the right permissions.',
         '',
     ]

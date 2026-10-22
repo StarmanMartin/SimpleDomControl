@@ -59,6 +59,9 @@ class Command(BaseCommand):
         parser.add_argument('--browser-path', type=str, default=None, help='Chromium/Chrome executable')
         parser.add_argument('--headed', action='store_true', help='Show the browser window')
         parser.add_argument('--timeout', type=int, default=10000, help='Timeout per page action in ms')
+        parser.add_argument('--no-ask', action='store_true',
+                            help='Do not open a browser window asking you to fill in forms '
+                                 '(default: ask when running in a terminal with a display)')
 
     def handle(self, *args, **ops):
         try:
@@ -91,11 +94,26 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Crawl server running on {base_url} (DB: {ops["database"]})'))
             cookie = self._login_cookie(env, ops) if ops['user'] else None
             with sync_playwright() as p:
-                browser = self._launch(p, ops)
+                browser = self._launch(p, ops, headless=not ops['headed'])
+                headed = []
+
+                def ask_browser():
+                    # The headed window for manual form input is opened on first use only
+                    if not headed:
+                        try:
+                            headed.append(self._launch(p, ops, headless=False))
+                        except CommandError as e:
+                            self.stderr.write(f'Cannot open a browser window for form input: {e}')
+                            headed.append(None)
+                    return headed[0]
+
                 try:
-                    tree, crawled_as = self._crawl(browser, base_url, cookie, ops)
+                    tree, crawled_as = self._crawl(browser, base_url, cookie, ops,
+                                                   ask_browser if self._can_ask(ops) else None)
                 finally:
                     browser.close()
+                    if headed and headed[0]:
+                        headed[0].close()
         finally:
             server.terminate()
             try:
@@ -116,10 +134,11 @@ class Command(BaseCommand):
             f'Wrote {output}: {len(tree["nodes"])} views, {len(tree["errors"])} errors observed'))
 
     # --------------------------------------------------------------- crawl
-    def _crawl(self, browser, base_url, cookie, ops):
+    def _crawl(self, browser, base_url, cookie, ops, ask_browser):
         kwargs = dict(start=ops['start'], max_depth=ops['max_depth'], max_nodes=ops['max_nodes'],
                       click=not ops['no_click'], click_all=ops['click_all'], deny=ops['deny'],
-                      timeout=ops['timeout'], log=self.stdout.write)
+                      timeout=ops['timeout'], log=self.stdout.write,
+                      ask_browser=ask_browser, form_cache={})
 
         context = browser.new_context()
         anonymous = Crawler(context, base_url, label='anonymous', **kwargs)
@@ -136,8 +155,15 @@ class Command(BaseCommand):
             crawled_as.append(f'user {ops["user"]}')
         return tree, crawled_as
 
-    def _launch(self, p, ops):
-        launch = dict(headless=not ops['headed'])
+    @staticmethod
+    def _can_ask(ops):
+        has_display = sys.platform in ('darwin', 'win32') or os.environ.get('DISPLAY') or os.environ.get(
+            'WAYLAND_DISPLAY')
+        return not ops['no_ask'] and sys.stdin.isatty() and bool(has_display)
+
+    @staticmethod
+    def _launch(p, ops, headless):
+        launch = dict(headless=headless)
         if ops['browser_path']:
             return p.chromium.launch(executable_path=ops['browser_path'], **launch)
         try:

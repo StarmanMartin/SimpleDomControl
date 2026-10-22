@@ -64,11 +64,13 @@ def test_buttons_and_forms():
                                'args': ['a']}]},
         ],
         forms=[{'controller': 'main-view', 'action': '', 'method': 'post', 'submit_handlers': ['save'],
-                'fields': [{'name': 'title', 'type': 'text', 'required': True, 'label': '', 'options': []}]}],
+                'fields': [{'name': 'title', 'type': 'text', 'required': True, 'label': '', 'options': []}],
+                'result': 'submitted by developer', 'navigates_to': '/~main-view~book'}],
     )))
     assert '"Delete" in `main-view` → `onDelete()` — skipped (denylist / form submit)' in md
     assert 'websocket call `main_test.main_view.echo(a)`' in md
-    assert '`title` (text, required); submit → `save()`' in md
+    assert ('`title` (text, required); submit → `save()` — submitted by developer; '
+            'navigates to `/~main-view~book`') in md
 
 
 def test_merge_marks_login_required():

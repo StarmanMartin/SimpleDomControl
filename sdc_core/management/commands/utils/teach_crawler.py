@@ -16,6 +16,7 @@ import re
 from collections import deque
 from urllib.parse import parse_qs
 
+SKIP_ALL = '__skip_all__'
 DEFAULT_DENY = r'log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|löschen|abmelden'
 
 WAIT_READY_JS = """() => !!window.sdcNav
@@ -113,6 +114,7 @@ SNAPSHOT_JS = r"""() => {
 
     const forms = scoped($('form').toArray(), (f) => ({
         controller: controllerOf(f),
+        visible: visible(f),
         action: f.getAttribute('action') || '',
         method: (f.getAttribute('method') || 'get').toLowerCase(),
         submit_handlers: (f.getAttribute('sdc_submit') || '').split(' ').filter(Boolean)
@@ -144,6 +146,44 @@ SNAPSHOT_JS = r"""() => {
 }"""
 
 
+# Injected into the headed browser when the developer is asked to fill in a form. It highlights the
+# form, shows a banner with skip buttons and stores the answer in sessionStorage (survives reloads).
+ASK_FORM_JS = r"""(() => {
+    const fieldNames = __FIELDS__;
+    // Positional selectors are unreliable (the navigator swaps its view containers), so the
+    // form is found by its field names among the visible forms.
+    const isTarget = (form) => !!(form.offsetWidth || form.offsetHeight)
+        && fieldNames.every((name) => form.querySelector(`[name="${CSS.escape(name)}"], #${CSS.escape(name)}`));
+    const answer = (value) => {
+        sessionStorage.setItem('__sdcTeach', value);
+        window.__sdcTeach = value;
+    };
+    document.addEventListener('submit', (ev) => {
+        if (ev.target.dataset.sdcTeach) answer('submitted');
+    }, true);
+    document.addEventListener('DOMContentLoaded', () => {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'position:fixed;z-index:2147483647;left:0;right:0;bottom:0;padding:12px 16px;' +
+            'background:#1f2937;color:#fff;font:14px sans-serif;display:flex;gap:12px;align-items:center';
+        banner.innerHTML = '<span style="flex:1">sdc_teach: please fill in the highlighted <b></b> form ' +
+            'and submit it. The crawler records what happens.</span>' +
+            '<button data-a="skip">Skip</button><button data-a="skip_all">Skip all forms</button>';
+        banner.querySelector('b').textContent = __LABEL__;
+        banner.addEventListener('click', (ev) => ev.target.dataset.a && answer(ev.target.dataset.a));
+        document.body.appendChild(banner);
+        document.body.style.paddingBottom = '80px';  // keep the banner from covering submit buttons
+        setInterval(() => {
+            const form = [...document.forms].find(isTarget);
+            if (form && !form.dataset.sdcTeach) {
+                form.dataset.sdcTeach = '1';
+                form.style.outline = '3px solid #f59e0b';
+                form.scrollIntoView({block: 'center'});
+            }
+        }, 300);
+    });
+})();"""
+
+
 def state_key(path, args):
     """Two states are the same view when the controller path and the arg *names* match."""
     return '~'.join(path) + '?' + ','.join(sorted(args or {}))
@@ -151,7 +191,8 @@ def state_key(path, args):
 
 class Crawler:
     def __init__(self, context, base_url, start='/', max_depth=5, max_nodes=200, click=True,
-                 click_all=False, deny=None, timeout=10000, log=print, label='anonymous'):
+                 click_all=False, deny=None, timeout=10000, log=print, label='anonymous',
+                 ask_browser=None, form_cache=None):
         self.context = context
         self.base_url = base_url.rstrip('/')
         self.start = start
@@ -169,6 +210,9 @@ class Crawler:
         self._calls = []
         self._dialogs = []
         self.page = None
+        # ask_browser() returns a headed browser; forms are then filled in by the developer
+        self.ask_browser = ask_browser
+        self.form_cache = {} if form_cache is None else form_cache
 
     # ------------------------------------------------------------------ setup
     def _attach(self, page):
@@ -259,7 +303,10 @@ class Crawler:
         }
         if self.click:
             self.global_items['buttons'] = self._click_buttons(root['href'], self._own(root['buttons'], None), [])
+        global_hrefs = []
+        self.global_items['forms'] = self._ask_forms(root['href'], self.global_items['forms'], global_hrefs)
         queue = deque([(root['href'], 0, 'start')])
+        queue.extend((h, 0, 'form') for h in global_hrefs)
         queue.extend((l['target']['href'], 0, f'link "{l["text"]}"')
                      for l in self.global_items['links'] if l['target'])
         seen_hrefs = set()
@@ -288,6 +335,9 @@ class Crawler:
                 node['buttons'] = self._click_buttons(node['href'], self._own(snap['buttons'], node['nav_idx']),
                                                       new_hrefs)
                 queue.extend((h, depth + 1, 'button') for h in new_hrefs)
+            new_hrefs = []
+            node['forms'] = self._ask_forms(node['href'], node['forms'], new_hrefs)
+            queue.extend((h, depth + 1, 'form') for h in new_hrefs)
         self.page.close()
         return {'nodes': self.nodes, 'errors': self.errors, 'global': self.global_items}
 
@@ -348,6 +398,83 @@ class Crawler:
             if entry.get('navigates_to'):
                 new_hrefs.append(entry['navigates_to'])
         return results
+
+    @staticmethod
+    def _form_signature(form):
+        return f'{form["controller"]}:' + ','.join(sorted(f['name'] for f in form['fields']))
+
+    def _ask_forms(self, href, forms, new_hrefs):
+        """Forms are never submitted automatically: the developer fills them in a headed browser."""
+        for form in forms:
+            if not form['visible'] or not form['fields']:
+                continue
+            signature = self._form_signature(form)
+            if signature not in self.form_cache:
+                ask = self.ask_browser and not self.form_cache.get(SKIP_ALL)
+                self.form_cache[signature] = self._ask_developer(href, form) if ask else None
+            result = self.form_cache[signature]
+            if result is None:
+                form['result'] = 'not submitted (needs manual input)'
+                continue
+            form.update(result)
+            if result.get('navigates_to'):
+                new_hrefs.append(result['navigates_to'])
+        return forms
+
+    def _ask_developer(self, href, form):
+        browser = self.ask_browser()
+        if browser is None:
+            return None
+        self.log(self._style_notice(
+            f'Fill in the form of <{form["controller"]}> ({", ".join(f["name"] for f in form["fields"])}) '
+            f'in the browser window and submit it, or click "Skip" in the banner.'))
+        context = browser.new_context(storage_state=self.context.storage_state())
+        context.add_init_script(ASK_FORM_JS.replace('__FIELDS__', json.dumps([f['name'] for f in form['fields'] if f['name']]))
+                                .replace('__LABEL__', json.dumps(form['controller'] or 'form')))
+        crawl_page, self.page = self.page, context.new_page()
+        self._attach(self.page)
+        try:
+            self._goto(href)
+            before = self._snapshot()
+            self._calls.clear()
+            self._dialogs.clear()
+            answer = self._wait_for_answer()
+            if answer in ('skip', 'skip_all', 'closed'):
+                if answer == 'skip_all':
+                    self.form_cache[SKIP_ALL] = True
+                return {'result': 'skipped by developer'}
+            self.page.wait_for_timeout(500)
+            self._wait_ready()
+            after = self._snapshot()
+            result = self._diff(before, after)
+            result['result'] = 'submitted by developer'
+            return result
+        except Exception as e:  # noqa: BLE001 - a failing form must not stop the crawl
+            return {'result': f'error: {str(e).splitlines()[0]}'}
+        finally:
+            self.page = crawl_page
+            context.close()
+
+    def _wait_for_answer(self):
+        """Waits (without timeout) until the form was submitted, skipped or the window closed."""
+        while True:
+            try:
+                handle = self.page.wait_for_function(
+                    "() => window.__sdcTeach || sessionStorage.getItem('__sdcTeach')", timeout=0, polling=250)
+                return handle.json_value()
+            except Exception:  # noqa: BLE001 - reloads destroy the JS context, closing the window ends the wait
+                if self.page.is_closed():
+                    return 'closed'
+                try:
+                    answer = self.page.evaluate("() => sessionStorage.getItem('__sdcTeach')")
+                except Exception:  # noqa: BLE001 - page is still navigating
+                    answer = None
+                if answer:
+                    return answer
+
+    @staticmethod
+    def _style_notice(text):
+        return f'\033[93m>>> {text}\033[0m'
 
     def _diff(self, before, after):
         effect = {}
