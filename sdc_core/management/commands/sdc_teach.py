@@ -10,12 +10,9 @@ import urllib.request
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from django.urls import URLPattern, URLResolver, get_resolver
 
 from sdc_core.management.commands.init_add import options
-from sdc_core.management.commands.init_add.utils import convert_to_tag_name
-from sdc_core.management.commands.utils.teach_controllers import add_controller_doc, controller_doc, \
-    controller_js_file
+from sdc_core.management.commands.utils.teach_controllers import add_controller_doc, sdc_controllers
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
 from sdc_core.management.commands.utils.teach_markdown import render_skill
 from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
@@ -267,36 +264,11 @@ class Command(BaseCommand):
         Collects the JSDoc comments of all client controller classes. The developer is asked to describe
         undocumented controllers of the project; the text is written above the controller class as JSDoc.
         """
-        infos = self._controller_infos()
-        for tag, info in infos.items():
-            info['file'] = controller_js_file(info['app'], tag, info['url'])
-            info['doc'] = controller_doc(info['file'], tag)
+        infos = sdc_controllers()
         missing = [dict(info, tag=tag) for tag, info in sorted(infos.items())
                    if not info['doc'] and is_editable(info['file'], options.PROJECT_ROOT)]
         self._ask_docs(ops, missing, 'controller', 'the controller class as JSDoc comment', lambda c: f'<{c["tag"]}>',
                        lambda c: add_controller_doc(c['file'], c['tag'], c['doc']))
         for c in missing:
             infos[c['tag']]['doc'] = c['doc']
-        return infos
-
-    @staticmethod
-    def _controller_infos():
-        infos = {}
-
-        def walk(patterns, prefix):
-            for p in patterns:
-                if isinstance(p, URLResolver):
-                    walk(p.url_patterns, prefix + str(p.pattern))
-                elif isinstance(p, URLPattern) and (p.name or '').startswith('scd_view_'):
-                    view = getattr(p.callback, 'view_class', None)
-                    if view is None:
-                        continue
-                    tag = convert_to_tag_name(view.__name__)
-                    infos[tag] = {
-                        'app': view.__module__.split('.')[0],
-                        'view_class': f'{view.__module__}.{view.__name__}',
-                        'url': '/' + prefix + str(p.pattern),
-                    }
-
-        walk(get_resolver().url_patterns, '')
         return infos

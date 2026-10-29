@@ -187,3 +187,16 @@ def test_controller_jsdoc_exported_and_fallback(tmp_path):
     js = tmp_path / 'nav.js'
     js.write_text("/**\n   * Navigates.\n   *   indented\n   */\nexport class OtherNameController extends AbstractSDC {}\n")
     assert controller_doc(str(js), 'sdc-navigator') == 'Navigates.\n  indented'
+
+
+def test_prepare_teaching_lists_undocumented():
+    import io
+    from django.core.management import call_command
+    out = io.StringIO()
+    call_command('sdc_prepare_teaching', stdout=out)
+    text = out.getvalue()
+    assert text.startswith('# Prepare this SimpleDomControl project for `sdc_teach`')
+    assert '## Undocumented models and controllers' in text
+    assert '- Model `Book` (main_test): main_test/models.py:' in text
+    assert ('- Controller `<error404>` (main_test): '
+            'main_test/Assets/src/main_test/controller/error_404/error_404.js:4') in text

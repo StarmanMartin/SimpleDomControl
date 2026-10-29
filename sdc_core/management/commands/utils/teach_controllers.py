@@ -4,7 +4,9 @@ import os
 import re
 import textwrap
 
-from sdc_core.management.commands.init_add.utils import convert_to_title_camel_case
+from django.urls import URLPattern, URLResolver, get_resolver
+
+from sdc_core.management.commands.init_add.utils import convert_to_tag_name, convert_to_title_camel_case
 
 CLASS_RE = r'^([ \t]*)(?:export[ \t]+(?:default[ \t]+)?)?class[ \t]+{name}[ \t]+extends\b'
 
@@ -72,3 +74,40 @@ def add_controller_doc(file, tag, doc):
     with open(file, 'w') as f:
         f.write(source[:match.start()] + '\n'.join(block) + '\n' + source[match.start():])
     return True
+
+
+def controller_line(file, tag):
+    """Line number of the controller class in ``file`` (1-based) or ``None``."""
+    with open(file) as f:
+        source = f.read()
+    match = _class_match(source, tag)
+    return source.count('\n', 0, match.start()) + 1 if match else None
+
+
+def sdc_controllers():
+    """
+    ``{tag: {'app', 'view_class', 'url', 'file', 'doc'}}`` for every SDC controller registered in the URL
+    conf; ``file`` is the client controller JS file, ``doc`` its JSDoc text.
+    """
+    infos = {}
+
+    def walk(patterns, prefix):
+        for p in patterns:
+            if isinstance(p, URLResolver):
+                walk(p.url_patterns, prefix + str(p.pattern))
+            elif isinstance(p, URLPattern) and (p.name or '').startswith('scd_view_'):
+                view = getattr(p.callback, 'view_class', None)
+                if view is None:
+                    continue
+                tag = convert_to_tag_name(view.__name__)
+                infos[tag] = {
+                    'app': view.__module__.split('.')[0],
+                    'view_class': f'{view.__module__}.{view.__name__}',
+                    'url': '/' + prefix + str(p.pattern),
+                }
+
+    walk(get_resolver().url_patterns, '')
+    for tag, info in infos.items():
+        info['file'] = controller_js_file(info['app'], tag, info['url'])
+        info['doc'] = controller_doc(info['file'], tag)
+    return infos
