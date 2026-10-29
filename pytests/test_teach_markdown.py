@@ -1,3 +1,5 @@
+import ast
+import inspect
 import os
 
 import django
@@ -80,3 +82,43 @@ def test_merge_marks_login_required():
     md = _render(tree)
     assert '- **admin-only** — `/~admin-only` _(login required)_' in md
     assert '- **secret** — `/~secret` _(login required)_' in md
+
+
+def test_models_section():
+    md = render_skill(_tree(_node(['main-view'])), {
+        'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01',
+        'models': [{'name': 'Book', 'app': 'main_test', 'doc': 'A book.\n\nHas a title.'},
+                   {'name': 'Author', 'app': 'main_test', 'doc': None}]})
+    assert '## Data models' in md
+    assert '### `Book` (main_test)\n\nA book.\n\nHas a title.\n' in md
+    assert '### `Author` (main_test)\n\n_No documentation._' in md
+
+
+def test_model_doc_ignores_generated_and_inherited_docstrings():
+    from main_test.models import Book
+    from sdc_core.management.commands.utils.teach_models import model_doc
+    assert Book.__doc__  # set by Django / inherited from SdcModel
+    assert model_doc(Book) == ast.get_docstring(_class_def(inspect.getfile(Book), 'Book'))
+
+
+def test_add_class_docstring(tmp_path, monkeypatch):
+    from sdc_core.management.commands.utils import teach_models
+    src = tmp_path / 'models.py'
+    src.write_text('import os\n\n\nclass Foo(object):\n    # comment\n    x = 1\n\n    def f(self):\n        pass\n')
+
+    class Foo:
+        pass
+
+    monkeypatch.setattr(teach_models.inspect, 'getfile', lambda _: str(src))
+    monkeypatch.setattr(teach_models.inspect, 'getsourcelines', lambda _: ([], 4))
+    assert teach_models.model_doc(Foo) is None
+    assert teach_models.add_class_docstring(Foo, 'A foo.\nSays """hi""".')
+    assert src.read_text() == ('import os\n\n\nclass Foo(object):\n    """\n    A foo.\n    Says \\"\\"\\"hi\\"\\"\\".\n'
+                               '    """\n    # comment\n    x = 1\n\n    def f(self):\n        pass\n')
+    assert teach_models.model_doc(Foo) == 'A foo.\nSays """hi""".'
+    assert not teach_models.add_class_docstring(Foo, 'again')  # already documented
+
+
+def _class_def(file, name):
+    with open(file) as f:
+        return next(n for n in ast.walk(ast.parse(f.read())) if isinstance(n, ast.ClassDef) and n.name == name)

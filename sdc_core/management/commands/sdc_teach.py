@@ -16,6 +16,7 @@ from sdc_core.management.commands.init_add import options
 from sdc_core.management.commands.init_add.utils import convert_to_tag_name
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
 from sdc_core.management.commands.utils.teach_markdown import render_skill
+from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
 
 SESSION_SCRIPT = """
 import json, os
@@ -60,8 +61,9 @@ class Command(BaseCommand):
         parser.add_argument('--headed', action='store_true', help='Show the browser window')
         parser.add_argument('--timeout', type=int, default=10000, help='Timeout per page action in ms')
         parser.add_argument('--no-ask', action='store_true',
-                            help='Do not open a browser window asking you to fill in forms '
-                                 '(default: ask when running in a terminal with a display)')
+                            help='Do not ask for input: no browser window to fill in forms '
+                                 '(default: ask when running in a terminal with a display) and no prompt '
+                                 'for the documentation of undocumented SDC models (default: ask in a terminal)')
 
     def handle(self, *args, **ops):
         try:
@@ -78,6 +80,8 @@ class Command(BaseCommand):
 
         if ops['database'] not in getattr(settings, 'DATABASES_AVAILABLE', {ops['database']: None}):
             raise CommandError(f"DJANGO_DATABASE alias '{ops['database']}' is not defined in your settings")
+        models = self._document_models(ops)
+
         env = os.environ | {'DJANGO_DATABASE': ops['database']}
         self._manage(env, 'migrate', '--noinput')
         if ops['fixture']:
@@ -127,6 +131,7 @@ class Command(BaseCommand):
             'crawled_as': crawled_as,
             'logged_in_label': f'user {ops["user"]}',
             'controller_infos': self._controller_infos(),
+            'models': models,
         })
         with open(output, 'w') as f:
             f.write(markdown)
@@ -212,6 +217,37 @@ class Command(BaseCommand):
         if 'error' in cookie:
             raise CommandError(f'Login as {ops["user"]} failed: {cookie["error"]} (DB: {ops["database"]})')
         return cookie
+
+    # -------------------------------------------------------------- models
+    def _document_models(self, ops):
+        """
+        Collects the docstrings of all SDC models. Undocumented models of the project are listed and the
+        developer is asked for a description, which is written into the model class as its docstring.
+        """
+        models = sdc_models()
+        missing = [m for m in models if not m['doc'] and is_editable(m['file'], options.PROJECT_ROOT)]
+        if not missing or ops['no_ask'] or not sys.stdin.isatty():
+            return models
+        self.stdout.write(self.style.WARNING(
+            f'{len(missing)} SDC model(s) have no documentation. Describe each model for the skill file; '
+            f'the text is added to the model class as docstring. End with an empty line, '
+            f'an empty first line skips the model.'))
+        for m in missing:
+            self.stdout.write(f'\n{m["app"]}.{m["name"]} ({os.path.relpath(m["file"], options.PROJECT_ROOT)}):')
+            text = []
+            try:
+                while line := input('> ' if not text else '. ').rstrip():
+                    text.append(line)
+            except EOFError:
+                break
+            if not text:
+                continue
+            m['doc'] = '\n'.join(text)
+            if add_class_docstring(m['model'], m['doc']):
+                self.stdout.write(self.style.SUCCESS(f'Added docstring to {m["name"]}'))
+            else:
+                self.stderr.write(f'Could not add the docstring to {m["name"]}; it is only used in the skill file')
+        return models
 
     # ---------------------------------------------------------- controllers
     @staticmethod

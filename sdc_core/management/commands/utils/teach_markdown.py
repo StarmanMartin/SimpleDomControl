@@ -125,7 +125,8 @@ def render_skill(tree, meta):
     """
     :param tree: ``{'nodes': {key: node}, 'errors': [...], 'global': {...}}`` from ``Crawler.crawl`` / ``merge_crawls``
     :param meta: ``project``, ``crawled_as`` (list), ``logged_in_label``,
-                 ``controller_infos`` (``{tag: info}``) and optional ``date``
+                 ``controller_infos`` (``{tag: info}``), optional ``models``
+                 (``[{'name', 'app', 'doc'}]``, see ``teach_models.sdc_models``) and optional ``date``
     """
     nodes = tree['nodes']
     project = meta['project']
@@ -205,6 +206,17 @@ def render_skill(tree, meta):
             lines.append(f'| `{tag}` | {info.get("app", "")} | {_code(view) if view else ""} | '
                          f'{_code(url) if url else ""} |')
         lines.append('')
+
+    models = meta.get('models') or []
+    if models:
+        lines += ['## Data models', '',
+                  'SDC models are loaded and saved over the model WebSocket '
+                  '(`this.querySet("Name", {filter})` in a controller).', '']
+        for m in models:
+            lines.append(f'### `{m["name"]}` ({m["app"]})')
+            lines.append('')
+            lines.append(m['doc'].strip() if m.get('doc') else '_No documentation._')
+            lines.append('')
 
     errors = {(e['error'], e['url'].split('/', 3)[-1]) for e in tree.get('errors', [])}
     if errors:
