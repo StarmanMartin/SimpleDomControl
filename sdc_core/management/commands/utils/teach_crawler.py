@@ -170,7 +170,10 @@ ASK_FORM_JS = r"""(() => {
             '<button data-a="skip">Skip</button><button data-a="skip_all">Skip all forms</button>';
         banner.querySelector('b').textContent = __LABEL__;
         banner.addEventListener('click', (ev) => ev.target.dataset.a && answer(ev.target.dataset.a));
-        document.body.appendChild(banner);
+        // Must be appended to <html>, not <body>: if body (or any wrapper) carries a CSS
+        // transform/filter/zoom, `position: fixed` becomes relative to that element's box and the
+        // banner ends up at the bottom of the document, below the visible viewport.
+        document.documentElement.appendChild(banner);
         document.body.style.paddingBottom = '80px';  // keep the banner from covering submit buttons
         setInterval(() => {
             const form = [...document.forms].find(isTarget);
@@ -213,6 +216,8 @@ class Crawler:
         # ask_browser() returns a headed browser; forms are then filled in by the developer
         self.ask_browser = ask_browser
         self.form_cache = {} if form_cache is None else form_cache
+        # Controller paths of ancestor views already documented by some node
+        self._claimed = set()
 
     # ------------------------------------------------------------------ setup
     def _attach(self, page):
@@ -287,7 +292,21 @@ class Crawler:
 
     @staticmethod
     def _own(items, idx):
-        return [i for i in items if i['nav_idx'] == idx]
+        return [i for i in items if i['nav_idx'] in (idx if isinstance(idx, (list, set)) else [idx])]
+
+    def _owned_levels(self, path):
+        """
+        The node's own view level plus every ancestor level that never becomes a node of its own
+        (e.g. a dashboard that always loads a default child view). The first node seeing such an
+        ancestor claims its links, buttons and forms; otherwise they would never be crawled.
+        """
+        levels = [len(path) - 1]
+        for i in range(len(path) - 1):
+            prefix = tuple(path[:i + 1])
+            if prefix not in self._claimed and not any(tuple(n['path']) == prefix for n in self.nodes.values()):
+                self._claimed.add(prefix)
+                levels.append(i)
+        return levels
 
     # ----------------------------------------------------------------- crawl
     def crawl(self):
@@ -332,7 +351,7 @@ class Crawler:
                     queue.append((target['href'], depth + 1, f'link "{link["text"]}"'))
             if self.click:
                 new_hrefs = []
-                node['buttons'] = self._click_buttons(node['href'], self._own(snap['buttons'], node['nav_idx']),
+                node['buttons'] = self._click_buttons(node['href'], self._own(snap['buttons'], node['owned_levels']),
                                                       new_hrefs)
                 queue.extend((h, depth + 1, 'button') for h in new_hrefs)
             new_hrefs = []
@@ -343,13 +362,15 @@ class Crawler:
 
     def _make_node(self, key, snap, depth, via):
         idx = len(snap['path']) - 1
-        own_controllers = self._own(snap['controllers'], idx)
-        errors = [c['error_code'] for c in own_controllers if c.get('error_code') is not None]
+        levels = self._owned_levels(snap['path'])
+        own_controllers = self._own(snap['controllers'], levels)
+        errors = [c['error_code'] for c in self._own(own_controllers, idx) if c.get('error_code') is not None]
         return {
             'key': key,
             'href': snap['href'],
             'path': snap['path'],
             'nav_idx': idx,
+            'owned_levels': levels,
             'args': {k: [v] for k, v in snap['args'].items()},
             'depth': depth,
             'via': via,
@@ -358,9 +379,9 @@ class Crawler:
             'headings': [h['text'] for h in self._own(snap['headings'], idx)][:4],
             'controllers': own_controllers,
             'url_params': sorted({p for c in snap['controllers'] if c['tag'] in snap['path'] for p in c['url_params']}),
-            'links': self._own(snap['links'], idx),
-            'external': self._own(snap['external'], idx),
-            'forms': self._own(snap['forms'], idx),
+            'links': self._own(snap['links'], levels),
+            'external': self._own(snap['external'], levels),
+            'forms': self._own(snap['forms'], levels),
             'buttons': [],
         }
 
