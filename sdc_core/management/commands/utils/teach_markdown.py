@@ -148,7 +148,7 @@ def render_skill(tree, meta):
     """
     :param tree: ``{'nodes': {key: node}, 'errors': [...], 'global': {...}}`` from ``Crawler.crawl`` / ``merge_crawls``
     :param meta: ``project``, ``crawled_as`` (list), ``logged_in_label``,
-                 ``controller_infos`` (``{tag: info}``), optional ``models``
+                 ``controller_infos`` (``{tag: {'app', 'view_class', 'url', 'doc'}}``), optional ``models``
                  (``[{'name', 'app', 'doc'}]``, see ``teach_models.sdc_models``) and optional ``date``
     """
     nodes = tree['nodes']
@@ -227,15 +227,15 @@ def render_skill(tree, meta):
     seen_tags = sorted({c['tag'] for n in nodes.values() for c in n['controllers']}
                        | {t for n in nodes.values() for t in n['path']})
     if seen_tags:
-        lines += ['## Controllers', '',
-                  '| Tag | App | Server view | Django URL |',
-                  '|---|---|---|---|']
+        lines += ['## Controllers', '']
         for tag in seen_tags:
             info = infos.get(tag, {})
-            view, url = info.get('view_class'), info.get('url')
-            lines.append(f'| `{tag}` | {info.get("app", "")} | {_code(view) if view else ""} | '
-                         f'{_code(url) if url else ""} |')
-        lines.append('')
+            source = [f'app `{info["app"]}`' if info.get('app') else '',
+                      f'server view {_code(info["view_class"])}' if info.get('view_class') else '',
+                      f'Django URL {_code(info["url"])}' if info.get('url') else '']
+            lines += [f'### `<{tag}>`', '', info['doc'].strip() if info.get('doc') else '_No documentation._', '']
+            if any(source):
+                lines += ['_' + ', '.join(filter(None, source)) + '_', '']
 
     models = meta.get('models') or []
     if models:

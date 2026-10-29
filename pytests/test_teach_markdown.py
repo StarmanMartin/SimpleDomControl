@@ -155,3 +155,35 @@ def test_merge_keeps_global_model_calls():
             'query': [], 'args': []}
     logged_in['global']['model_calls'] = [call]
     assert merge_crawls(anonymous, logged_in)['global']['model_calls'] == [call]
+
+
+def test_controller_docs_section():
+    md = render_skill(_tree(_node(['main-view']), _node(['main-view', 'book-edit'])), {
+        'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01',
+        'controller_infos': {'main-view': {'app': 'main_test', 'view_class': 'main_test.sdc_views.MainView',
+                                           'url': '/sdc_view/main_test/main_view', 'doc': 'Start page.\n\nLists books.'},
+                             'book-edit': {'app': 'main_test', 'doc': None}}})
+    assert ('### `<main-view>`\n\nStart page.\n\nLists books.\n\n_app `main_test`, server view '
+            '`main_test.sdc_views.MainView`, Django URL `/sdc_view/main_test/main_view`_\n') in md
+    assert '### `<book-edit>`\n\n_No documentation._\n' in md
+
+
+def test_controller_jsdoc(tmp_path):
+    from sdc_core.management.commands.utils.teach_controllers import add_controller_doc, controller_doc
+    js = tmp_path / 'book_edit.js'
+    head = ("import {AbstractSDC, app} from 'sdc_client';\n\n"
+            "/**\n * Helper, not the controller doc\n */\nconst x = 1;\n\n")
+    body = "class BookEditController extends AbstractSDC {\n}\n\napp.register(BookEditController);\n"
+    js.write_text(head + body)
+    assert controller_doc(str(js), 'book-edit') is None
+    assert add_controller_doc(str(js), 'book-edit', 'Edits a book.\n\nEnds a comment */ safely.')
+    assert js.read_text() == head + ('/**\n * Edits a book.\n *\n * Ends a comment *\\/ safely.\n */\n' + body)
+    assert controller_doc(str(js), 'book-edit') == 'Edits a book.\n\nEnds a comment *\\/ safely.'
+    assert not add_controller_doc(str(js), 'book-edit', 'again')  # already documented
+
+
+def test_controller_jsdoc_exported_and_fallback(tmp_path):
+    from sdc_core.management.commands.utils.teach_controllers import controller_doc
+    js = tmp_path / 'nav.js'
+    js.write_text("/**\n   * Navigates.\n   *   indented\n   */\nexport class OtherNameController extends AbstractSDC {}\n")
+    assert controller_doc(str(js), 'sdc-navigator') == 'Navigates.\n  indented'

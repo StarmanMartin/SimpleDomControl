@@ -14,6 +14,8 @@ from django.urls import URLPattern, URLResolver, get_resolver
 
 from sdc_core.management.commands.init_add import options
 from sdc_core.management.commands.init_add.utils import convert_to_tag_name
+from sdc_core.management.commands.utils.teach_controllers import add_controller_doc, controller_doc, \
+    controller_js_file
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
 from sdc_core.management.commands.utils.teach_markdown import render_skill
 from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
@@ -63,7 +65,8 @@ class Command(BaseCommand):
         parser.add_argument('--no-ask', action='store_true',
                             help='Do not ask for input: no browser window to fill in forms '
                                  '(default: ask when running in a terminal with a display) and no prompt '
-                                 'for the documentation of undocumented SDC models (default: ask in a terminal)')
+                                 'for the documentation of undocumented SDC models and controllers '
+                                 '(default: ask in a terminal)')
 
     def handle(self, *args, **ops):
         try:
@@ -81,6 +84,7 @@ class Command(BaseCommand):
         if ops['database'] not in getattr(settings, 'DATABASES_AVAILABLE', {ops['database']: None}):
             raise CommandError(f"DJANGO_DATABASE alias '{ops['database']}' is not defined in your settings")
         models = self._document_models(ops)
+        controllers = self._document_controllers(ops)
 
         env = os.environ | {'DJANGO_DATABASE': ops['database']}
         self._manage(env, 'migrate', '--noinput')
@@ -130,7 +134,7 @@ class Command(BaseCommand):
             'project': project,
             'crawled_as': crawled_as,
             'logged_in_label': f'user {ops["user"]}',
-            'controller_infos': self._controller_infos(),
+            'controller_infos': controllers,
             'models': models,
         })
         with open(output, 'w') as f:
@@ -221,35 +225,60 @@ class Command(BaseCommand):
     # -------------------------------------------------------------- models
     def _document_models(self, ops):
         """
-        Collects the docstrings of all SDC models. Undocumented models of the project are listed and the
-        developer is asked for a description, which is written into the model class as its docstring.
+        Collects the docstrings of all SDC models. The developer is asked to describe undocumented models of
+        the project; the text is written into the model class as its docstring.
         """
         models = sdc_models()
         missing = [m for m in models if not m['doc'] and is_editable(m['file'], options.PROJECT_ROOT)]
+        self._ask_docs(ops, missing, 'SDC model', 'the model class as docstring',
+                       lambda m: f'{m["app"]}.{m["name"]}', lambda m: add_class_docstring(m['model'], m['doc']))
+        return models
+
+    def _ask_docs(self, ops, missing, kind, target, label, write):
+        """
+        Asks in the terminal for the documentation of each item in ``missing``, stores it in ``item['doc']``
+        and calls ``write(item)`` to add it to the source file.
+        """
         if not missing or ops['no_ask'] or not sys.stdin.isatty():
-            return models
+            return
         self.stdout.write(self.style.WARNING(
-            f'{len(missing)} SDC model(s) have no documentation. Describe each model for the skill file; '
-            f'the text is added to the model class as docstring. End with an empty line, '
-            f'an empty first line skips the model.'))
-        for m in missing:
-            self.stdout.write(f'\n{m["app"]}.{m["name"]} ({os.path.relpath(m["file"], options.PROJECT_ROOT)}):')
+            f'{len(missing)} {kind}(s) have no documentation. Describe each {kind} for the skill file; '
+            f'the text is added to {target}. End with an empty line, an empty first line skips the {kind}.'))
+        for item in missing:
+            self.stdout.write(f'\n{label(item)} ({os.path.relpath(item["file"], options.PROJECT_ROOT)}):')
             text = []
             try:
                 while line := input('> ' if not text else '. ').rstrip():
                     text.append(line)
             except EOFError:
-                break
+                return
             if not text:
                 continue
-            m['doc'] = '\n'.join(text)
-            if add_class_docstring(m['model'], m['doc']):
-                self.stdout.write(self.style.SUCCESS(f'Added docstring to {m["name"]}'))
+            item['doc'] = '\n'.join(text)
+            if write(item):
+                self.stdout.write(self.style.SUCCESS(f'Added documentation to {label(item)}'))
             else:
-                self.stderr.write(f'Could not add the docstring to {m["name"]}; it is only used in the skill file')
-        return models
+                self.stderr.write(f'Could not add the documentation to {label(item)}; '
+                                  f'it is only used in the skill file')
 
     # ---------------------------------------------------------- controllers
+    def _document_controllers(self, ops):
+        """
+        Collects the JSDoc comments of all client controller classes. The developer is asked to describe
+        undocumented controllers of the project; the text is written above the controller class as JSDoc.
+        """
+        infos = self._controller_infos()
+        for tag, info in infos.items():
+            info['file'] = controller_js_file(info['app'], tag, info['url'])
+            info['doc'] = controller_doc(info['file'], tag)
+        missing = [dict(info, tag=tag) for tag, info in sorted(infos.items())
+                   if not info['doc'] and is_editable(info['file'], options.PROJECT_ROOT)]
+        self._ask_docs(ops, missing, 'controller', 'the controller class as JSDoc comment', lambda c: f'<{c["tag"]}>',
+                       lambda c: add_controller_doc(c['file'], c['tag'], c['doc']))
+        for c in missing:
+            infos[c['tag']]['doc'] = c['doc']
+        return infos
+
     @staticmethod
     def _controller_infos():
         infos = {}
