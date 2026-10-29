@@ -72,7 +72,8 @@ class SdcUser(AbstractUser, SdcModel):
     - Anyone may create an account (registration in `<register>`). By default a logged-in user can read and
       edit only their own record (`username`, names, `email`); superusers can see and edit all users, and only
       superusers may delete users.
-    - Saving a new or changed `email` sends a confirmation e-mail to that address (link valid for 3 days).
+    - Saving a new or changed `email` resets `email_confirmed` to `false` and sends a confirmation e-mail to
+      that address (link valid for 3 days).
     - Edited in `<sdc-model-form>` via the "Edit <username>" link of `<sdc-user-nav-btn>`; `<sdc-user>` loads
       the current user's record.
     """
@@ -119,6 +120,12 @@ class SdcUser(AbstractUser, SdcModel):
         return _sdc_user_get_queryset(cls, user, action, obj)
 
     def save(self, *args, **kwargs):
+        if self.email != self._origen_email:
+            # A new address is unconfirmed until its confirmation link is followed
+            self.email_confirmed = False
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'email' in update_fields:
+                kwargs['update_fields'] = {*update_fields, 'email_confirmed'}
         super().save(*args, **kwargs)
         if self.email != self._origen_email:
             # Remember the new address first, so a failing or repeated save does not send again.
