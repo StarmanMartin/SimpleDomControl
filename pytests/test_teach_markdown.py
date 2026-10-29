@@ -122,3 +122,36 @@ def test_add_class_docstring(tmp_path, monkeypatch):
 def _class_def(file, name):
     with open(file) as f:
         return next(n for n in ast.walk(ast.parse(f.read())) if isinstance(n, ast.ClassDef) and n.name == name)
+
+
+def test_model_socket_calls():
+    tree = _tree(_node(
+        ['book-list'],
+        model_calls=[
+            {'via': 'model-socket', 'controller': 'book-list', 'target': 'Book', 'function': 'connect',
+             'query': ['author'], 'args': []},
+            {'via': 'model-socket', 'controller': 'book-list', 'target': 'Book', 'function': 'load',
+             'query': ['author'], 'args': []},
+        ],
+        buttons=[{'text': 'Save', 'handlers': ['onSave'], 'controller': 'book-list', 'toggles': '',
+                  'result': 'clicked',
+                  'server_calls': [{'via': 'model-socket', 'controller': 'book-list', 'target': 'Book',
+                                    'function': 'save', 'query': [], 'args': ['data']}]}],
+    ))
+    tree['global']['model_calls'] = [{'via': 'model-socket', 'controller': 'nav-bar', 'target': 'SdcUser',
+                                      'function': 'load', 'query': [], 'args': []}]
+    md = _render(tree)
+    assert '"Model socket (on load)"' in md
+    assert ('  - Model socket (on load):\n    - `book-list`: `Book.connect()` filter `author`; '
+            '`Book.load()` filter `author`') in md
+    assert 'model-socket `Book.save(data)` from `book-list`' in md
+    assert '## Global navigation (always visible)\n\n- Model socket (on load):\n  - `nav-bar`: `SdcUser.load()`' in md
+
+
+def test_merge_keeps_global_model_calls():
+    anonymous = _tree(_node(['main-view']))
+    logged_in = _tree(_node(['main-view'], seen_as='user admin'))
+    call = {'via': 'model-socket', 'controller': 'nav-bar', 'target': 'SdcUser', 'function': 'load',
+            'query': [], 'args': []}
+    logged_in['global']['model_calls'] = [call]
+    assert merge_crawls(anonymous, logged_in)['global']['model_calls'] == [call]

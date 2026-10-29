@@ -4,8 +4,9 @@ It drives a running SDC project with Playwright, follows every
 ``.navigation-links`` element of the ``sdc-navigator`` and clicks every
 clickable element (``[sdc_click]``, buttons, ...) to build a tree of
 navigation states. Each state records its controllers, arguments, links,
-buttons and forms. The result is a plain dict tree that
-``teach_markdown.render_skill`` turns into a skill file.
+buttons, forms and the SdcModel WebSocket messages sent by each controller.
+The result is a plain dict tree that ``teach_markdown.render_skill`` turns
+into a skill file.
 
 Every collected element carries ``nav_idx``: the navigator depth of the view
 it belongs to (``None`` for global elements such as the navbar). Elements of
@@ -146,6 +147,42 @@ SNAPSHOT_JS = r"""() => {
 }"""
 
 
+# Injected into every crawled page: logs each message sent over an SdcModel WebSocket together with the
+# controller owning the queryset (``controller._models``). ``Crawler._model_calls`` reads and clears the log.
+MODEL_LOG_JS = r"""(() => {
+    const send = WebSocket.prototype.send;
+    const log = window.__sdcModelLog = [];
+    const keys = (o) => (o && typeof o === 'object' ? Object.keys(o).sort() : []);
+    const empty = (v) => v === null || v === undefined || v === '' || (typeof v === 'object' && !keys(v).length);
+    const controllerOf = (ws) => {
+        if (!window.$) return null;
+        for (const el of document.querySelectorAll('._sdc_controller_')) {
+            const c = $(el).data('_controller_');
+            if (c && (c._models || []).some((q) => q && q.socket === ws)) return c._tagName || el.tagName.toLowerCase();
+        }
+        return null;
+    };
+    WebSocket.prototype.send = function (data) {
+        try {
+            const msg = typeof data === 'string' && data.includes('"model"') ? JSON.parse(data) : null;
+            if (msg && msg.event === 'model' && log.length < 1000) {
+                const args = msg.args || {};
+                log.push({
+                    controller: controllerOf(this),
+                    model: args.model_name,
+                    event_type: msg.event_type,
+                    query: keys(args.model_query),
+                    args: keys(args).filter((k) => k !== 'model_name' && k !== 'model_query' && !empty(args[k])),
+                });
+            }
+        } catch (e) {
+            // never break the app because of the crawler
+        }
+        return send.call(this, data);
+    };
+})();"""
+
+
 # Injected into the headed browser when the developer is asked to fill in a form. It highlights the
 # form, shows a banner with skip buttons and stores the answer in sessionStorage (survives reloads).
 ASK_FORM_JS = r"""(() => {
@@ -242,13 +279,10 @@ class Crawler:
             if not isinstance(data, dict):
                 return
             args = data.get('args') if isinstance(data.get('args'), dict) else {}
+            # Model socket messages are logged in the page by MODEL_LOG_JS, which also knows the controller
             if data.get('event') == 'sdc_call':
                 self._calls.append({'via': 'websocket', 'target': f'{data.get("app")}.{data.get("controller")}',
                                     'function': data.get('function'), 'args': sorted(args)})
-            elif data.get('event') == 'model' and data.get('event_type') != 'connect':
-                self._calls.append({'via': 'model-socket', 'target': args.get('model_name'),
-                                    'function': data.get('event_type'),
-                                    'args': sorted(k for k, v in args.items() if v not in (None, '', {}))})
 
         ws.on('framesent', on_frame)
 
@@ -266,6 +300,21 @@ class Crawler:
                 args = []
             self._calls.append({'via': 'http', 'target': request.url.replace(self.base_url, ''),
                                 'function': data.get('_sdc_func_name', [''])[0], 'args': args})
+
+    def _model_calls(self):
+        """Reads and clears the SdcModel socket log of the page (duplicates removed)."""
+        try:
+            log = self.page.evaluate('() => (window.__sdcModelLog || []).splice(0)')
+        except Exception:  # noqa: BLE001 - the page may be navigating or closed
+            return []
+        calls = []
+        for entry in log:
+            call = {'via': 'model-socket', 'controller': entry.get('controller'), 'target': entry.get('model'),
+                    'function': entry.get('event_type'), 'query': entry.get('query') or [],
+                    'args': entry.get('args') or []}
+            if call not in calls:
+                calls.append(call)
+        return calls
 
     # --------------------------------------------------------------- helpers
     def _goto(self, url):
@@ -310,15 +359,18 @@ class Crawler:
 
     # ----------------------------------------------------------------- crawl
     def crawl(self):
+        self.context.add_init_script(MODEL_LOG_JS)
         self.page = self.context.new_page()
         self._attach(self.page)
         self._goto(self.start)
         root = self._snapshot()
+        global_tags = {c['tag'] for c in self._own(root['controllers'], None)}
         self.global_items = {
             'links': self._own(root['links'], None),
             'external': self._own(root['external'], None),
             'buttons': [],
             'forms': self._own(root['forms'], None),
+            'model_calls': [c for c in self._model_calls() if c['controller'] in global_tags],
         }
         if self.click:
             self.global_items['buttons'] = self._click_buttons(root['href'], self._own(root['buttons'], None), [])
@@ -336,12 +388,15 @@ class Crawler:
             seen_hrefs.add(href)
             self._goto(href)
             snap = self._snapshot()
+            model_calls = self._model_calls()
             key = state_key(snap['path'], snap['args'])
             if key in self.nodes:
                 self._merge_examples(self.nodes[key], snap)
                 continue
             self.log(f'[{self.label}] {"  " * depth}{snap["href"]}')
             node = self._make_node(key, snap, depth, via)
+            own_tags = {c['tag'] for c in node['controllers']}
+            node['model_calls'] = [c for c in model_calls if c['controller'] in own_tags]
             self.nodes[key] = node
             if depth >= self.max_depth:
                 continue
@@ -408,6 +463,7 @@ class Crawler:
                 before = self._snapshot()
                 self._calls.clear()
                 self._dialogs.clear()
+                self._model_calls()
                 self.page.locator(btn['selector']).first.click(timeout=self.timeout)
                 self.page.wait_for_timeout(300)
                 self._wait_ready()
@@ -450,6 +506,7 @@ class Crawler:
             f'Fill in the form of <{form["controller"]}> ({", ".join(f["name"] for f in form["fields"])}) '
             f'in the browser window and submit it, or click "Skip" in the banner.'))
         context = browser.new_context(storage_state=self.context.storage_state())
+        context.add_init_script(MODEL_LOG_JS)
         context.add_init_script(ASK_FORM_JS.replace('__FIELDS__', json.dumps([f['name'] for f in form['fields'] if f['name']]))
                                 .replace('__LABEL__', json.dumps(form['controller'] or 'form')))
         crawl_page, self.page = self.page, context.new_page()
@@ -459,6 +516,7 @@ class Crawler:
             before = self._snapshot()
             self._calls.clear()
             self._dialogs.clear()
+            self._model_calls()
             answer = self._wait_for_answer()
             if answer in ('skip', 'skip_all', 'closed'):
                 if answer == 'skip_all':
@@ -516,8 +574,9 @@ class Crawler:
         new_alerts = [a for a in after['alerts'] if a not in before['alerts']]
         if new_alerts:
             effect['alerts'] = new_alerts
-        if self._calls:
-            effect['server_calls'] = list(self._calls)
+        calls = self._calls + self._model_calls()
+        if calls:
+            effect['server_calls'] = calls
         if self._dialogs:
             effect['dialogs'] = list(self._dialogs)
         effect['result'] = 'clicked' if effect else 'clicked (no visible effect)'
@@ -546,8 +605,8 @@ def merge_crawls(anonymous, logged_in):
             old['seen_as'] = node['seen_as']
             old['args'] = node['args']
     global_items = anonymous['global']
-    for name in ('links', 'buttons'):
-        known = {json.dumps(i, sort_keys=True, default=str) for i in global_items[name]}
-        global_items[name] += [i for i in logged_in['global'][name]
+    for name in ('links', 'buttons', 'model_calls'):
+        known = {json.dumps(i, sort_keys=True, default=str) for i in global_items.setdefault(name, [])}
+        global_items[name] += [i for i in logged_in['global'].get(name, [])
                                if json.dumps(i, sort_keys=True, default=str) not in known]
     return {'nodes': nodes, 'errors': anonymous['errors'] + logged_in['errors'], 'global': global_items}

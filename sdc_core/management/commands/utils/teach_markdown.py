@@ -30,6 +30,26 @@ def _tree_parent(node, nodes_by_path):
     return None
 
 
+def _model_call(call):
+    query = f' filter {", ".join(map(_code, call["query"]))}' if call.get('query') else ''
+    return f'`{call["target"]}.{call["function"]}({", ".join(call["args"])})`{query}'
+
+
+def _call_text(call):
+    if call['via'] == 'model-socket':
+        source = f' from {_code(call["controller"])}' if call.get('controller') else ''
+        return f'model-socket {_model_call(call)}{source}'
+    return f'{call["via"]} call `{call["target"]}.{call["function"]}({", ".join(call["args"])})`'
+
+
+def _render_model_calls(calls, pad, lines):
+    by_controller = {}
+    for call in calls:
+        by_controller.setdefault(call['controller'] or '?', []).append(call)
+    for controller, calls in sorted(by_controller.items()):
+        lines.append(f'{pad}- {_code(controller)}: ' + '; '.join(map(_model_call, calls)))
+
+
 def _effects(b):
     """Describes the observed outcome of a clicked button or a submitted form."""
     effect = [b.get('result', '')]
@@ -46,7 +66,7 @@ def _effects(b):
     if b.get('toggles'):
         effect.append(f'bootstrap toggle `{b["toggles"]}`')
     for call in b.get('server_calls', []):
-        effect.append(f'{call["via"]} call `{call["target"]}.{call["function"]}({", ".join(call["args"])})`')
+        effect.append(_call_text(call))
     for alert in b.get('alerts', []):
         effect.append(f'alert "{alert}"')
     for dialog in b.get('dialogs', []):
@@ -113,6 +133,9 @@ def _render_node(node, children, nodes, lines, indent, logged_in_label):
     if node['forms']:
         lines.append(f'{pad}- Forms:')
         _render_forms(node['forms'], pad + '  ', lines)
+    if node.get('model_calls'):
+        lines.append(f'{pad}- Model socket (on load):')
+        _render_model_calls(node['model_calls'], pad + '  ', lines)
     external = sorted({l['href'] for l in node['external']})
     if external:
         lines.append(f'{pad}- Non-SDC links: {", ".join(map(_code, external))}')
@@ -177,15 +200,22 @@ def render_skill(tree, meta):
         '- Forms were not submitted automatically; "submitted by developer" shows what a manual submit did, '
         '"not submitted" means the outcome is unknown.',
         '- A view showing `sdc-error 403` needs a logged-in user with the right permissions.',
+        '- All SdcModel WebSocket traffic (`/sdc_ws/model/<Model>`) was recorded per controller: '
+        '"Model socket (on load)" lists what each controller requests when the view opens, buttons and forms list '
+        'what they trigger, as `Model.event(args)` with the `model_query` filter keys. `connect` subscribes to '
+        'live updates of the filtered rows; `load`, `save`, `create`, `delete`, ... read or write data.',
         '',
     ]
 
     global_items = tree.get('global') or {}
-    if any(global_items.get(k) for k in ('links', 'buttons', 'forms')):
+    if any(global_items.get(k) for k in ('links', 'buttons', 'forms', 'model_calls')):
         lines += ['## Global navigation (always visible)', '']
         _render_links(global_items.get('links', []), '', lines)
         _render_buttons(global_items.get('buttons', []), '', lines)
         _render_forms(global_items.get('forms', []), '', lines)
+        if global_items.get('model_calls'):
+            lines.append('- Model socket (on load):')
+            _render_model_calls(global_items['model_calls'], '  ', lines)
         lines.append('')
 
     lines += ['## Navigation tree', '']
