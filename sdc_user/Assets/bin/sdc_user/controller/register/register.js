@@ -1,6 +1,15 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Registration form that creates a new `SdcUser` account; open it from the "Register" link of `<sdc-login>` or `<sdc-user-nav-btn>`.
+ *
+ * - Arguments: `model` must be `SdcUser`; `next` is where to go after creating (the links pass `..`, i.e. back).
+ * - Fields: `username`, `first_name`, `last_name`, `email`, the password and its confirmation (must match and pass the password rules).
+ * - "Create" creates the account; anyone may register, no login is needed. The new user is not logged in automatically.
+ * - If an `email` was given, a confirmation e-mail with a link to `<sdc-confirm-email>` (valid 3 days) is sent to it.
+ * - If the project requires confirmed e-mail addresses, the new user can only log in after following that link.
+ */
 class RegisterController extends AbstractSDC {
 
     constructor() {

@@ -1,5 +1,10 @@
 import {AbstractSDC, app, trigger, socketReconnect} from 'sdc_client';
 
+/**
+ * Logout button; usually embedded in `<sdc-user-nav-btn>` when a user is logged in.
+ *
+ * - "Logout" ends the session of the current user immediately (no confirm dialog) and redirects to the login view; the WebSocket connections are reopened as anonymous user.
+ */
 class SdcLogoutController extends AbstractSDC {
 
     constructor() {

@@ -1,6 +1,11 @@
 import { AbstractSDC, app } from 'sdc_client';
 
 
+/**
+ * Searchable dropdown that replaces a normal select field inside forms (rendered by the `SearchableSelect` form widget); the selected value(s) are submitted under the field's name.
+ *
+ * Click it to open the option list, type to filter (space or comma separated terms, all must match), click an option to select it. With multiple selection each selected value has a "×" button to remove it; the same applies to single selection when the field is not required. Each change fires a change event, so inside an edit-mode `<sdc-model-form>` it is saved immediately.
+ */
 class SdcSearchSelectController extends AbstractSDC {
 
   constructor() {

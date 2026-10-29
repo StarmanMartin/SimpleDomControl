@@ -1,6 +1,13 @@
 import { AbstractSDC, app, SdcModel, SdcQuerySet } from 'sdc_client';
 
 
+/**
+ * Generic read-only view of one record of an SDC model, rendered with the model's detail template.
+ *
+ * - Arguments: `model` (required) is the SDC model name and `pk` (or `id`) the record id, e.g. `/~sdc-detail-view~&model=Author&pk=3`.
+ * - The view refreshes automatically when the record changes on the server.
+ * - Usually reached via the "Detail" link of a `<sdc-list-view>` row; access depends on the model's server-side permissions.
+ */
 export class SdcDetailViewController extends AbstractSDC {
 
   constructor() {

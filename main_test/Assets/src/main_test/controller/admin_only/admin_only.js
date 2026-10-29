@@ -1,6 +1,13 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.
+ *
+ * - Only logged-in superusers may open it; staff status or group membership is not enough.
+ * - Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.
+ * - The Jest tests also use it as an empty host controller for `SdcModel` tests; it changes no data itself.
+ */
 class AdminOnlyController extends AbstractSDC {
 
     constructor() {

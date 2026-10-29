@@ -1,6 +1,11 @@
 import {AbstractSDC, app, on} from 'sdc_client';
 
 
+/**
+ * Global toast area for status messages; usually placed once in the page next to `<sdc-navigator>`.
+ *
+ * Messages pushed by other controllers (e.g. success or validation errors after a form submit) appear here with a header and time and disappear automatically after about 2 seconds; error messages are highlighted. Nothing to operate.
+ */
 export class SdcAlertMessengerController extends AbstractSDC {
 
     constructor() {

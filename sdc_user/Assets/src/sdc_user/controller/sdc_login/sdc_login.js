@@ -1,5 +1,13 @@
 import {AbstractSDC, app, trigger, socketReconnect} from 'sdc_client';
 
+/**
+ * Login form (username and password) that starts a session for an `SdcUser`; the view other views redirect to when login is required.
+ *
+ * - Arguments: `next` (optional) is the URL to go to after login; without it the project's start page (`LOGIN_SUCCESS`) is used.
+ * - "Login" checks the credentials. On success the user is logged in and the whole page reloads at the `next` target; on failure the errors are shown in the form.
+ * - If the project requires confirmed e-mail addresses and the user has not confirmed theirs, login is refused and a new confirmation e-mail is sent.
+ * - Links lead to `<sdc-password-forgotten>` and to `<register>`.
+ */
 class SdcLoginController extends AbstractSDC {
 
     constructor() {

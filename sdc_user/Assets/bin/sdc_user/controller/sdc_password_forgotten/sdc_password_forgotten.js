@@ -1,6 +1,13 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Requests a password-reset e-mail for a user who forgot their password; reached from the "Password forgotten" link of `<sdc-login>`.
+ *
+ * - No arguments and no login needed. Enter the username or the e-mail address of the account.
+ * - "Send E-mail" sends an e-mail with a link to `<sdc-reset-password>` to the account's address; the link is valid for 3 days and can be used once.
+ * - Shows "User not found" if no account (or more than one) matches, and an error if the e-mail could not be sent.
+ */
 class SdcPasswordForgottenController extends AbstractSDC {
 
     constructor() {

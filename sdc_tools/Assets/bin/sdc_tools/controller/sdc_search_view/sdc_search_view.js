@@ -1,6 +1,11 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Search and paging bar embedded at the top of a model list (inside `<sdc-list-view>`); its fields come from the model's server-side search form.
+ *
+ * Changing a search field filters the surrounding list immediately (no submit button needed). "Prev"/"Next" page through the results and the bar shows the current range and total count; the paging controls are hidden when everything fits on one page. It changes no data.
+ */
 export class SdcSearchViewController extends AbstractSDC {
 
     constructor() {

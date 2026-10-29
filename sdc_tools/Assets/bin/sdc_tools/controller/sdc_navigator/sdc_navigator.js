@@ -4,6 +4,15 @@ const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
 
 
+/**
+ * Root navigation frame of an SDC app: owns the URL, the nested views and the breadcrumb; there is one per page and it is exposed as `window.sdcNav`.
+ *
+ * - URL scheme: `/~<tag>~<child-tag>~&key=value&...`. Each `~` segment is a controller tag rendered nested inside the previous one; arguments after `~&` are passed to the views as data attributes (`N.key=value` targets only the view at depth `N`, plain `key` applies to the deepest one). Relative paths (`.`, `..`, `*` = keep the current segment at that depth) are resolved against the current path.
+ * - An empty path opens the controller named in its `default-controller` argument; a view container with its own `data-default-controller` opens that child automatically.
+ * - Links with the class `navigation-links` are handled client-side without page reload; `window.sdcNav.goTo('<path>', {args})` (or triggering the `goTo` event) navigates programmatically. Browser back/forward works.
+ * - An unknown tag in the path shows `sdc-error 404` instead of the view. Some containers open their view in a modal; closing the modal navigates back one level.
+ * - Links marked as login-only/logout-only are shown or hidden depending on whether a user is logged in; the `login`/`logout` events reload the whole page.
+ */
 export class SdcNavigatorController extends AbstractSDC {
 
   constructor() {
