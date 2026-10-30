@@ -121,11 +121,11 @@ DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = True
 
-SDC_AI_ASSISTANT = False
+SDC_AI_ASSISTANT = True
 SDC_AI_TOKEN_FROM_SYSTEM = False
 # Only logged-in users may use the assistant. Must stay True while SDC_AI_TOKEN_FROM_SYSTEM is True
 # (otherwise anonymous visitors would use the system's provider key).
-SDC_AI_REQUIRE_LOGIN = True
+SDC_AI_REQUIRE_LOGIN = False
 # Optional list of group names allowed to use the assistant (staff and superusers always are); None = all users.
 SDC_AI_ALLOWED_GROUPS = None
 # Optional cap of assistant requests per user and day on the system's key; None = unlimited.
@@ -137,6 +137,8 @@ SDC_AI_MAX_REQUESTS_PER_USER = 100
 SDC_AI_PROVIDER = os.environ.get('SDC_AI_PROVIDER', 'anthropic')
 SDC_AI_MODEL = os.environ.get('SDC_AI_MODEL', 'claude-opus-5-5')
 SDC_AI_BASE_URL = os.environ.get('SDC_AI_BASE_URL', '')
+# Users with their own key may set an API URL in the assistant's settings (https, public addresses only)
+SDC_AI_ALLOW_USER_BASE_URL = True
 SDC_AI_MAX_TOKENS = int(os.environ.get('SDC_AI_MAX_TOKENS', 16000))
 SDC_AI_TIMEOUT = float(os.environ.get('SDC_AI_TIMEOUT', 600))
 SDC_AI_MAX_RETRIES = int(os.environ.get('SDC_AI_MAX_RETRIES', 2))

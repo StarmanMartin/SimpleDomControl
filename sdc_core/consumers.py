@@ -1,10 +1,16 @@
 import asyncio
+import datetime
+import ipaddress
 import os
+import re
+import socket
 import types
 import traceback
+from urllib.parse import urlsplit
 
 from django.apps import apps
 from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
@@ -14,6 +20,7 @@ from django.utils.html import escape
 from django.utils.translation import gettext as _f
 from django.contrib.auth import get_user_model
 from channels.generic.websocket import WebsocketConsumer, AsyncWebsocketConsumer
+from channels.db import database_sync_to_async
 
 from asgiref.sync import async_to_sync, sync_to_async
 import json
@@ -572,3 +579,580 @@ class SDCModelConsumer(WebsocketConsumer):
     def _render(self, template_name, context: dict, json_data: dict):
         context = self.scope | json_data.get('args', {}) | context
         return self.model.render(template_name, context)
+
+
+# Claude models that accept the server-side refusal fallback `fallbacks: "default"`
+AI_FALLBACK_MODELS = {'claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5'}
+# Rounds of client actions per answer; after that the model has to answer without further actions
+AI_MAX_ACTION_ROUNDS = 5
+# Values a user may choose in the assistant's settings menu (``set_config``)
+AI_PROVIDERS = ('anthropic', 'openai-compatible')
+AI_EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
+AI_MAX_TOKENS_LIMIT = 128000
+
+
+class AiConfigError(ValueError):
+    """An invalid value in the user's AI settings; the message is shown to the user."""
+
+
+async def _ai_check_public_url(url):
+    """
+    Raises ``AiConfigError`` unless ``url`` is https and its host resolves only to public addresses. The server
+    sends the requests (incl. the API key) to this URL, so it must not reach internal services (SSRF).
+    """
+    parts = urlsplit(url)
+    if parts.scheme != 'https' or not parts.hostname or parts.username or parts.password:
+        raise AiConfigError(_f('The API URL must be an https URL without credentials.'))
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(parts.hostname, parts.port or 443,
+                                                             type=socket.SOCK_STREAM)
+    except (socket.gaierror, UnicodeError):
+        raise AiConfigError(_f('The host of the API URL cannot be resolved.'))
+    for info in infos:
+        address = ipaddress.ip_address(info[4][0].split('%')[0])
+        if not address.is_global:
+            raise AiConfigError(_f('The API URL must point to a public internet address.'))
+AI_DEFAULT_SYSTEM_PROMPT = """You are the assistant of this website and help the user to use it. The website is built \
+with SimpleDomControl (SDC); its documentation is at https://simpledomcontrol.readthedocs.io/en/latest/ - point the \
+user there for questions about the framework itself.
+
+Your knowledge about this website comes from the context below: its views (controllers), how to navigate between them \
+and its data models (SdcModels).
+
+You can act on the page with your tools. They run in the user's browser with the user's own permissions:
+- `navigate` opens a view, using the `/~view~child~&key=value` paths described in the context.
+- `model_load`, `model_create`, `model_update` and `model_delete` read and change SdcModel records.
+
+Rules:
+- Answer briefly in the user's language. Say what you did after you used a tool.
+- Only use views, arguments, models and fields that appear in the context. If something is not there, say so \
+instead of guessing.
+- Load records before you answer questions about data or change existing records.
+- Before deleting records or changing many records, tell the user what you are about to do. The user has to confirm \
+every deletion in the browser.
+- If a tool returns an error, explain it to the user and do not retry the same call more than once."""
+
+_AI_MODEL = {'type': 'string', 'description': 'Name of the SdcModel, as listed in the context'}
+_AI_ID = {'type': 'integer', 'description': 'Primary key (id) of the record'}
+# Client tools: the server forwards the calls to the browser, which runs them and sends the results back
+AI_TOOLS = [
+    {'name': 'navigate',
+     'description': 'Open a view of this website in the browser, e.g. "/~main-view~book-edit~&pk=3". Paths and '
+                    'arguments follow the SDC navigation rules described in the context; ".." goes one view up.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['path'],
+                      'properties': {'path': {'type': 'string', 'description': 'SDC path, starting with "/~"'}}}},
+    {'name': 'model_load',
+     'description': 'Load records of an SdcModel that the user is allowed to see. Returns at most 50 records.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model'],
+                      'properties': {'model': _AI_MODEL,
+                                     'filter': {'type': 'object', 'description': 'Django field lookups, '
+                                                'e.g. {"author__name": "Jane"}; omit to load all records'}}}},
+    {'name': 'model_create',
+     'description': 'Create a record of an SdcModel. Returns the new record or the form errors.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'data'],
+                      'properties': {'model': _AI_MODEL,
+                                     'data': {'type': 'object', 'description': 'Field values of the new record'}}}},
+    {'name': 'model_update',
+     'description': 'Change fields of an existing record of an SdcModel. Returns the saved record or the form '
+                    'errors.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id', 'data'],
+                      'properties': {'model': _AI_MODEL, 'id': _AI_ID,
+                                     'data': {'type': 'object', 'description': 'Only the fields to change'}}}},
+    {'name': 'model_delete',
+     'description': 'Delete a record of an SdcModel. The user has to confirm it in the browser; a declined '
+                    'deletion returns an error.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id'],
+                      'properties': {'model': _AI_MODEL, 'id': _AI_ID}}},
+]
+_AI_JSON_TYPES = {'string': str, 'integer': int, 'object': dict}
+
+
+def _ai_tool_input_error(name, tool_input):
+    """Validates a tool call against ``AI_TOOLS`` (inputs may arrive truncated while streaming); None if valid."""
+    tool = next((t for t in AI_TOOLS if t['name'] == name), None)
+    if tool is None:
+        return f'Unknown tool {name}'
+    if not isinstance(tool_input, dict):
+        return 'INVALID_JSON: the tool input is not a JSON object'
+    schema = tool['input_schema']
+    missing = [k for k in schema['required'] if k not in tool_input]
+    unknown = [k for k in tool_input if k not in schema['properties']]
+    wrong = [k for k, v in tool_input.items() if k in schema['properties'] and not (
+        isinstance(v, _AI_JSON_TYPES[schema['properties'][k]['type']]) and not isinstance(v, bool))]
+    if missing or unknown or wrong:
+        return f'INVALID_JSON: missing {missing}, unknown {unknown}, wrong type {wrong}'
+    return None
+
+
+class SDCAiConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket of the ``<sdc-ai-assistant>``: receives prompts from the user and streams the model's answer.
+
+    Client -> server (JSON):
+
+    - ``{"event": "prompt", "id": <id>, "prompt": "..."}``: ask; the conversation is kept per connection
+    - ``{"event": "set_config", "provider", "token", "base_url", "model", "effort", "max_tokens"}``: the user's
+      own connection settings (all optional; empty = project setting), only if ``SDC_AI_TOKEN_FROM_SYSTEM`` is
+      False. Kept in memory for this connection only; a new provider starts a new conversation. ``base_url`` must be https and resolve to a public address, and is only
+      accepted with ``SDC_AI_ALLOW_USER_BASE_URL``.
+    - ``{"event": "reset"}``: forget the conversation
+    - ``{"event": "action_results", "id": <id>, "results": [{"tool_use_id", "content", "is_error"}]}``: the
+      outcome of the actions of an ``ai_actions`` message, one result per action
+
+    Server -> client: ``{"type": "ai_config", ...}`` after connecting and after ``set_config``: the connection
+    settings in use and what the user may change (never the key itself).
+    ``{"type": "ai_delta", "id", "text"}`` while the answer is generated. If the model wants to
+    act on the page: ``{"type": "ai_actions", "id", "text", "actions": [{"tool_use_id", "name", "input"}]}``
+    (tools in ``AI_TOOLS``); the client runs them in order and replies with ``action_results``, then the answer
+    continues. It ends with ``{"type": "ai_answer", "id", "text", "stop_reason"}``. Errors as
+    ``{"type": "error", "id", "msg", ...}`` like ``SDCConsumer``; an error after ``ai_delta`` messages means the
+    partial answer must be discarded.
+
+    The system prompt is the ``AI_DEFAULT_SYSTEM_PROMPT`` setting (default: ``AI_DEFAULT_SYSTEM_PROMPT`` of this
+    module) followed by the skill file of the project (``SDC_SKILL.md`` written by ``sdc_teach``, else the apps'
+    ``SDC_SKILL.json``).
+    """
+
+    async def connect(self):
+        await self.accept()
+        self.messages = []
+        # The user's own connection settings (set_config): provider, token, base_url, model, effort, max_tokens
+        self.config = {}
+        self.client = None
+        self.system_prompt = None
+        # Index in ``messages`` where the current answer's turn starts (to drop it on errors/refusals)
+        self.turn_start = 0
+        # All text the model wrote in the current turn (it may be spread over several action rounds)
+        self.turn_text = ''
+        # Actions sent to the client and not answered yet: {'id', 'round', 'tool_use_ids', 'results'}
+        self.pending = None
+        error = await self._access_error()
+        if error:
+            await self.state_error({'msg': error, 'header': _f('AI assistant')})
+            await self.close(code=4403)
+            return
+        await self._send_config()
+
+    @staticmethod
+    def _setting(name, default=None):
+        return getattr(settings, name, default)
+
+    def _config(self, key):
+        """A connection setting: the user's own value (``set_config``) or the project's ``SDC_AI_<KEY>``."""
+        defaults = {'provider': 'anthropic', 'model': 'claude-opus-5-5', 'max_tokens': 16000, 'effort': '',
+                    'base_url': ''}
+        value = self.config.get(key)
+        return value if value not in (None, '') else self._setting(f'SDC_AI_{key.upper()}', defaults[key])
+
+    def _uses_system_token(self):
+        return self._setting('SDC_AI_TOKEN_FROM_SYSTEM', False)
+
+    async def _send_config(self):
+        editable = not self._uses_system_token()
+        await self.send(text_data=json.dumps({
+            'type': 'ai_config',
+            'editable': editable,
+            'allow_base_url': editable and bool(self._setting('SDC_AI_ALLOW_USER_BASE_URL', True)),
+            'provider': self._config('provider'),
+            'providers': list(AI_PROVIDERS) if editable else [],
+            'model': self._config('model'),
+            'effort': self._config('effort'),
+            'max_tokens': self._config('max_tokens'),
+            # The project's own URL (e.g. an internal proxy) is not shown to users
+            'base_url': self.config.get('base_url', ''),
+            'has_token': bool(self.config.get('token')) or not editable,
+            'is_error': False,
+        }))
+
+    async def _set_config(self, data):
+        if self._uses_system_token():
+            raise PermissionDenied()
+        config = {}
+        provider = str(data.get('provider') or '').strip()
+        if provider:
+            if provider not in AI_PROVIDERS:
+                raise AiConfigError(_f('Provider must be one of %(providers)s.') % {'providers': ', '.join(AI_PROVIDERS)})
+            config['provider'] = provider
+        token = str(data.get('token') or '').strip()
+        if token:
+            config['token'] = token
+        elif self.config.get('token') and not data.get('clear_token'):
+            config['token'] = self.config['token']  # an empty field keeps the key that is already set
+        model = str(data.get('model') or '').strip()
+        if model:
+            if len(model) > 100 or not re.fullmatch(r'[\w.:@/-]+', model):
+                raise AiConfigError(_f('Invalid model name.'))
+            config['model'] = model
+        effort = str(data.get('effort') or '').strip()
+        if effort:
+            if effort not in AI_EFFORTS:
+                raise AiConfigError(_f('Effort must be one of %(efforts)s.') % {'efforts': ', '.join(AI_EFFORTS)})
+            config['effort'] = effort
+        if data.get('max_tokens') not in (None, ''):
+            try:
+                max_tokens = int(data['max_tokens'])
+            except (TypeError, ValueError):
+                max_tokens = 0
+            if not 1 <= max_tokens <= AI_MAX_TOKENS_LIMIT:
+                raise AiConfigError(_f('Max tokens must be between 1 and %(max)s.') % {'max': AI_MAX_TOKENS_LIMIT})
+            config['max_tokens'] = max_tokens
+        base_url = str(data.get('base_url') or '').strip()
+        if base_url:
+            if not self._setting('SDC_AI_ALLOW_USER_BASE_URL', True):
+                raise AiConfigError(_f('Changing the API URL is not allowed.'))
+            await _ai_check_public_url(base_url)
+            config['base_url'] = base_url
+        if config.get('provider', self._setting('SDC_AI_PROVIDER', 'anthropic')) != self._config('provider'):
+            # The conversation is stored in the provider's message format: a new provider starts a new conversation
+            self.messages = []
+            self.pending = None
+        self.config = config
+        self.client = None
+        await self._send_config()
+
+    async def _access_error(self):
+        if not self._setting('SDC_AI_ASSISTANT', False):
+            return _f('The AI assistant is disabled.')
+        if self._setting('SDC_AI_PROVIDER', 'anthropic') not in AI_PROVIDERS:
+            return _f('AI provider %(provider)s is not supported yet.') % {'provider': self._setting('SDC_AI_PROVIDER')}
+        user = self.scope.get('user')
+        # The system's key must never be used anonymously
+        if (self._setting('SDC_AI_REQUIRE_LOGIN', True) or self._uses_system_token()) and \
+                not (user and user.is_authenticated):
+            return _f('Please log in to use the AI assistant.')
+        if not await self._in_allowed_group(user):
+            return _f('403 Not allowed!')
+        return None
+
+    @database_sync_to_async
+    def _in_allowed_group(self, user):
+        groups = self._setting('SDC_AI_ALLOWED_GROUPS')
+        if not groups:
+            return True
+        if not (user and user.is_authenticated):
+            return False
+        return user.is_staff or user.is_superuser or user.groups.filter(name__in=groups).exists()
+
+    async def state_error(self, event, id=None):
+        await self.send(text_data=json.dumps({
+            'type': 'error',
+            'id': id,
+            'is_error': True,
+            'msg': event.get('msg', ''),
+            'header': event.get('header', ''),
+            # 'settings': rejected set_config values, 'token': an API key is needed (independent of translations)
+            'scope': event.get('scope'),
+        }, cls=DjangoJSONEncoder))
+
+    async def receive(self, text_data=None, bytes_data=None):
+        json_data = {}
+        try:
+            json_data = json.loads(text_data)
+            event = json_data.get('event')
+            if event == 'prompt':
+                await self._answer(json_data.get('id'), str(json_data.get('prompt', '')).strip())
+            elif event == 'set_config':
+                await self._set_config(json_data)
+            elif event == 'action_results':
+                await self._action_results(json_data.get('id'), json_data.get('results'))
+            elif event == 'reset':
+                self.messages = []
+                self.pending = None
+            else:
+                raise ValueError('event must be prompt, action_results, set_config or reset')
+        except PermissionDenied:
+            await self.state_error({'msg': _f('403 Not allowed!'), 'header': _f('Upps!!')}, json_data.get('id'))
+        except AiConfigError as e:
+            await self.state_error({'msg': str(e), 'header': _f('AI settings'), 'scope': 'settings'},
+                                   json_data.get('id'))
+        except Exception as e:
+            logger.error('AI assistant: ' + ''.join(traceback.format_exception(e)))
+            provider_msg = self._provider_error_message(e)
+            if provider_msg:
+                # The user's own settings are the likely cause: the settings menu opens again
+                scope = None if self._uses_system_token() else 'settings'
+                await self.state_error({'msg': provider_msg, 'header': _f('AI service'), 'scope': scope},
+                                       json_data.get('id'))
+                return
+            msg = str(e) if settings.DEBUG else _f('Something went wrong')
+            await self.state_error({'msg': msg, 'header': _f('Upps!!')}, json_data.get('id'))
+
+    def _provider_error_message(self, e):
+        """A readable message for errors of the provider SDKs (anthropic, openai); None for other errors."""
+        if type(e).__module__.split('.')[0] not in ('anthropic', 'openai'):
+            return None
+        status = getattr(e, 'status_code', None)
+        if self._uses_system_token():
+            # Users must not learn the project's (possibly internal) API URL
+            return _f('The AI service is not available at the moment (error %(status)s).') % {
+                'status': status or _f('no connection')}
+        request = getattr(e, 'request', None) or getattr(getattr(e, 'response', None), 'request', None)
+        where = f' ({request.method} {request.url})' if request is not None else ''
+        if status is None:
+            return _f('The AI service could not be reached%(where)s. Please check the API URL.') % {'where': where}
+        hints = {401: _f('Please check the API key.'), 403: _f('Please check the API key.'),
+                 404: _f('Please check the provider, API URL and model.'),
+                 405: _f('The API URL does not offer the API of the selected provider. Please check the provider '
+                         'and the API URL.')}
+        detail = getattr(e, 'message', '') or ''
+        return _f('The AI service answered %(status)s%(where)s: %(detail)s %(hint)s') % {
+            'status': status, 'where': where, 'detail': detail,
+            'hint': hints.get(status, _f('Please check the AI settings.'))}
+
+    # ---------------------------------------------------------------- answer
+    async def _answer(self, id, prompt):
+        if not prompt:
+            return
+        if not self._uses_system_token() and not self.config.get('token'):
+            await self.state_error({'msg': _f('Please enter your API key first.'), 'header': _f('AI assistant'),
+                                    'scope': 'token'}, id)
+            return
+        if not self._count_request():
+            await self.state_error({'msg': _f('You have reached the daily limit of AI requests.'),
+                                    'header': _f('AI assistant')}, id)
+            return
+
+        if self.pending:
+            # Unanswered actions of the previous answer are cancelled, so every tool use keeps its result. They
+            # belong to the previous turn (Anthropic joins the two consecutive user messages).
+            self._append_tool_results(cancelled=True)
+        self.turn_start = len(self.messages)
+        self.turn_text = ''
+        self.messages.append({'role': 'user', 'content': prompt})
+        await self._run(id, round=0)
+
+    async def _run(self, id, round):
+        """Streams one model response of the current turn; ends the turn or sends its actions to the client."""
+        try:
+            result = await self._stream(id, final=round >= AI_MAX_ACTION_ROUNDS)
+        except Exception:
+            self._drop_turn()
+            raise
+        if result['stop'] == 'refusal' or (result['tool_uses'] and result['stop'] != 'tool_use'):
+            # A declined or truncated answer is not kept: the conversation continues from before the prompt
+            self._drop_turn()
+            msg = _f('The assistant declined to answer this request.') if result['stop'] == 'refusal' \
+                else _f('The answer was too long. Please ask for less at once.')
+            await self.state_error({'msg': msg, 'header': _f('AI assistant')}, id)
+            return
+        self.messages.append(result['message'])
+        self.turn_text += result['text']
+        if not result['tool_uses']:
+            await self.send(text_data=json.dumps({
+                'type': 'ai_answer',
+                'id': id,
+                'text': self.turn_text,
+                'stop_reason': result['stop'],
+                'is_error': False,
+            }))
+            return
+
+        # Invalid calls (e.g. truncated while streaming) are answered here; the client only runs valid ones
+        self.pending = {'id': id, 'round': round, 'tool_use_ids': [t['id'] for t in result['tool_uses']],
+                        'results': {}}
+        actions = []
+        for tool_use in result['tool_uses']:
+            error = _ai_tool_input_error(tool_use['name'], tool_use['input'])
+            if error:
+                self.pending['results'][tool_use['id']] = {'content': error, 'is_error': True}
+            else:
+                actions.append({'tool_use_id': tool_use['id'], 'name': tool_use['name'], 'input': tool_use['input']})
+        if not actions:
+            await self._continue()
+            return
+        await self.send(text_data=json.dumps({
+            'type': 'ai_actions', 'id': id, 'text': result['text'], 'actions': actions, 'is_error': False,
+        }, cls=DjangoJSONEncoder))
+
+    async def _action_results(self, id, results):
+        if not self.pending or id != self.pending['id']:
+            raise ValueError('There are no pending actions with this id')
+        missing = set(self.pending['tool_use_ids']) - set(self.pending['results'])
+        results = {r.get('tool_use_id'): r for r in results or [] if isinstance(r, dict)}
+        if set(results) != missing:
+            raise ValueError('action_results must contain exactly one result per action')
+        for tool_use_id, result in results.items():
+            self.pending['results'][tool_use_id] = {'content': result.get('content'),
+                                                    'is_error': bool(result.get('is_error'))}
+        await self._continue()
+
+    async def _continue(self):
+        """Appends the results of the pending actions and lets the model continue its answer."""
+        id, round = self.pending['id'], self.pending['round']
+        self._append_tool_results()
+        await self._run(id, round + 1)
+
+    def _append_tool_results(self, cancelled=False):
+        """Adds one result per pending tool use to the conversation (in the provider's format)."""
+        results = []
+        for tool_use_id in self.pending['tool_use_ids']:
+            result = self.pending['results'].get(tool_use_id)
+            if cancelled or result is None:
+                result = {'content': 'Cancelled: the user sent a new message instead.', 'is_error': True}
+            content = result['content']
+            if not isinstance(content, str):
+                content = json.dumps(content, cls=DjangoJSONEncoder, ensure_ascii=False)
+            results.append((tool_use_id, content, result['is_error']))
+        self.pending = None
+        if self._config('provider') == 'openai-compatible':
+            # OpenAI has no error flag: errors are marked in the text
+            self.messages += [{'role': 'tool', 'tool_call_id': tool_use_id,
+                               'content': f'Error: {content}' if is_error else content}
+                              for tool_use_id, content, is_error in results]
+        else:
+            self.messages.append({'role': 'user', 'content': [
+                {'type': 'tool_result', 'tool_use_id': tool_use_id, 'is_error': is_error, 'content': content}
+                for tool_use_id, content, is_error in results]})
+
+    def _drop_turn(self):
+        del self.messages[self.turn_start:]
+        self.pending = None
+
+    # -------------------------------------------------------------- providers
+    async def _stream(self, id, final=False):
+        """
+        Streams one model response and sends its text as ``ai_delta``. Returns ``{'text', 'tool_uses': [{'id',
+        'name', 'input'}], 'stop': 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal', 'message'}``; ``message`` is
+        the assistant message to keep in the conversation.
+        """
+        if self.system_prompt is None:
+            self.system_prompt = await sync_to_async(self._system_prompt)()
+        if self._config('provider') == 'openai-compatible':
+            return await self._stream_openai(id, final)
+        return await self._stream_anthropic(id, final)
+
+    async def _send_delta(self, id, text):
+        await self.send(text_data=json.dumps({'type': 'ai_delta', 'id': id, 'text': text, 'is_error': False}))
+
+    async def _stream_anthropic(self, id, final):
+        model = self._config('model')
+        params = dict(
+            model=model,
+            max_tokens=int(self._config('max_tokens')),
+            # The tools and the system prompt (incl. the skill file) are stable and cached; so is the conversation
+            system=[{'type': 'text', 'text': self.system_prompt, 'cache_control': {'type': 'ephemeral'}}],
+            tools=[t | {'eager_input_streaming': True} for t in AI_TOOLS],
+            cache_control={'type': 'ephemeral'},
+            messages=self.messages,
+        )
+        if final:
+            # The action round limit is reached: the model has to answer with the results it has
+            params['tool_choice'] = {'type': 'none'}
+        if self._config('effort'):
+            params['output_config'] = {'effort': self._config('effort')}
+        if model in AI_FALLBACK_MODELS and not self._config('base_url'):
+            # A request declined by the model's safety classifiers is retried on a fallback model
+            params.update(betas=['server-side-fallback-2026-07-01'], fallbacks='default')
+        async with self._client().beta.messages.stream(**params) as stream:
+            async for text in stream.text_stream:
+                await self._send_delta(id, text)
+            message = await stream.get_final_message()
+        return {
+            'text': ''.join(b.text for b in message.content if b.type == 'text'),
+            'tool_uses': [{'id': b.id, 'name': b.name, 'input': b.input}
+                          for b in message.content if b.type == 'tool_use'],
+            'stop': message.stop_reason,
+            # The complete content (incl. thinking blocks) must be sent back in later requests
+            'message': {'role': 'assistant', 'content': message.content},
+        }
+
+    async def _stream_openai(self, id, final):
+        params = dict(
+            model=self._config('model'),
+            max_tokens=int(self._config('max_tokens')),
+            messages=[{'role': 'system', 'content': self.system_prompt}] + self.messages,
+            tools=[{'type': 'function', 'function': {'name': t['name'], 'description': t['description'],
+                                                     'parameters': t['input_schema']}} for t in AI_TOOLS],
+            stream=True,
+        )
+        if final:
+            params['tool_choice'] = 'none'
+        text, calls, finish_reason = '', {}, None
+        stream = await self._client().chat.completions.create(**params)
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            delta = choice.delta
+            if delta and delta.content:
+                text += delta.content
+                await self._send_delta(id, delta.content)
+            # Tool calls arrive in pieces, identified by their index
+            for part in (delta.tool_calls or []) if delta else []:
+                call = calls.setdefault(part.index, {'id': None, 'name': '', 'arguments': ''})
+                call['id'] = part.id or call['id']
+                if part.function:
+                    call['name'] += part.function.name or ''
+                    call['arguments'] += part.function.arguments or ''
+            finish_reason = choice.finish_reason or finish_reason
+        tool_uses = []
+        for index, call in sorted(calls.items()):
+            try:
+                tool_input = json.loads(call['arguments'] or '{}')
+            except ValueError:
+                tool_input = None  # rejected as INVALID_JSON
+            tool_uses.append({'id': call['id'] or f'call_{index}', 'name': call['name'], 'input': tool_input})
+        # OpenAI wants null instead of empty text next to tool calls
+        message = {'role': 'assistant', 'content': text or (None if tool_uses else '')}
+        if tool_uses:
+            message['tool_calls'] = [{'id': t['id'], 'type': 'function',
+                                      'function': {'name': calls[i]['name'], 'arguments': calls[i]['arguments']}}
+                                     for t, i in zip(tool_uses, sorted(calls))]
+        # Some servers report "stop" although the answer contains tool calls
+        stop = {'length': 'max_tokens', 'content_filter': 'refusal'}.get(
+            finish_reason, 'tool_use' if tool_uses else 'end_turn')
+        return {'text': text, 'tool_uses': tool_uses, 'stop': stop, 'message': message}
+
+    def _client(self):
+        if self.client is None:
+            api_key = None if self._uses_system_token() else self.config.get('token')
+            options = dict(base_url=self._config('base_url') or None,
+                           timeout=float(self._setting('SDC_AI_TIMEOUT', 600)),
+                           max_retries=int(self._setting('SDC_AI_MAX_RETRIES', 2)))
+            # With the system token the SDKs read their key (ANTHROPIC_API_KEY / OPENAI_API_KEY) from the environment
+            if self._config('provider') == 'openai-compatible':
+                try:
+                    import openai
+                except ImportError:
+                    raise RuntimeError('The AI provider openai-compatible needs the openai package: '
+                                       'pip install "simpledomcontrol[ai]"')
+                self.client = openai.AsyncOpenAI(api_key=api_key, **options)
+            else:
+                try:
+                    import anthropic
+                except ImportError:
+                    raise RuntimeError('The AI assistant needs the anthropic package: pip install "simpledomcontrol[ai]"')
+                self.client = anthropic.AsyncAnthropic(api_key=api_key, **options)
+        return self.client
+
+    def _count_request(self):
+        """Counts a request on the system's key against ``SDC_AI_MAX_REQUESTS_PER_USER``; False if over."""
+        limit = self._setting('SDC_AI_MAX_REQUESTS_PER_USER')
+        user = self.scope.get('user')
+        if not limit or not self._uses_system_token() or not (user and user.is_authenticated):
+            return True
+        key = f'sdc_ai_requests:{user.pk}:{datetime.date.today().isoformat()}'
+        cache.add(key, 0, timeout=60 * 60 * 24)
+        try:
+            count = cache.incr(key)
+        except ValueError:  # expired between add and incr
+            cache.set(key, 1, timeout=60 * 60 * 24)
+            count = 1
+        return count <= limit
+
+    # ---------------------------------------------------------------- prompt
+    @staticmethod
+    def _system_prompt():
+        prompt = getattr(settings, 'AI_DEFAULT_SYSTEM_PROMPT', None) or AI_DEFAULT_SYSTEM_PROMPT
+        context = SDCAiConsumer._skill_context()
+        return f'{prompt}\n\n{context}' if context else prompt
+
+    @staticmethod
+    def _skill_context():
+        path = os.path.join(str(getattr(settings, 'BASE_DIR', '')), 'SDC_SKILL.md')
+        if os.path.isfile(path):
+            with open(path, encoding='utf-8') as f:
+                return f.read()
+        from sdc_core.management.commands.utils.teach_apps import load_app_skills
+        skills = load_app_skills()
+        return json.dumps(skills, indent=1, ensure_ascii=False) if skills else ''

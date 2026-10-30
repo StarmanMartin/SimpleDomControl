@@ -2,6 +2,12 @@
   "app": "sdc_tools",
   "generator": "manage.py sdc_teach --per-app",
   "controllers": {
+    "sdc-ai-assistant": {
+      "doc": "Chat panel of the AI assistant, fixed at the right edge of the page; only rendered when the project sets `SDC_AI_ASSISTANT`.\n\n- The user types a question; the answer streams in. The assistant can also act on the page: open views like a\n  navigation link and load, create, update or delete SdcModel records, always with the logged-in user's permissions.\n- Every deletion asks the user for confirmation in a browser dialog first.\n- Depending on the project settings it requires a login, and either uses the server's API key or the user's own.\n- \"⚙\" opens the settings: with the server's key they only show the model in use; otherwise the user enters their\n  API key and may choose the provider (Anthropic or any OpenAI-compatible API such as the KIT KI-Toolbox) and set\n  the API URL (https, public hosts only), model, effort and max tokens. Changing the provider starts a new\n  conversation. \"Remember on this device\" keeps the settings in the browser, the key only until the tab is closed.\n- The \"⇆\" button collapses the panel to the edge of the page and expands it again.",
+      "view_class": "sdc_tools.sdc_views.SdcAiAssistant",
+      "url": "/sdc_view/sdc_tools/sdc_ai_assistant",
+      "url_params": []
+    },
     "sdc-alert-messenger": {
       "doc": "Global toast area for status messages; usually placed once in the page next to `<sdc-navigator>`.\n\nMessages pushed by other controllers (e.g. success or validation errors after a form submit) appear here with a header and time and disappear automatically after about 2 seconds; error messages are highlighted. Nothing to operate.",
       "view_class": "sdc_tools.sdc_views.SdcAlertMessenger",

@@ -158,6 +158,8 @@ SDC_AI_MAX_REQUESTS_PER_USER = 100
 SDC_AI_PROVIDER = os.environ.get('SDC_AI_PROVIDER', 'anthropic')
 SDC_AI_MODEL = os.environ.get('SDC_AI_MODEL', 'claude-opus-5-5')
 SDC_AI_BASE_URL = os.environ.get('SDC_AI_BASE_URL', '')
+# Users with their own key may set an API URL in the assistant's settings (https, public addresses only)
+SDC_AI_ALLOW_USER_BASE_URL = True
 SDC_AI_MAX_TOKENS = int(os.environ.get('SDC_AI_MAX_TOKENS', 16000))
 SDC_AI_TIMEOUT = float(os.environ.get('SDC_AI_TIMEOUT', 600))
 SDC_AI_MAX_RETRIES = int(os.environ.get('SDC_AI_MAX_RETRIES', 2))

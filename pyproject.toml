@@ -33,6 +33,8 @@ dependencies = [
 [project.optional-dependencies]
 # PostgreSQL driver: pip install "simpledomcontrol[postgres]"
 postgres = ["psycopg2-binary (>=2.9.11,<3.0.0)"]
+# AI assistant (<sdc-ai-assistant>, SDCAiConsumer): pip install "simpledomcontrol[ai]"
+ai = ["anthropic (>=2.3.0,<3.0.0)", "openai (>=3.41.0,<4.0.0)"]
 
 [project.urls]
 homepage = "https://github.com/StarmanMartin/SimpleDomControl"
