@@ -208,3 +208,29 @@ def test_prepare_teaching():
     assert ('- Controller `<error404>` (main_test): '
             'main_test/Assets/src/main_test/controller/error_404/error_404.js:') in text
     assert '  Current documentation:\n  > ' in text
+
+
+def test_app_skill():
+    from sdc_core.management.commands.utils.teach_markdown import render_app_skill
+    md = render_app_skill('main_test', {
+        'book-edit': {'app': 'main_test', 'view_class': 'main_test.sdc_views.BookEdit',
+                      'url': '/sdc_view/main_test/book_edit/<int:pk>', 'doc': 'Edits a `Book`.'},
+        'admin-only': {'app': 'main_test', 'doc': None},
+    }, [{'name': 'Book', 'app': 'main_test', 'doc': 'A book.',
+         'fields': [{'name': 'title', 'type': 'CharField', 'related': None},
+                    {'name': 'author', 'type': 'ForeignKey', 'related': 'Author'}]}],
+        {'project': 'Demo', 'date': '2026-01-01'})
+    assert md.startswith('---\nname: main-test\n')
+    assert '## Navigation tree' not in md
+    assert md.index('### `<admin-only>`') < md.index('### `<book-edit>`')
+    assert ('### `<book-edit>`\n\nEdits a `Book`.\n\n_server view `main_test.sdc_views.BookEdit`, Django URL '
+            '`/sdc_view/main_test/book_edit/<int:pk>`, required URL params `pk`_\n') in md
+    assert '### `<admin-only>`\n\n_No documentation._\n' in md
+    assert '### `Book`\n\nA book.\n\nFields: `title` (CharField), `author` → `Author`\n' in md
+
+
+def test_model_fields_respect_sdc_meta():
+    from sdc_core.management.commands.utils.teach_models import sdc_models
+    fields = {m['name']: [f['name'] for f in m['fields']] for m in sdc_models()}
+    assert 'password' not in fields['SdcUser']
+    assert fields['Book'] == ['id', 'title', 'author']

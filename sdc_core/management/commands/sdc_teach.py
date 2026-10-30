@@ -7,6 +7,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from importlib import import_module
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -14,7 +15,7 @@ from django.core.management.base import BaseCommand, CommandError
 from sdc_core.management.commands.init_add import options
 from sdc_core.management.commands.utils.teach_controllers import add_controller_doc, sdc_controllers
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
-from sdc_core.management.commands.utils.teach_markdown import render_skill
+from sdc_core.management.commands.utils.teach_markdown import render_app_skill, render_skill
 from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
 
 SESSION_SCRIPT = """
@@ -41,7 +42,12 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('-o', '--output', type=str, default=None,
-                            help='Markdown output file (default: <project>/SDC_SKILL.md)')
+                            help='Markdown output file (default: <project>/SDC_SKILL.md); with --per-app the output '
+                                 'directory (files go to <dir>/<app>/SDC_SKILL.md)')
+        parser.add_argument('--per-app', action='store_true',
+                            help='Do not crawl; write a simplified skill file per app with only its controllers and '
+                                 'SDC models and their documentation (default: <app>/SDC_SKILL.md in every app of '
+                                 'the project)')
         parser.add_argument('--port', type=int, default=0, help='Port of the crawl server (default: a free port)')
         parser.add_argument('--start', type=str, default='/', help='Start path of the crawl')
         parser.add_argument('--database', type=str, default='jest',
@@ -66,14 +72,17 @@ class Command(BaseCommand):
                                  '(default: ask in a terminal)')
 
     def handle(self, *args, **ops):
+        project = getattr(options, 'PROJECT', None)
+        if not project or project == 'Undefined':
+            project = settings.ROOT_URLCONF.split('.')[0]
+        if ops['per_app']:
+            return self._write_app_skills(project, ops)
+
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
             raise CommandError('playwright is not installed: pip install playwright && playwright install chromium')
 
-        project = getattr(options, 'PROJECT', None)
-        if not project or project == 'Undefined':
-            project = settings.ROOT_URLCONF.split('.')[0]
         output = ops['output'] or os.path.join(options.PROJECT_ROOT, 'SDC_SKILL.md')
         if ops['user'] and ops['password'] is None:
             raise CommandError('--user requires --password')
@@ -218,6 +227,33 @@ class Command(BaseCommand):
         if 'error' in cookie:
             raise CommandError(f'Login as {ops["user"]} failed: {cookie["error"]} (DB: {ops["database"]})')
         return cookie
+
+    # ------------------------------------------------------------- per app
+    def _write_app_skills(self, project, ops):
+        """
+        Writes ``SDC_SKILL.md`` with the controllers and SDC models of each app: into the app directory
+        (project apps only) or, with ``--output DIR``, to ``DIR/<app>/SDC_SKILL.md`` (all apps).
+        """
+        models = self._document_models(ops)
+        controllers = self._document_controllers(ops)
+        apps = sorted({m['app'] for m in models} | {c['app'] for c in controllers.values()})
+        written = 0
+        for app in apps:
+            if ops['output']:
+                directory = os.path.join(ops['output'], app)
+                os.makedirs(directory, exist_ok=True)
+            else:
+                directory = os.path.dirname(import_module(app).__file__)
+                if not is_editable(directory, options.PROJECT_ROOT):
+                    continue
+            app_controllers = {tag: c for tag, c in controllers.items() if c['app'] == app}
+            app_models = [m for m in models if m['app'] == app]
+            path = os.path.join(directory, 'SDC_SKILL.md')
+            with open(path, 'w') as f:
+                f.write(render_app_skill(app, app_controllers, app_models, {'project': project}))
+            written += 1
+            self.stdout.write(f'Wrote {path}: {len(app_controllers)} controllers, {len(app_models)} models')
+        self.stdout.write(self.style.SUCCESS(f'Wrote {written} app skill file(s)'))
 
     # -------------------------------------------------------------- models
     def _document_models(self, ops):

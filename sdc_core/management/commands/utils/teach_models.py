@@ -6,6 +6,8 @@ import textwrap
 
 from django.apps import apps
 
+from sdc_core.sdc_extentions.models import filter_model_fields
+
 
 def _class_node(source_file, model):
     """The ``ClassDef`` of ``model`` in its source file (closest to the line inspect reports)."""
@@ -31,8 +33,23 @@ def model_doc(model):
     return ast.get_docstring(node) if node else None
 
 
+def model_fields(model):
+    """
+    Fields the client can read and write (``SdcMeta.fields`` / ``exclude`` applied):
+    ``[{'name', 'type', 'related'}]``; ``related`` is the target model name of relations.
+    """
+    fields = {f.name: f for f in [*model._meta.concrete_fields, *model._meta.many_to_many]}
+    try:
+        fields = filter_model_fields(model, fields)
+    except Exception:  # noqa: BLE001 - an invalid SdcMeta must not stop the documentation (nor list excluded fields)
+        return []
+    return [{'name': name, 'type': f.get_internal_type(),
+             'related': f.related_model.__name__ if f.is_relation and f.related_model else None}
+            for name, f in fields.items()]
+
+
 def sdc_models():
-    """``[{'model', 'name', 'app', 'file', 'doc'}]`` for every SDC model, sorted by app and name."""
+    """``[{'model', 'name', 'app', 'file', 'doc', 'fields'}]`` for every SDC model, sorted by app and name."""
     result = []
     for model in apps.get_models():
         if not hasattr(model, '__is_sdc_model__'):
@@ -42,7 +59,7 @@ def sdc_models():
         except TypeError:
             file = None
         result.append({'model': model, 'name': model.__name__, 'app': model._meta.app_label, 'file': file,
-                       'doc': model_doc(model)})
+                       'doc': model_doc(model), 'fields': model_fields(model)})
     return sorted(result, key=lambda m: (m['app'], m['name']))
 
 
