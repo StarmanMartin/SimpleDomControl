@@ -58,3 +58,9 @@ class SdcSearchSelect(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class SdcAiAssistant(SDCView):
+    template_name='sdc_tools/sdc/sdc_ai_assistant.html'
+
+    def get_content(self, request, *args, **kwargs):
+        return render(request, self.template_name)
