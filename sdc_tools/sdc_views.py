@@ -66,6 +66,8 @@ class SdcAiAssistant(SDCView):
     template_name='sdc_tools/sdc/sdc_ai_assistant.html'
 
     def get_content(self, request, *args, **kwargs):
-        if not settings.SDC_AI_ASSISTANT:
+        # Projects created before the AI settings existed have no SDC_AI_ASSISTANT: the assistant stays off
+        enabled = getattr(settings, 'SDC_AI_ASSISTANT', False)
+        if not enabled:
             return HttpResponse("", content_type="text/html")
-        return render(request, self.template_name, {'SDC_AI_ASSISTANT': settings.SDC_AI_ASSISTANT})
+        return render(request, self.template_name, {'SDC_AI_ASSISTANT': enabled})

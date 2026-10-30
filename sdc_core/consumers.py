@@ -710,7 +710,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     The system prompt is the ``AI_DEFAULT_SYSTEM_PROMPT`` setting (default: ``AI_DEFAULT_SYSTEM_PROMPT`` of this
     module) followed by the skill file of the project (``SDC_SKILL.md`` written by ``sdc_teach``, else the apps'
-    ``SDC_SKILL.json``).
+    ``SDC_SKILL.json``) and the files of ``SDC_AI_ADDITIONAL_SKILL_FILE`` (one path or a list; relative to
+    ``BASE_DIR``), e.g. hand-written knowledge about the project.
     """
 
     async def connect(self):
@@ -1144,8 +1145,24 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
     @staticmethod
     def _system_prompt():
         prompt = getattr(settings, 'AI_DEFAULT_SYSTEM_PROMPT', None) or AI_DEFAULT_SYSTEM_PROMPT
-        context = SDCAiConsumer._skill_context()
-        return f'{prompt}\n\n{context}' if context else prompt
+        parts = [prompt, SDCAiConsumer._skill_context()] + SDCAiConsumer._additional_skills()
+        return '\n\n'.join(p for p in parts if p)
+
+    @staticmethod
+    def _additional_skills():
+        """Contents of the files in ``SDC_AI_ADDITIONAL_SKILL_FILE``; missing files are logged and skipped."""
+        paths = getattr(settings, 'SDC_AI_ADDITIONAL_SKILL_FILE', None) or []
+        if isinstance(paths, (str, os.PathLike)):
+            paths = [paths]
+        contents = []
+        for path in paths:
+            path = os.path.join(str(getattr(settings, 'BASE_DIR', '')), os.fspath(path))
+            try:
+                with open(path, encoding='utf-8') as f:
+                    contents.append(f.read().strip())
+            except OSError as e:
+                logger.warning(f'SDC_AI_ADDITIONAL_SKILL_FILE: cannot read {path}: {e}')
+        return contents
 
     @staticmethod
     def _skill_context():

@@ -165,6 +165,9 @@ SDC_AI_TIMEOUT = float(os.environ.get('SDC_AI_TIMEOUT', 600))
 SDC_AI_MAX_RETRIES = int(os.environ.get('SDC_AI_MAX_RETRIES', 2))
 # Claude only: low, medium, high, xhigh or max
 SDC_AI_EFFORT = os.environ.get('SDC_AI_EFFORT', 'medium')
+# Additional skill file(s) for the assistant (path or list of paths, relative to BASE_DIR), appended to the
+# generated SDC_SKILL.md, e.g. hand-written knowledge about workflows of this project
+SDC_AI_ADDITIONAL_SKILL_FILE = None
 
 # EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST =''

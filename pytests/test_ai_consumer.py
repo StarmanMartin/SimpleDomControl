@@ -417,3 +417,25 @@ def test_provider_error_hides_system_url(monkeypatch):
         _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], FailingClient(), monkeypatch)
     assert received[-1]['scope'] is None and '405' in received[-1]['msg']
     assert 'ki-toolbox' not in received[-1]['msg']
+
+
+def test_additional_skill_files(tmp_path):
+    (tmp_path / 'workflows.md').write_text('# Workflows\nLend a book via the borrow button.\n')
+    (tmp_path / 'more.md').write_text('Opening hours: 9-17.')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_ADDITIONAL_SKILL_FILE='workflows.md'):
+        assert SDCAiConsumer._system_prompt().endswith('# Workflows\nLend a book via the borrow button.')
+    # A list; absolute paths are kept, missing files are skipped
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_ADDITIONAL_SKILL_FILE=[str(tmp_path / 'more.md'), 'missing.md']):
+        assert SDCAiConsumer._system_prompt().endswith('Opening hours: 9-17.')
+    with override_settings(SDC_AI_ADDITIONAL_SKILL_FILE=None):
+        assert SDCAiConsumer._additional_skills() == []
+
+
+def test_assistant_view_without_setting():
+    from django.conf import settings
+    from django.test import RequestFactory
+    from sdc_tools.sdc_views import SdcAiAssistant
+    with override_settings():
+        del settings.SDC_AI_ASSISTANT
+        response = SdcAiAssistant().get_content(RequestFactory().get('/'))
+    assert response.status_code == 200 and response.content == b''
