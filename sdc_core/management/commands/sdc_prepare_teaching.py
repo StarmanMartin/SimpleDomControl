@@ -4,6 +4,7 @@ import os
 from django.core.management.base import BaseCommand
 
 from sdc_core.management.commands.init_add import options
+from sdc_core.management.commands.utils.teach_apps import apply_app_skills, load_app_skills
 from sdc_core.management.commands.utils.teach_controllers import controller_line, sdc_controllers
 from sdc_core.management.commands.utils.teach_models import is_editable, sdc_models
 
@@ -101,8 +102,11 @@ class Command(BaseCommand):
 
     def handle(self, *args, **ops):
         root = options.PROJECT_ROOT
-        models = [m for m in sdc_models() if is_editable(m['file'], root) and (ops['all'] or not m['doc'])]
-        controllers = {t: c for t, c in sorted(sdc_controllers().items())
+        all_models, all_controllers = sdc_models(), sdc_controllers()
+        # Documentation only present in an app's SDC_SKILL.json counts as documented
+        apply_app_skills(all_models, all_controllers, load_app_skills(), prefer_json=False)
+        models = [m for m in all_models if is_editable(m['file'], root) and (ops['all'] or not m['doc'])]
+        controllers = {t: c for t, c in sorted(all_controllers.items())
                        if is_editable(c['file'], root) and (ops['all'] or not c['doc'])}
 
         lines = [GUIDE, f'## {"All" if ops["all"] else "Undocumented"} models and controllers', '']

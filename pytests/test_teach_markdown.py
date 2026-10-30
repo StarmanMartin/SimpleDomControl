@@ -210,23 +210,47 @@ def test_prepare_teaching():
     assert '  Current documentation:\n  > ' in text
 
 
-def test_app_skill():
-    from sdc_core.management.commands.utils.teach_markdown import render_app_skill
-    md = render_app_skill('main_test', {
+def test_app_skill_json(tmp_path):
+    from types import SimpleNamespace
+    from sdc_core.management.commands.utils.teach_apps import app_skill_data, load_app_skills, write_app_skill
+    data = app_skill_data('main_test', {
         'book-edit': {'app': 'main_test', 'view_class': 'main_test.sdc_views.BookEdit',
-                      'url': '/sdc_view/main_test/book_edit/<int:pk>', 'doc': 'Edits a `Book`.'},
+                      'url': '/sdc_view/main_test/book_edit/<int:pk>', 'doc': 'Edits a `Book`.', 'file': '/abs/x.js'},
         'admin-only': {'app': 'main_test', 'doc': None},
-    }, [{'name': 'Book', 'app': 'main_test', 'doc': 'A book.',
-         'fields': [{'name': 'title', 'type': 'CharField', 'related': None},
-                    {'name': 'author', 'type': 'ForeignKey', 'related': 'Author'}]}],
-        {'project': 'Demo', 'date': '2026-01-01'})
-    assert md.startswith('---\nname: main-test\n')
-    assert '## Navigation tree' not in md
-    assert md.index('### `<admin-only>`') < md.index('### `<book-edit>`')
-    assert ('### `<book-edit>`\n\nEdits a `Book`.\n\n_server view `main_test.sdc_views.BookEdit`, Django URL '
-            '`/sdc_view/main_test/book_edit/<int:pk>`, required URL params `pk`_\n') in md
-    assert '### `<admin-only>`\n\n_No documentation._\n' in md
-    assert '### `Book`\n\nA book.\n\nFields: `title` (CharField), `author` → `Author`\n' in md
+    }, [{'name': 'Book', 'app': 'main_test', 'doc': 'A book.', 'model': object,
+         'fields': [{'name': 'author', 'type': 'ForeignKey', 'related': 'Author'}]}])
+    assert list(data['controllers']) == ['admin-only', 'book-edit']
+    assert data['controllers']['book-edit'] == {'doc': 'Edits a `Book`.', 'view_class': 'main_test.sdc_views.BookEdit',
+                                                'url': '/sdc_view/main_test/book_edit/<int:pk>', 'url_params': ['pk']}
+    assert data['models'] == {'Book': {'doc': 'A book.',
+                                       'fields': [{'name': 'author', 'type': 'ForeignKey', 'related': 'Author'}]}}
+    write_app_skill(str(tmp_path), data)
+    (tmp_path / 'broken').mkdir()
+    (tmp_path / 'broken' / 'SDC_SKILL.json').write_text('{not json')
+    configs = [SimpleNamespace(path=str(tmp_path), label='main_test'),
+               SimpleNamespace(path=str(tmp_path / 'broken'), label='broken'),
+               SimpleNamespace(path=str(tmp_path / 'missing'), label='missing')]
+    assert load_app_skills(configs) == {'main_test': data}
+
+
+def test_apply_app_skills():
+    from sdc_core.management.commands.utils.teach_apps import apply_app_skills
+    skills = {'main_test': {'models': {'Book': {'doc': 'json book'}},
+                            'controllers': {'book-edit': {'doc': 'json edit'}, 'admin-only': {'doc': None}}}}
+
+    def items():
+        return ([{'name': 'Book', 'app': 'main_test', 'doc': 'code book'}, {'name': 'Author', 'app': 'main_test', 'doc': None}],
+                {'book-edit': {'app': 'main_test', 'doc': None}, 'admin-only': {'app': 'main_test', 'doc': 'code admin'}})
+
+    models, controllers = items()
+    apply_app_skills(models, controllers, skills, prefer_json=True)
+    assert [m['doc'] for m in models] == ['json book', None]
+    assert controllers == {'book-edit': {'app': 'main_test', 'doc': 'json edit'},
+                           'admin-only': {'app': 'main_test', 'doc': 'code admin'}}
+    models, controllers = items()
+    apply_app_skills(models, controllers, skills, prefer_json=False)
+    assert models[0]['doc'] == 'code book'
+    assert controllers['book-edit']['doc'] == 'json edit'
 
 
 def test_model_fields_respect_sdc_meta():

@@ -15,7 +15,9 @@ from django.core.management.base import BaseCommand, CommandError
 from sdc_core.management.commands.init_add import options
 from sdc_core.management.commands.utils.teach_controllers import add_controller_doc, sdc_controllers
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
-from sdc_core.management.commands.utils.teach_markdown import render_app_skill, render_skill
+from sdc_core.management.commands.utils.teach_apps import app_skill_data, apply_app_skills, load_app_skills, \
+    write_app_skill
+from sdc_core.management.commands.utils.teach_markdown import render_skill
 from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
 
 SESSION_SCRIPT = """
@@ -43,11 +45,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('-o', '--output', type=str, default=None,
                             help='Markdown output file (default: <project>/SDC_SKILL.md); with --per-app the output '
-                                 'directory (files go to <dir>/<app>/SDC_SKILL.md)')
+                                 'directory (files go to <dir>/<app>/SDC_SKILL.json)')
         parser.add_argument('--per-app', action='store_true',
-                            help='Do not crawl; write a simplified skill file per app with only its controllers and '
-                                 'SDC models and their documentation (default: <app>/SDC_SKILL.md in every app of '
-                                 'the project)')
+                            help='Do not crawl; write the controllers and SDC models of each app with their '
+                                 'documentation as JSON (default: <app>/SDC_SKILL.json in every app of the project). '
+                                 'A normal sdc_teach run uses the documentation of these files where available.')
         parser.add_argument('--port', type=int, default=0, help='Port of the crawl server (default: a free port)')
         parser.add_argument('--start', type=str, default='/', help='Start path of the crawl')
         parser.add_argument('--database', type=str, default='jest',
@@ -89,8 +91,8 @@ class Command(BaseCommand):
 
         if ops['database'] not in getattr(settings, 'DATABASES_AVAILABLE', {ops['database']: None}):
             raise CommandError(f"DJANGO_DATABASE alias '{ops['database']}' is not defined in your settings")
-        models = self._document_models(ops)
-        controllers = self._document_controllers(ops)
+        # Documentation shipped in the apps' SDC_SKILL.json takes precedence over the source code
+        models, controllers = self._document(ops, prefer_json=True)
 
         env = os.environ | {'DJANGO_DATABASE': ops['database']}
         self._manage(env, 'migrate', '--noinput')
@@ -231,11 +233,11 @@ class Command(BaseCommand):
     # ------------------------------------------------------------- per app
     def _write_app_skills(self, project, ops):
         """
-        Writes ``SDC_SKILL.md`` with the controllers and SDC models of each app: into the app directory
-        (project apps only) or, with ``--output DIR``, to ``DIR/<app>/SDC_SKILL.md`` (all apps).
+        Writes ``SDC_SKILL.json`` with the controllers and SDC models of each app: into the app directory
+        (project apps only) or, with ``--output DIR``, to ``DIR/<app>/SDC_SKILL.json`` (all apps).
+        The documentation comes from the source code; the existing JSON is only used where the code has none.
         """
-        models = self._document_models(ops)
-        controllers = self._document_controllers(ops)
+        models, controllers = self._document(ops, prefer_json=False)
         apps = sorted({m['app'] for m in models} | {c['app'] for c in controllers.values()})
         written = 0
         for app in apps:
@@ -248,20 +250,24 @@ class Command(BaseCommand):
                     continue
             app_controllers = {tag: c for tag, c in controllers.items() if c['app'] == app}
             app_models = [m for m in models if m['app'] == app]
-            path = os.path.join(directory, 'SDC_SKILL.md')
-            with open(path, 'w') as f:
-                f.write(render_app_skill(app, app_controllers, app_models, {'project': project}))
+            path = write_app_skill(directory, app_skill_data(app, app_controllers, app_models))
             written += 1
             self.stdout.write(f'Wrote {path}: {len(app_controllers)} controllers, {len(app_models)} models')
         self.stdout.write(self.style.SUCCESS(f'Wrote {written} app skill file(s)'))
 
+    def _document(self, ops, prefer_json):
+        """Models and controllers with their documentation (source code and the apps' SDC_SKILL.json)."""
+        skills = load_app_skills()
+        models, controllers = sdc_models(), sdc_controllers()
+        apply_app_skills(models, controllers, skills, prefer_json=prefer_json)
+        return self._document_models(ops, models), self._document_controllers(ops, controllers)
+
     # -------------------------------------------------------------- models
-    def _document_models(self, ops):
+    def _document_models(self, ops, models):
         """
-        Collects the docstrings of all SDC models. The developer is asked to describe undocumented models of
-        the project; the text is written into the model class as its docstring.
+        The developer is asked to describe undocumented models of the project; the text is written into the
+        model class as its docstring.
         """
-        models = sdc_models()
         missing = [m for m in models if not m['doc'] and is_editable(m['file'], options.PROJECT_ROOT)]
         self._ask_docs(ops, missing, 'SDC model', 'the model class as docstring',
                        lambda m: f'{m["app"]}.{m["name"]}', lambda m: add_class_docstring(m['model'], m['doc']))
@@ -295,12 +301,11 @@ class Command(BaseCommand):
                                   f'it is only used in the skill file')
 
     # ---------------------------------------------------------- controllers
-    def _document_controllers(self, ops):
+    def _document_controllers(self, ops, infos):
         """
-        Collects the JSDoc comments of all client controller classes. The developer is asked to describe
-        undocumented controllers of the project; the text is written above the controller class as JSDoc.
+        The developer is asked to describe undocumented controllers of the project; the text is written above
+        the controller class as JSDoc.
         """
-        infos = sdc_controllers()
         missing = [dict(info, tag=tag) for tag, info in sorted(infos.items())
                    if not info['doc'] and is_editable(info['file'], options.PROJECT_ROOT)]
         self._ask_docs(ops, missing, 'controller', 'the controller class as JSDoc comment', lambda c: f'<{c["tag"]}>',

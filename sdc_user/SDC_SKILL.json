@@ -1,0 +1,134 @@
+{
+  "app": "sdc_user",
+  "generator": "manage.py sdc_teach --per-app",
+  "controllers": {
+    "register": {
+      "doc": "Registration form that creates a new `SdcUser` account; open it from the \"Register\" link of `<sdc-login>` or `<sdc-user-nav-btn>`.\n\n- Arguments: `model` must be `SdcUser`; `next` is where to go after creating (the links pass `..`, i.e. back).\n- Fields: `username`, `first_name`, `last_name`, `email`, the password and its confirmation (must match and pass the password rules).\n- \"Create\" creates the account; anyone may register, no login is needed. The new user is not logged in automatically.\n- If an `email` was given, a confirmation e-mail with a link to `<sdc-confirm-email>` (valid 3 days) is sent to it.\n- If the project requires confirmed e-mail addresses, the new user can only log in after following that link.",
+      "view_class": "sdc_user.sdc_views.Register",
+      "url": "/sdc_view/sdc_user/register",
+      "url_params": []
+    },
+    "sdc-change-password": {
+      "doc": "Form for the logged-in user to change their own password (the `password_form` of `SdcUser`).\n\n- No arguments; it always edits the current user. Requires login, otherwise it redirects to the login view.\n- Enter the current password, then the new password twice (must match and pass the password rules).\n- \"Change password\" saves the new password immediately. Other sessions of this user are logged out; the current session stays logged in.",
+      "view_class": "sdc_user.sdc_views.SdcChangePassword",
+      "url": "/sdc_view/sdc_user/sdc_change_password",
+      "url_params": []
+    },
+    "sdc-confirm-email": {
+      "doc": "Confirms the e-mail address of an `SdcUser`; this is the target of the link in the confirmation e-mail.\n\n- Arguments: `token` (required) is the token from the e-mail link (`/~sdc-confirm-email~&1.token=...`).\n- Opening the view with a valid token immediately marks the address as confirmed (`email_confirmed`) and shows a success message; there is nothing to click. No login is needed.\n- Each token works once and is valid for 3 days. An expired token automatically sends a new confirmation e-mail; an invalid or already used token shows \"No valid token.\".",
+      "view_class": "sdc_user.sdc_views.SdcConfirmEmail",
+      "url": "/sdc_view/sdc_user/sdc_confirm_email/<str:token>",
+      "url_params": [
+        "token"
+      ]
+    },
+    "sdc-login": {
+      "doc": "Login form (username and password) that starts a session for an `SdcUser`; the view other views redirect to when login is required.\n\n- Arguments: `next` (optional) is the URL to go to after login; without it the project's start page (`LOGIN_SUCCESS`) is used.\n- \"Login\" checks the credentials. On success the user is logged in and the whole page reloads at the `next` target; on failure the errors are shown in the form.\n- If the project requires confirmed e-mail addresses and the user has not confirmed theirs, login is refused and a new confirmation e-mail is sent.\n- Links lead to `<sdc-password-forgotten>` and to `<register>`.",
+      "view_class": "sdc_user.sdc_views.SdcLogin",
+      "url": "/sdc_view/sdc_user/sdc_login",
+      "url_params": []
+    },
+    "sdc-logout": {
+      "doc": "Logout button; usually embedded in `<sdc-user-nav-btn>` when a user is logged in.\n\n- \"Logout\" ends the session of the current user immediately (no confirm dialog) and redirects to the login view; the WebSocket connections are reopened as anonymous user.",
+      "view_class": "sdc_user.sdc_views.SdcLogout",
+      "url": "/sdc_view/sdc_user/sdc_logout",
+      "url_params": []
+    },
+    "sdc-password-forgotten": {
+      "doc": "Requests a password-reset e-mail for a user who forgot their password; reached from the \"Password forgotten\" link of `<sdc-login>`.\n\n- No arguments and no login needed. Enter the username or the e-mail address of the account.\n- \"Send E-mail\" sends an e-mail with a link to `<sdc-reset-password>` to the account's address; the link is valid for 3 days and can be used once.\n- Shows \"User not found\" if no account (or more than one) matches, and an error if the e-mail could not be sent.",
+      "view_class": "sdc_user.sdc_views.SdcPasswordForgotten",
+      "url": "/sdc_view/sdc_user/sdc_password_forgotten",
+      "url_params": []
+    },
+    "sdc-reset-password": {
+      "doc": "Sets a new password with a reset token; this is the target of the link in the password-reset e-mail sent by `<sdc-password-forgotten>`.\n\n- Arguments: `token` (required) is the token from the e-mail link (`/~sdc-reset-password~&1.token=...`); it is kept in a hidden form field.\n- Enter the new password twice (at least 8 characters, must match and pass the password rules). No login is needed.\n- \"Reset Password\" sets the new password and shows \"Password has been reset.\"; the user is not logged in and must then use `<sdc-login>`.\n- Each token works once and is valid for 3 days. An expired token automatically sends a new reset e-mail; an invalid or used token shows an error.",
+      "view_class": "sdc_user.sdc_views.SdcResetPassword",
+      "url": "/sdc_view/sdc_user/sdc_reset_password",
+      "url_params": []
+    },
+    "sdc-user": {
+      "doc": "Invisible global helper that loads the `SdcUser` record of the logged-in user (nothing for anonymous visitors) and provides it to other controllers on request; it shows no content and has no actions.",
+      "view_class": "sdc_user.sdc_views.SdcUser",
+      "url": "/sdc_view/sdc_user/sdc_user",
+      "url_params": []
+    },
+    "sdc-user-nav-btn": {
+      "doc": "User area for the navigation bar: shows \"Login\" and \"Register\" links when nobody is logged in, and an \"Edit <username>\" link (opens the user's own `SdcUser` in `<sdc-model-form>`) plus `<sdc-logout>` when a user is logged in. It refreshes itself after login and logout.",
+      "view_class": "sdc_user.sdc_views.SdcUserNavBtn",
+      "url": "/sdc_view/sdc_user/sdc_user_nav_btn",
+      "url_params": []
+    }
+  },
+  "models": {
+    "SdcUser": {
+      "doc": "A user account of the site (the project's Django user model); one record per person who can log in.\n\n- `username` (unique, used to log in), `first_name`, `last_name`, `email`; `is_staff`, `is_superuser`,\n  `is_active`, `groups`, `date_joined`, `last_login` as in Django's standard user.\n- `email_confirmed`: `true` once the user followed the link in the confirmation e-mail (`<sdc-confirm-email>`).\n- The password is never sent to the client; it is changed with the `password_form` (`<sdc-change-password>`)\n  or reset by e-mail (`<sdc-password-forgotten>`).\n- Anyone may create an account (registration in `<register>`). By default a logged-in user can read and\n  edit only their own record (`username`, names, `email`); superusers can see and edit all users, and only\n  superusers may delete users.\n- Saving a new or changed `email` resets `email_confirmed` to `false` and sends a confirmation e-mail to\n  that address (link valid for 3 days).\n- Edited in `<sdc-model-form>` via the \"Edit <username>\" link of `<sdc-user-nav-btn>`; `<sdc-user>` loads\n  the current user's record.",
+      "fields": [
+        {
+          "name": "id",
+          "type": "BigAutoField",
+          "related": null
+        },
+        {
+          "name": "last_login",
+          "type": "DateTimeField",
+          "related": null
+        },
+        {
+          "name": "is_superuser",
+          "type": "BooleanField",
+          "related": null
+        },
+        {
+          "name": "username",
+          "type": "CharField",
+          "related": null
+        },
+        {
+          "name": "first_name",
+          "type": "CharField",
+          "related": null
+        },
+        {
+          "name": "last_name",
+          "type": "CharField",
+          "related": null
+        },
+        {
+          "name": "email",
+          "type": "CharField",
+          "related": null
+        },
+        {
+          "name": "is_staff",
+          "type": "BooleanField",
+          "related": null
+        },
+        {
+          "name": "is_active",
+          "type": "BooleanField",
+          "related": null
+        },
+        {
+          "name": "date_joined",
+          "type": "DateTimeField",
+          "related": null
+        },
+        {
+          "name": "email_confirmed",
+          "type": "BooleanField",
+          "related": null
+        },
+        {
+          "name": "groups",
+          "type": "ManyToManyField",
+          "related": "Group"
+        },
+        {
+          "name": "user_permissions",
+          "type": "ManyToManyField",
+          "related": "Permission"
+        }
+      ]
+    }
+  }
+}
