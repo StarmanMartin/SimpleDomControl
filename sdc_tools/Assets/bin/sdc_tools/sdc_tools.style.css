@@ -378,10 +378,14 @@
   padding: 0.5rem;
   background: var(--bs-body-bg, #fff);
   border-left: 1px solid var(--bs-border-color, #dee2e6);
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, height 0.2s ease, top 0.2s ease, width 0.2s ease;
 }
 [sdc-ai-assistant] .ai-conversation-container.collapsed {
-  transform: translateX(calc(100% - 2.5rem));
+  transform: translateX(37px) rotate(-90deg);
+  width: 90px;
+  height: 43px;
+  top: 50vh;
+  overflow: hidden;
 }
 [sdc-ai-assistant] .ai-header {
   display: flex;
