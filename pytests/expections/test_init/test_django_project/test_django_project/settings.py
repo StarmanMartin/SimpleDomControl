@@ -142,6 +142,28 @@ SDC_USER_FIELDS_EXCLUDE = None
 # If True, users (except superusers) can only log in after confirming their e-mail address.
 SDC_USER_REQUIRE_CONFIRMED_EMAIL = False
 
+SDC_AI_ASSISTANT = False
+SDC_AI_TOKEN_FROM_SYSTEM = False
+# Only logged-in users may use the assistant. Must stay True while SDC_AI_TOKEN_FROM_SYSTEM is True
+# (otherwise anonymous visitors would use the system's provider key).
+SDC_AI_REQUIRE_LOGIN = True
+# Optional list of group names allowed to use the assistant (staff and superusers always are); None = all users.
+SDC_AI_ALLOWED_GROUPS = None
+# Optional cap of assistant requests per user and day on the system's key; None = unlimited.
+SDC_AI_MAX_REQUESTS_PER_USER = 100
+# AI model connection. Provider credentials (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, AWS_*/GOOGLE_*
+# for Bedrock/Vertex, ...) stay plain environment variables read by the provider SDKs; never put them here.
+# SDC_AI_PROVIDER: anthropic, anthropic-bedrock, anthropic-vertex, openai, azure-openai, gemini, gemini-vertex,
+# mistral, ollama or openai-compatible (with SDC_AI_BASE_URL).
+SDC_AI_PROVIDER = os.environ.get('SDC_AI_PROVIDER', 'anthropic')
+SDC_AI_MODEL = os.environ.get('SDC_AI_MODEL', 'claude-opus-5-5')
+SDC_AI_BASE_URL = os.environ.get('SDC_AI_BASE_URL', '')
+SDC_AI_MAX_TOKENS = int(os.environ.get('SDC_AI_MAX_TOKENS', 16000))
+SDC_AI_TIMEOUT = float(os.environ.get('SDC_AI_TIMEOUT', 600))
+SDC_AI_MAX_RETRIES = int(os.environ.get('SDC_AI_MAX_RETRIES', 2))
+# Claude only: low, medium, high, xhigh or max
+SDC_AI_EFFORT = os.environ.get('SDC_AI_EFFORT', 'medium')
+
 # EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'
 # EMAIL_HOST =''
 # EMAIL_PORT = 587
