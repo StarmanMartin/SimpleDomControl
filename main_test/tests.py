@@ -346,6 +346,26 @@ class ServerModelTest(TestCase, WithMockedElementTest):
                              ['Martin', 'Nina', 'Artin'])
         self.assertListEqual(list(message.keys()), ['type', 'event_id', 'args', 'is_error'])
 
+    async def test_load_with_limit(self):
+        communicator = AuthWebsocketCommunicator(application, "/sdc_ws/model/Author", user=self.user)
+        connected, subprotocol = await communicator.connect()
+        self.assertTrue(connected)
+        for event_id, limit in (('two', 2), ('bad', 0)):
+            await communicator.send_json_to({
+                "event": 'model',
+                "event_type": 'load',
+                "event_id": event_id,
+                "args": {"model_name": "Author", "model_query": {}, "limit": limit}
+            })
+            message = json.loads(await communicator.receive_from())
+            if event_id == 'two':
+                # The server slices the query: only the first rows are sent
+                self.assertListEqual([x['fields']['name'] for x in json.loads(message['args']['data'])],
+                                     ['Martin', 'Nina'])
+            else:
+                self.assertTrue(message['is_error'])
+        await communicator.disconnect()
+
     async def test_edit_form(self):
         communicator = AuthWebsocketCommunicator(application, "/sdc_ws/model/Author", user=self.user)
         connected, subprotocol = await communicator.connect()

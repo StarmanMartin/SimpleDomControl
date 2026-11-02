@@ -349,6 +349,34 @@ describe('SdcAiAssistant', () => {
             expect($views.find(':not(.active) > form [name=title]').val()).toBe('old');
         });
 
+        test('no new prompt while a request runs; stale actions are not run', async () => {
+            const sent = [];
+            controller._socket = {readyState: WebSocket.OPEN, send: (msg) => sent.push(JSON.parse(msg))};
+            const $textarea = controller.find('.ai-prompt-form textarea');
+            $textarea.val('first');
+            controller._sendPrompt();
+            $textarea.val('second');
+            controller._sendPrompt();
+            expect(sent.map((m) => m.prompt)).toEqual(['first']);
+            expect(controller.find('.ai-prompt-form [type="submit"]').prop('disabled')).toBe(true);
+            expect($textarea.val()).toBe('second');  // kept for later
+            const id = controller._requestId;
+            await controller._onMessage({type: 'error', id, msg: 'x'});
+            expect(controller._busy).toBe(false);
+
+            // Actions of a request that is no longer the current one stop before the next action
+            const read = [];
+            controller._actions.read_page = () => {
+                read.push(1);
+                controller._requestId += 1;
+                return {};
+            };
+            const actions = [{tool_use_id: 'a', name: 'read_page', input: {}}, {tool_use_id: 'b', name: 'read_page', input: {}}];
+            expect(await controller._runActions(actions, controller._requestId)).toBeNull();
+            expect(read.length).toBe(1);
+            controller._socket = null;
+        });
+
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
             const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));

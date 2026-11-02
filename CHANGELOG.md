@@ -26,9 +26,17 @@ The server and the client are released with the same version number.
   KI-Toolbox). Users can bring their own key and choose provider, API URL, model, effort and max tokens
   in a settings menu; with the server's key the connection is fixed. The panel is movable and resizable,
   starts collapsed and renders answers as Markdown. See the new documentation page "AI assistant".
-- Settings `SDC_AI_*` (switch, key mode, login/group/daily-limit rules, provider, model, API URL,
+  An API URL entered by a user must resolve to public addresses, checked again on every connection (no DNS
+  rebinding to internal services); the assistant's WebSocket rejects pages of other sites (`Origin`).
+- Settings `SDC_AI_*` (switch, key mode, login/group rules, a daily limit of model requests per user, provider, model, API URL,
   `SDC_AI_ALLOW_USER_BASE_URL`, `SDC_AI_ADDITIONAL_SKILL_FILE`, ...), written by `sdc_init`.
 - Optional extra `ai`: `pip install "simpledomcontrol[ai]"` installs `anthropic` and `openai`.
+- Optional extra `teach`: `pip install "simpledomcontrol[teach]"` installs `playwright` for `sdc_teach`. It is not
+  a dependency of the package itself, so production installs stay without it.
+- Model WebSocket: a `load` request may carry `limit` (positive integer); the server then sends and tracks only the
+  first `limit` rows. Used by `SdcQuerySet.load(query, {limit})` of sdc_client and by the assistant's `model_load`.
+- New projects: `asgi.py` wraps the WebSockets in `AllowedHostsOriginValidator`, so other sites cannot open them
+  with a visitor's session.
 - New projects get `<sdc-ai-assistant>` in `templates/base.html` and the `sdc_ws/ai` route in `routing.py`.
 - Documentation of all models and controllers of `sdc_tools`, `sdc_user` and the demo app.
 - Documentation pages "Teaching AI agents" and "AI assistant".
@@ -40,6 +48,9 @@ The server and the client are released with the same version number.
 - `sdc-password-forgotten`: an empty username/e-mail shows a hint instead of sending a server call.
 
 ### Upgrading existing projects
+- Wrap the WebSocket router in `channels.security.websocket.AllowedHostsOriginValidator` in `<project>/asgi.py`
+  (see "Websocket routes" in the settings documentation). Without an `Origin` header connections are then
+  rejected unless `ALLOWED_HOSTS` contains `'*'`. `SDCAiConsumer` checks the origin itself in any case.
 - For the AI assistant, add the `SDC_AI_*` settings you need (at least `SDC_AI_ASSISTANT = True`), the route
   `re_path(r'sdc_ws/ai', consumers.SDCAiConsumer.as_asgi())` to `<project>/routing.py` and
   `<sdc-ai-assistant></sdc-ai-assistant>` inside `<body>` of `templates/base.html`. Without the settings the

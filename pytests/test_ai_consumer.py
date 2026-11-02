@@ -64,14 +64,14 @@ class FakeClient:
         return FakeStream(*self.script[min(len(self.calls), len(self.script)) - 1])
 
 
-async def _session(user, events, client=None, monkeypatch=None, with_config=False):
+async def _session(user, events, client=None, monkeypatch=None, with_config=False, headers=None):
     """
     Connects, sends ``events`` and returns ``(connected, [received messages])``; ``ai_config`` messages are left
-    out unless ``with_config``.
+    out unless ``with_config``. ``events`` may contain raw text frames (str).
     """
     if client is not None:
         monkeypatch.setattr(SDCAiConsumer, '_client', lambda self: client)
-    communicator = WebsocketCommunicator(SDCAiConsumer.as_asgi(), '/sdc_ws/ai')
+    communicator = WebsocketCommunicator(SDCAiConsumer.as_asgi(), '/sdc_ws/ai', headers=headers)
     communicator.scope['user'] = user
     connected, _ = await communicator.connect()
     received = []
@@ -87,7 +87,10 @@ async def _session(user, events, client=None, monkeypatch=None, with_config=Fals
 
     if await drain():
         for event in events:
-            await communicator.send_json_to(event)
+            if isinstance(event, str):
+                await communicator.send_to(text_data=event)
+            else:
+                await communicator.send_json_to(event)
             if not await drain():
                 break
         await communicator.disconnect()
@@ -289,7 +292,8 @@ def test_wrong_action_results_keep_history(monkeypatch):
             {'event': 'action_results', 'id': 2, 'results': [{'tool_use_id': 't1', 'content': 'x'}]},
             {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1', 'content': 'x'}]},
         ], client, monkeypatch)
-    assert [m['type'] for m in received] == ['ai_actions', 'error', 'error', 'ai_delta', 'ai_answer']
+    # Results of another request are ignored (e.g. late results of cancelled actions); wrong results are an error
+    assert [m['type'] for m in received] == ['ai_actions', 'error', 'ai_delta', 'ai_answer']
 
 
 def test_new_prompt_cancels_pending_actions(monkeypatch):
@@ -475,3 +479,124 @@ def test_write_tools_are_rejected(monkeypatch):
     assert results[0]['is_error'] and results[0]['content'] == 'Unknown tool model_delete'
     assert results[1]['is_error'] and 'wrong type' in results[1]['content']
     assert not results[2]['is_error']
+
+
+# ------------------------------------------------------------------ review fixes
+def test_daily_limit_counts_every_model_request(monkeypatch):
+    """Action rounds are billed too: a prompt with one action round uses two requests."""
+    cache.clear()
+    client = FakeClient(script=[((), 'tool_use', [LOAD]), (('Done.',), 'end_turn', ())])
+    results = {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1', 'content': 'x'}]}
+    with override_settings(**AI | {'SDC_AI_MAX_REQUESTS_PER_USER': 2}):
+        _, received = run(_user(pk=43), [{'event': 'prompt', 'id': 1, 'prompt': 'Load'}, results,
+                                         {'event': 'prompt', 'id': 2, 'prompt': 'Again'}], client, monkeypatch)
+    assert [m['type'] for m in received] == ['ai_actions', 'ai_delta', 'ai_answer', 'error']
+    assert 'limit' in received[-1]['msg'] and len(client.calls) == 2
+
+
+def test_limit_reached_during_action_rounds_drops_the_turn(monkeypatch):
+    cache.clear()
+    client = FakeClient(script=[((), 'tool_use', [LOAD]), (('Done.',), 'end_turn', ())])
+    results = {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1', 'content': 'x'}]}
+    with override_settings(**AI | {'SDC_AI_MAX_REQUESTS_PER_USER': 1}):
+        _, received = run(_user(pk=44), [{'event': 'prompt', 'id': 1, 'prompt': 'Load'}, results], client, monkeypatch)
+    assert [m['type'] for m in received] == ['ai_actions', 'error'] and 'limit' in received[-1]['msg']
+
+
+def test_request_counter_does_not_block_the_event_loop(monkeypatch):
+    """Sync cache calls in the consumer block the event loop (and fail with DatabaseCache)."""
+    import asyncio
+    cache.clear()
+
+    def sync_only(method):
+        def call(*args, **kwargs):
+            try:
+                asyncio.get_running_loop()
+            except RuntimeError:
+                return method(*args, **kwargs)
+            raise AssertionError('sync cache call in the event loop')
+        return call
+
+    for name in ('add', 'incr', 'set'):
+        monkeypatch.setattr(cache, name, sync_only(getattr(cache, name)))
+    with override_settings(**AI | {'SDC_AI_MAX_REQUESTS_PER_USER': 5}):
+        _, received = run(_user(pk=45), [{'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], FakeClient(), monkeypatch)
+    assert received[-1]['type'] == 'ai_answer'
+
+
+def test_non_object_frames_are_answered_with_an_error(monkeypatch):
+    with override_settings(**AI):
+        _, received = run(_user(), ['[1]', '"x"', 'no json', {'event': 'prompt', 'id': 1, 'prompt': 'Hi'}],
+                          FakeClient(), monkeypatch)
+    assert [m['type'] for m in received] == ['error'] * 3 + ['ai_delta', 'ai_delta', 'ai_answer']
+
+
+def test_openai_repeated_tool_name(monkeypatch):
+    """Some OpenAI-compatible servers send the complete name in every piece of a tool call."""
+    client = FakeOpenAIClient([
+        [_chunk(tool_calls=[_call_part(0, 'call_c', 'read_page', '{')]),
+         _chunk(tool_calls=[_call_part(0, 'call_c', 'read_page', '}')]), _chunk(finish_reason='tool_calls')],
+    ])
+    with override_settings(**OPENAI):
+        _, received = run(_user(), [OPENAI_TOKEN, {'event': 'prompt', 'id': 1, 'prompt': 'Read'}], client, monkeypatch)
+    actions = next(m for m in received if m['type'] == 'ai_actions')['actions']
+    assert actions == [{'tool_use_id': 'call_c', 'name': 'read_page', 'input': {}}]
+
+
+def test_connections_from_other_sites_are_rejected(monkeypatch):
+    with override_settings(**AI | {'ALLOWED_HOSTS': ['example.com']}):
+        _, received = run(_user(), [], FakeClient(), monkeypatch, with_config=True,
+                          headers=[(b'origin', b'https://evil.example.org')])
+        assert received == [{'type': 'close', 'code': 4403}]
+        _, received = run(_user(), [], FakeClient(), monkeypatch, with_config=True,
+                          headers=[(b'origin', b'https://example.com')])
+        assert received[0]['type'] == 'ai_config'
+
+
+def test_system_prompt_is_built_once_per_process(monkeypatch):
+    calls = []
+    monkeypatch.setattr(SDCAiConsumer, '_system_prompt', staticmethod(lambda: calls.append(1) or 'prompt'))
+    with override_settings(DEBUG=False):
+        assert SDCAiConsumer._cached_system_prompt() == SDCAiConsumer._cached_system_prompt() == 'prompt'
+        assert len(calls) == 1
+    with override_settings(DEBUG=True):
+        SDCAiConsumer._cached_system_prompt()
+        SDCAiConsumer._cached_system_prompt()
+        assert len(calls) == 3
+
+
+def test_user_api_url_is_checked_on_every_connection(monkeypatch):
+    """DNS rebinding: the host resolved to a public address when the settings were saved, now to an internal one."""
+    import asyncio
+    import pytest
+    httpcore2 = pytest.importorskip('httpcore2')
+    from sdc_core import consumers
+
+    answers = iter([['93.184.215.14'], ['169.254.169.254'], ['10.0.0.5', '93.184.215.14']])
+
+    async def fake_getaddrinfo(host, port, type=0):
+        return [(None, None, None, '', (address, port)) for address in next(answers)]
+
+    connected = []
+
+    class FakeBackend(httpcore2.AsyncNetworkBackend):
+        async def connect_tcp(self, host, port, **kwargs):
+            connected.append(host)
+            return 'stream'
+
+    async def check():
+        monkeypatch.setattr(asyncio.get_running_loop(), 'getaddrinfo', fake_getaddrinfo)
+        client = consumers._ai_public_http_client(10)
+        backend = client._transport._pool._network_backend
+        backend.backend = FakeBackend()
+        assert await backend.connect_tcp('api.example.com', 443) == 'stream'
+        for _ in range(2):
+            with pytest.raises(httpcore2.ConnectError, match='public'):
+                await backend.connect_tcp('api.example.com', 443)
+        with pytest.raises(httpcore2.ConnectError):
+            await backend.connect_unix_socket('/run/x.sock')
+        assert not client.follow_redirects and not client.trust_env
+
+    async_to_sync(check)()
+    # Only the checked address is connected to, never the host name (which could resolve differently)
+    assert connected == ['93.184.215.14']

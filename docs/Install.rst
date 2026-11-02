@@ -33,10 +33,12 @@ from the ``ai`` extra:
 
    pip install "simpledomcontrol[ai]"
 
-``sdc_teach`` (see :doc:`teaching`) also needs a browser for Playwright:
+``sdc_teach`` (see :doc:`teaching`, development only) needs Playwright and its
+browser, from the ``teach`` extra:
 
 .. code-block:: sh
 
+   pip install "simpledomcontrol[teach]"
    playwright install chromium
 
 The package is also available from the project releases on GitHub, but PyPI is

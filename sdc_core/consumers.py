@@ -14,6 +14,7 @@ from django.core.cache import cache
 from django.core.exceptions import PermissionDenied
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
+from django.core.signals import setting_changed
 
 from django.utils.datastructures import MultiValueDict
 from django.utils.html import escape
@@ -387,21 +388,35 @@ class SDCModelConsumer(WebsocketConsumer):
         else:
             self.ids += [pk for pk in pks if pk not in self.ids]
 
-    def _full_load(self):
-        """Loads with the current filter and makes it the filter for live updates."""
+    def _full_load(self, limit=None):
+        """
+        Loads with the current filter and makes it the filter for live updates. With ``limit`` only the first
+        ``limit`` rows are loaded (and tracked for live updates).
+        """
         self.live_query = dict(self.queryset)
         rows = self._load_model()
+        if limit is not None:
+            rows = rows[:limit]
         self._track_ids(self._pks(rows), replace=True)
         return rows
+
+    @staticmethod
+    def _load_limit(json_data):
+        """The optional ``limit`` of a load request (``SdcQuerySet.load(query, {limit})``): a positive integer."""
+        limit = json_data['args'].get('limit')
+        if limit is not None and (isinstance(limit, bool) or not isinstance(limit, int) or limit < 1):
+            raise ValueError('limit must be a positive integer')
+        return limit
 
     def _load(self, json_data):
         # queryset.update({item}) loads a single row with {"id": <pk>}: that row is added to
         # the known rows; any other load replaces them and the live filter.
+        limit = self._load_limit(json_data)
         if set(self.queryset.keys()) in ({'id'}, {'pk'}):
             rows = self._load_model()
             self._track_ids(self._pks(rows))
         else:
-            rows = self._full_load()
+            rows = self._full_load(limit)
         self.send(text_data=json.dumps({
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
@@ -595,23 +610,109 @@ class AiConfigError(ValueError):
     """An invalid value in the user's AI settings; the message is shown to the user."""
 
 
+# System prompt of the assistant, built once per process (see ``SDCAiConsumer._cached_system_prompt``)
+_ai_system_prompt = None
+
+
+def _ai_reset_system_prompt(**kwargs):
+    global _ai_system_prompt
+    _ai_system_prompt = None
+
+
+# Tests that override settings get a new prompt
+setting_changed.connect(_ai_reset_system_prompt)
+
+
+async def _ai_public_addresses(host, port):
+    """
+    Resolves ``host`` and returns its addresses; raises ``AiConfigError`` if it cannot be resolved or any of its
+    addresses is not a public internet address (loopback, private networks, link-local incl. cloud metadata, ...).
+    """
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (socket.gaierror, UnicodeError):
+        raise AiConfigError(_f('The host of the API URL cannot be resolved.'))
+    addresses = []
+    for info in infos:
+        address = info[4][0].split('%')[0]
+        if not ipaddress.ip_address(address).is_global:
+            raise AiConfigError(_f('The API URL must point to a public internet address.'))
+        addresses.append(address)
+    if not addresses:
+        raise AiConfigError(_f('The host of the API URL cannot be resolved.'))
+    return addresses
+
+
 async def _ai_check_public_url(url):
     """
     Raises ``AiConfigError`` unless ``url`` is https and its host resolves only to public addresses. The server
     sends the requests (incl. the API key) to this URL, so it must not reach internal services (SSRF).
+    This check gives the user an early error when saving the settings; the requests themselves go through
+    ``_ai_public_http_client``, which checks the addresses again on every connection (DNS may change).
     """
     parts = urlsplit(url)
     if parts.scheme != 'https' or not parts.hostname or parts.username or parts.password:
         raise AiConfigError(_f('The API URL must be an https URL without credentials.'))
+    await _ai_public_addresses(parts.hostname, parts.port or 443)
+
+
+def _ai_public_http_client(timeout):
+    """
+    HTTP client (``httpx2``, used by the anthropic and openai SDKs) for API URLs entered by users: every new
+    connection resolves the host, rejects non-public addresses and connects to exactly the checked address, so a
+    host whose DNS answer changes after ``_ai_check_public_url`` (DNS rebinding) cannot reach internal services.
+    TLS still verifies the certificate of the host name. No proxies from the environment, no redirects.
+    """
+    import httpcore2
+    import httpx2
+
+    class PublicOnlyBackend(httpcore2.AsyncNetworkBackend):
+        def __init__(self, backend=None):
+            self.backend = backend or httpcore2.AnyIOBackend()
+
+        async def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+            try:
+                addresses = await _ai_public_addresses(host, port)
+            except AiConfigError as e:
+                raise httpcore2.ConnectError(str(e))
+            return await self.backend.connect_tcp(addresses[0], port, timeout=timeout,
+                                                  local_address=local_address, socket_options=socket_options)
+
+        async def connect_unix_socket(self, path, timeout=None, socket_options=None):
+            raise httpcore2.ConnectError('Unix sockets are not allowed')
+
+        async def sleep(self, seconds):
+            await self.backend.sleep(seconds)
+
+    transport = httpx2.AsyncHTTPTransport(trust_env=False)
+    # httpx2 has no option for the network backend: replace the transport's pool with one that uses it
+    transport._pool = httpcore2.AsyncConnectionPool(ssl_context=httpx2.create_ssl_context(),
+                                                    network_backend=PublicOnlyBackend())
+    return httpx2.AsyncClient(transport=transport, timeout=timeout, follow_redirects=False, trust_env=False)
+
+
+def _ai_origin_allowed(scope):
+    """
+    False if the WebSocket was opened by a page of another site: browsers always send ``Origin``, and it must
+    match ``ALLOWED_HOSTS`` (like ``channels.security.websocket.AllowedHostsOriginValidator``). Otherwise any page
+    could use the assistant with the visitor's session (and the server's API key). Connections without
+    ``Origin`` (no browser, so no session cookie of a victim) are allowed.
+    """
+    from channels.security.websocket import OriginValidator
+    from urllib.parse import urlparse
+    origin = next((value for name, value in scope.get('headers', []) if name == b'origin'), None)
+    if origin is None:
+        return True
+    allowed_hosts = settings.ALLOWED_HOSTS or (['localhost', '127.0.0.1', '[::1]'] if settings.DEBUG else [])
     try:
-        infos = await asyncio.get_running_loop().getaddrinfo(parts.hostname, parts.port or 443,
-                                                             type=socket.SOCK_STREAM)
-    except (socket.gaierror, UnicodeError):
-        raise AiConfigError(_f('The host of the API URL cannot be resolved.'))
-    for info in infos:
-        address = ipaddress.ip_address(info[4][0].split('%')[0])
-        if not address.is_global:
-            raise AiConfigError(_f('The API URL must point to a public internet address.'))
+        return OriginValidator(None, allowed_hosts).validate_origin(urlparse(origin.decode('latin1')))
+    except ValueError:
+        return False
+
+
+class AiLimitError(Exception):
+    """The user reached ``SDC_AI_MAX_REQUESTS_PER_USER``."""
+
 AI_DEFAULT_SYSTEM_PROMPT = """You are the assistant of this website and help the user to use it. The website is built \
 with SimpleDomControl (SDC); its documentation is at https://simpledomcontrol.readthedocs.io/en/latest/ - point the \
 user there for questions about the framework itself.
@@ -737,6 +838,9 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         self.turn_text = ''
         # Actions sent to the client and not answered yet: {'id', 'round', 'tool_use_ids', 'results'}
         self.pending = None
+        if not _ai_origin_allowed(self.scope):
+            await self.close(code=4403)
+            return
         error = await self._access_error()
         if error:
             await self.state_error({'msg': error, 'header': _f('AI assistant')})
@@ -858,7 +962,10 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data=None, bytes_data=None):
         json_data = {}
         try:
-            json_data = json.loads(text_data)
+            data = json.loads(text_data or '')
+            if not isinstance(data, dict):
+                raise ValueError('A message must be a JSON object')
+            json_data = data
             event = json_data.get('event')
             if event == 'prompt':
                 await self._answer(json_data.get('id'), str(json_data.get('prompt', '')).strip())
@@ -876,6 +983,9 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         except AiConfigError as e:
             await self.state_error({'msg': str(e), 'header': _f('AI settings'), 'scope': 'settings'},
                                    json_data.get('id'))
+        except AiLimitError:
+            await self.state_error({'msg': _f('You have reached the daily limit of AI requests.'),
+                                    'header': _f('AI assistant')}, json_data.get('id'))
         except Exception as e:
             logger.error('AI assistant: ' + ''.join(traceback.format_exception(e)))
             provider_msg = self._provider_error_message(e)
@@ -917,10 +1027,6 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         if not self._uses_system_token() and not self.config.get('token'):
             await self.state_error({'msg': _f('Please enter your API key first.'), 'header': _f('AI assistant'),
                                     'scope': 'token'}, id)
-            return
-        if not self._count_request():
-            await self.state_error({'msg': _f('You have reached the daily limit of AI requests.'),
-                                    'header': _f('AI assistant')}, id)
             return
 
         if self.pending:
@@ -977,7 +1083,9 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     async def _action_results(self, id, results):
         if not self.pending or id != self.pending['id']:
-            raise ValueError('There are no pending actions with this id')
+            # Late results of actions that a new prompt cancelled (or a confused client): nothing to continue
+            logger.debug(f'AI assistant: ignored action_results for request {id!r}')
+            return
         missing = set(self.pending['tool_use_ids']) - set(self.pending['results'])
         results = {r.get('tool_use_id'): r for r in results or [] if isinstance(r, dict)}
         if set(results) != missing:
@@ -1026,8 +1134,11 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         'name', 'input'}], 'stop': 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal', 'message'}``; ``message`` is
         the assistant message to keep in the conversation.
         """
+        # Every model request is billed, also the ones after action rounds: each one counts against the limit
+        if not await self._count_request():
+            raise AiLimitError()
         if self.system_prompt is None:
-            self.system_prompt = await sync_to_async(self._system_prompt)()
+            self.system_prompt = await sync_to_async(self._cached_system_prompt)()
         if self._config('provider') == 'openai-compatible':
             return await self._stream_openai(id, final)
         return await self._stream_anthropic(id, final)
@@ -1093,7 +1204,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                 call = calls.setdefault(part.index, {'id': None, 'name': '', 'arguments': ''})
                 call['id'] = part.id or call['id']
                 if part.function:
-                    call['name'] += part.function.name or ''
+                    # The name comes complete; some servers repeat it in every piece of the call
+                    call['name'] = call['name'] or part.function.name or ''
                     call['arguments'] += part.function.arguments or ''
             finish_reason = choice.finish_reason or finish_reason
         tool_uses = []
@@ -1117,9 +1229,12 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
     def _client(self):
         if self.client is None:
             api_key = None if self._uses_system_token() else self.config.get('token')
-            options = dict(base_url=self._config('base_url') or None,
-                           timeout=float(self._setting('SDC_AI_TIMEOUT', 600)),
+            timeout = float(self._setting('SDC_AI_TIMEOUT', 600))
+            options = dict(base_url=self._config('base_url') or None, timeout=timeout,
                            max_retries=int(self._setting('SDC_AI_MAX_RETRIES', 2)))
+            if self.config.get('base_url'):
+                # A URL entered by the user: every connection is checked for public addresses (SSRF)
+                options['http_client'] = _ai_public_http_client(timeout)
             # With the system token the SDKs read their key (ANTHROPIC_API_KEY / OPENAI_API_KEY) from the environment
             if self._config('provider') == 'openai-compatible':
                 try:
@@ -1136,22 +1251,38 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                 self.client = anthropic.AsyncAnthropic(api_key=api_key, **options)
         return self.client
 
-    def _count_request(self):
-        """Counts a request on the system's key against ``SDC_AI_MAX_REQUESTS_PER_USER``; False if over."""
+    async def _count_request(self):
+        """
+        Counts a model request on the system's key against ``SDC_AI_MAX_REQUESTS_PER_USER``; False if over.
+        Uses Django's async cache API (the sync one blocks the event loop or fails, e.g. with ``DatabaseCache``).
+        """
         limit = self._setting('SDC_AI_MAX_REQUESTS_PER_USER')
         user = self.scope.get('user')
         if not limit or not self._uses_system_token() or not (user and user.is_authenticated):
             return True
         key = f'sdc_ai_requests:{user.pk}:{datetime.date.today().isoformat()}'
-        cache.add(key, 0, timeout=60 * 60 * 24)
+        await cache.aadd(key, 0, timeout=60 * 60 * 24)
         try:
-            count = cache.incr(key)
+            count = await cache.aincr(key)
         except ValueError:  # expired between add and incr
-            cache.set(key, 1, timeout=60 * 60 * 24)
+            await cache.aset(key, 1, timeout=60 * 60 * 24)
             count = 1
         return count <= limit
 
     # ---------------------------------------------------------------- prompt
+    @classmethod
+    def _cached_system_prompt(cls):
+        """
+        ``_system_prompt``, built once per process: the skill files are fixed per deployment. With ``DEBUG`` it is
+        rebuilt for every connection, so edited skill files apply after a page reload.
+        """
+        global _ai_system_prompt
+        if settings.DEBUG:
+            return cls._system_prompt()
+        if _ai_system_prompt is None:
+            _ai_system_prompt = cls._system_prompt()
+        return _ai_system_prompt
+
     @staticmethod
     def _system_prompt():
         prompt = getattr(settings, 'AI_DEFAULT_SYSTEM_PROMPT', None) or AI_DEFAULT_SYSTEM_PROMPT

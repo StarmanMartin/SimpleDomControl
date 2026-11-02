@@ -83,7 +83,8 @@ class Command(BaseCommand):
         try:
             from playwright.sync_api import sync_playwright
         except ImportError:
-            raise CommandError('playwright is not installed: pip install playwright && playwright install chromium')
+            raise CommandError('sdc_teach needs playwright: pip install "simpledomcontrol[teach]" && '
+                               'playwright install chromium')
 
         output = ops['output'] or os.path.join(options.PROJECT_ROOT, 'SDC_SKILL.md')
         if ops['user'] and ops['password'] is None:

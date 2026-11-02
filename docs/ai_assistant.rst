@@ -96,8 +96,11 @@ With their own key, users can choose the provider, API URL, model, effort and
 maximum answer length in the settings menu. Changing the provider starts a new
 conversation. A user's API URL must be ``https`` and resolve only to public
 addresses (no ``localhost`` or private networks), because the server sends the
-requests with the key there; ``SDC_AI_ALLOW_USER_BASE_URL = False`` disables
-the field.
+requests with the key there. The check runs when the settings are saved and
+again for every connection to the API, which goes to exactly the checked
+address (no proxies from the environment, no redirects), so a host name whose
+DNS answer changes later cannot reach internal addresses either.
+``SDC_AI_ALLOW_USER_BASE_URL = False`` disables the field.
 
 When the provider rejects a request (wrong key, URL, model or API format), the
 user sees the HTTP status, the requested URL and a hint, and the settings menu
@@ -136,7 +139,8 @@ same name.
        always are. ``None``: all users.
    * - ``SDC_AI_MAX_REQUESTS_PER_USER``
      - ``100``
-     - Prompts per user and day on the server's key; ``None``: unlimited.
+     - Model requests per user and day on the server's key (a prompt whose
+       answer uses tools makes one request per tool round); ``None``: unlimited.
        Counted in Django's cache: use a shared cache (e.g. Redis) when you run
        several server processes.
    * - ``SDC_AI_PROVIDER``
@@ -184,8 +188,9 @@ The system prompt of every conversation consists of:
 3. the files of ``SDC_AI_ADDITIONAL_SKILL_FILE``, e.g. a hand-written
    description of your workflows. Missing files are logged and skipped.
 
-The prompt is built when the connection opens, so changes apply after a page
-reload.
+The prompt is built once per server process; restart the server after changing
+the skill files. With ``DEBUG = True`` it is rebuilt for every connection, so
+changes apply after a page reload.
 
 
 What the assistant can do
@@ -210,9 +215,10 @@ The assistant acts through tools that run in the browser:
     The values are saved when the user saves the form (or changes another field
     of an auto-saving edit form).
 ``model_get``, ``model_load``
-    Read one record by id, or up to 50 records with an optional filter. They use
-    the normal model WebSocket, so ``is_authorised`` and ``get_queryset`` of the
-    model apply.
+    Read one record by id, or up to 50 records with an optional filter (the
+    server loads only these, using ``SdcQuerySet.load(query, {limit})``). They
+    use the normal model WebSocket, so ``is_authorised`` and ``get_queryset`` of
+    the model apply.
 
 Password, hidden and file fields are never read or filled. A response may use
 tools in up to five rounds; then the model has to answer.
@@ -226,6 +232,9 @@ The panel
 - Drag the header to move it and the edges or corners to resize it; the browser
   remembers position and size. A double click on the header docks it at the
   right edge again.
+- While an answer is running, a new question cannot be sent (the send button
+  is disabled), so the assistant never acts on a page the user has moved on
+  from.
 - Answers are shown as formatted Markdown. Links to SDC views open in the
   ``sdc-navigator``. The model's text is never inserted as HTML.
 - Enter sends, Shift+Enter adds a line break.
@@ -241,6 +250,10 @@ Privacy and security
 - The assistant cannot exceed the user's rights: page actions run in the user's
   browser, model access goes through the model's permission checks.
 - Keys entered by users stay in the server's memory for the open connection.
+- The assistant's WebSocket only accepts connections from pages of your site:
+  a browser's ``Origin`` header must match ``ALLOWED_HOSTS``, so other sites
+  cannot use the assistant with a visitor's session. New projects check this
+  for all SDC WebSockets (``AllowedHostsOriginValidator`` in ``asgi.py``).
 
 
 The WebSocket protocol
@@ -254,7 +267,8 @@ Client to server:
 ``{"event": "prompt", "id": <id>, "prompt": "..."}``
     Ask; the conversation is kept per connection.
 ``{"event": "action_results", "id": <id>, "results": [{"tool_use_id", "content", "is_error"}]}``
-    One result per action of an ``ai_actions`` message.
+    One result per action of an ``ai_actions`` message. Results for another
+    request (e.g. of actions cancelled by a new prompt) are ignored.
 ``{"event": "set_config", "provider", "token", "base_url", "model", "effort", "max_tokens", "clear_token"}``
     The user's connection settings (own key only). Empty fields use the project
     settings; an empty ``token`` keeps the current key.

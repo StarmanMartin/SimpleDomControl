@@ -131,7 +131,8 @@ SDC_AI_TOKEN_FROM_SYSTEM = False
 SDC_AI_REQUIRE_LOGIN = False
 # Optional list of group names allowed to use the assistant (staff and superusers always are); None = all users.
 SDC_AI_ALLOWED_GROUPS = None
-# Optional cap of assistant requests per user and day on the system's key; None = unlimited.
+# Optional cap of model requests per user and day on the system's key (every tool round of an answer
+# is a request); None = unlimited.
 SDC_AI_MAX_REQUESTS_PER_USER = 100
 # AI model connection. The server's API key stays an environment variable read by the provider SDK
 # (ANTHROPIC_API_KEY or OPENAI_API_KEY); never put it here.

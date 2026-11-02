@@ -52,6 +52,8 @@ class SdcAiAssistantController extends AbstractSDC {
         this.contentUrl = "/sdc_view/sdc_tools/sdc_ai_assistant"; //<sdc-ai-assistant></sdc-ai-assistant>
         this._socket = null;
         this._requestId = 0;
+        // A request is running (from the prompt until its ai_answer or error): no new prompt until it ends
+        this._busy = false;
         // Answer bubble the streamed text of the current request goes into, and its Markdown source
         this._$answer = null;
         this._answerText = '';
@@ -154,6 +156,7 @@ class SdcAiAssistantController extends AbstractSDC {
         this._socket.onmessage = (e) => this._onMessage(JSON.parse(e.data));
         this._socket.onclose = () => {
             this._socket = null;
+            this._setBusy(false);
             this._setStatus('disconnected');
         };
     }
@@ -173,13 +176,24 @@ class SdcAiAssistantController extends AbstractSDC {
         if (!prompt) {
             return;
         }
+        if (this._busy) {
+            // The server would cancel the running actions while the browser still runs them
+            this._setStatus('please wait for the answer…');
+            return;
+        }
         this._requestId += 1;
         if (this._send({event: 'prompt', id: this._requestId, prompt})) {
             $textarea.val('');
             this._addMessage('user', prompt);
             this._$answer = null;
+            this._setBusy(true);
             this._setStatus('thinking…');
         }
+    }
+
+    _setBusy(busy) {
+        this._busy = busy;
+        this.find('.ai-prompt-form [type="submit"]').prop('disabled', busy);
     }
 
     async _onMessage(data) {
@@ -195,11 +209,15 @@ class SdcAiAssistantController extends AbstractSDC {
         } else if (data.type === 'ai_actions') {
             // Text of the next round goes into a new bubble below the actions
             this._finishAnswer();
-            const results = await this._runActions(data.actions);
+            const results = await this._runActions(data.actions, data.id);
+            if (results === null) {
+                return;  // the request ended (disconnected or replaced) while its actions ran
+            }
             this._send({event: 'action_results', id: data.id, results});
             this._setStatus('thinking…');
         } else if (data.type === 'ai_answer') {
             this._finishAnswer();
+            this._setBusy(false);
             this._setStatus('');
         } else if (data.type === 'error') {
             // A partial answer of this request is discarded
@@ -208,6 +226,9 @@ class SdcAiAssistantController extends AbstractSDC {
                 this._$answer = null;
             }
             this._addMessage('error', data.msg || data.header || 'Error');
+            if (data.id === this._requestId) {
+                this._setBusy(false);
+            }
             this._setStatus('');
             if (data.scope === 'settings') {
                 // The saved values were rejected; the server still uses the previous ones
@@ -324,12 +345,19 @@ class SdcAiAssistantController extends AbstractSDC {
     /**
      * Runs the actions in order and returns one result per action for the server.
      *
+     * Stops (and returns null) as soon as request ``id`` is no longer the current one or the connection is gone,
+     * so no action runs on a page the server no longer expects.
+     *
      * @param {Array<{tool_use_id: string, name: string, input: object}>} actions
-     * @returns {Promise<Array<{tool_use_id: string, content: *, is_error: boolean}>>}
+     * @param {number} id request the actions belong to
+     * @returns {Promise<Array<{tool_use_id: string, content: *, is_error: boolean}>|null>}
      */
-    async _runActions(actions) {
+    async _runActions(actions, id = this._requestId) {
         const results = [];
         for (const action of actions) {
+            if (id !== this._requestId || !this._socket) {
+                return null;
+            }
             this._addMessage('action', this._describeAction(action));
             try {
                 const handler = this._actions[action.name];
@@ -392,12 +420,13 @@ class SdcAiAssistantController extends AbstractSDC {
 
     _modelLoad({model, filter}) {
         return this._withQuerySet(model, filter, async (querySet) => {
-            await querySet.load();
-            const records = querySet.valuesList.map((x) => this._record(x));
+            // The server sends at most one record more than needed: enough to know that there are more
+            await querySet.load(null, {limit: MAX_LOADED_RECORDS + 1});
+            const records = querySet.valuesList.slice(0, MAX_LOADED_RECORDS).map((x) => this._record(x));
             return {
                 count: records.length,
-                records: records.slice(0, MAX_LOADED_RECORDS),
-                truncated: records.length > MAX_LOADED_RECORDS,
+                records,
+                truncated: querySet.valuesList.length > MAX_LOADED_RECORDS,
             };
         });
     }

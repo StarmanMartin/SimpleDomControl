@@ -30,11 +30,12 @@ verbatim (see `Documenting models and controllers`_).
 Creating the skill file: ``sdc_teach``
 --------------------------------------
 
-``sdc_teach`` needs Playwright and a Chromium browser. Playwright is installed
-with SDC; the browser once with:
+``sdc_teach`` needs Playwright and a Chromium browser. Both are only needed
+where you run the command (development), not in production:
 
 .. code-block:: sh
 
+    $ pip install "simpledomcontrol[teach]"
     $ playwright install chromium
 
 If no Chromium is installed, an installed Google Chrome is used, or the browser

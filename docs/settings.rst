@@ -254,7 +254,23 @@ Websocket routes
 ^^^^^^^^^^^^^^^^
 
 ``sdc_init`` writes ``<project>/routing.py``. ``asgi.py`` wraps these routes in
-``AuthMiddlewareStack``, so the consumers see the logged-in Django user.
+``AuthMiddlewareStack``, so the consumers see the logged-in Django user, and in
+``AllowedHostsOriginValidator``: browsers may only open them from pages whose
+origin is in ``ALLOWED_HOSTS``, so other sites cannot use them with a visitor's
+session. Connections without an ``Origin`` header are rejected unless
+``ALLOWED_HOSTS`` contains ``'*'`` (as with ``DEBUG``). Projects created with
+version 0.159.0 or older lack the validator; add it to their *asgi.py*:
+
+.. code-block:: python
+
+   from channels.security.websocket import AllowedHostsOriginValidator
+
+   application = ProtocolTypeRouter({
+       "http": get_asgi_application(),
+       "websocket": AllowedHostsOriginValidator(
+           AuthMiddlewareStack(URLRouter(routing.websocket_urlpatterns))
+       ),
+   })
 
 ``sdc_ws/ws/``
     ``SDCConsumer``. Used for ``serverCall`` when

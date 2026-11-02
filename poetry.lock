@@ -746,9 +746,10 @@ typing = ["typing-extensions (>=4.12.2) ; python_version < \"3.11\""]
 name = "greenlet"
 version = "3.5.6"
 description = "Lightweight in-process concurrent programming"
-optional = false
+optional = true
 python-versions = ">=3.10"
 groups = ["main"]
+markers = "extra == \"teach\""
 files = [
     {file = "greenlet-3.5.6-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:95e7c44d072db623a1aab04ce488cf9533294a77ed9d072cd503a3596f4106ac"},
     {file = "greenlet-3.5.6-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:b7d501d5eb5d4f67207df364752ad697465b834268744be7581c18d81d35d41d"},
@@ -1548,9 +1549,10 @@ type = ["mypy (>=1.14.1)"]
 name = "playwright"
 version = "1.64.0"
 description = "A high-level API to automate web browsers"
-optional = false
+optional = true
 python-versions = ">=3.10"
 groups = ["main"]
+markers = "extra == \"teach\""
 files = [
     {file = "playwright-1.64.0-py3-none-macosx_10_13_x86_64.whl", hash = "sha256:d76a501c9930b5a097b00e2448cda2200122a1e8e4be762ff535c1b076277737"},
     {file = "playwright-1.64.0-py3-none-macosx_11_0_arm64.whl", hash = "sha256:8de42430e9a7c8b04ec963856d484d36ffd452882318ebad2df3e6fb49a8197a"},
@@ -1897,9 +1899,10 @@ typing-extensions = ">=4.16.0"
 name = "pyee"
 version = "14.0.0"
 description = "A rough port of Node.js's EventEmitter to Python with a few tricks of its own"
-optional = false
+optional = true
 python-versions = ">=3.12"
 groups = ["main"]
+markers = "extra == \"teach\""
 files = [
     {file = "pyee-14.0.0-py3-none-any.whl", hash = "sha256:3ac2d3229a9677f7de2c33d7f52fe25b638a46b19c413fea2edc8c6d0a644e4d"},
     {file = "pyee-14.0.0.tar.gz", hash = "sha256:76dd0f4314ecd27f02dc73589dea7fd3853f9b6176d8ef9b122860657e3602de"},
@@ -2927,8 +2930,9 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [extras]
 ai = ["anthropic", "openai"]
 postgres = ["psycopg2-binary"]
+teach = ["playwright"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "7b82c486da16ddbfc6be804b52967a3505807fc2e302226d3e250e1ed867c18f"
+content-hash = "b4e7fc35c21978ef42f6256ae5a002699f57467789da61def34237a326b87fff"
