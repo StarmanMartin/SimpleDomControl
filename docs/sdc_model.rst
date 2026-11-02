@@ -904,10 +904,10 @@ field holds a JavaScript type:
    * - other types
      - unchanged, not validated
 
-Dates (0.159.0)
+Dates (0.160.0)
 ~~~~~~~~~~~~~~~
 
-Since 0.159.0 ``DateField`` and ``DateTimeField`` values are ``Date`` objects
+Since 0.160.0 ``DateField`` and ``DateTimeField`` values are ``Date`` objects
 (previously numeric timestamps):
 
 - Reading: values are converted with ``toDate()``. Empty or invalid values

@@ -554,7 +554,7 @@ The target directory must not exist or be empty.
     Name of the project, a valid Python identifier (asked for if missing).
 ``--package``
     pip requirement to install instead of the running version, e.g. a path to a
-    wheel or ``simpledomcontrol==0.159.0``.
+    wheel or ``simpledomcontrol==0.160.0``.
 ``--skip-npm``
     Do not run ``npm install`` (it is also skipped with a hint if ``npm`` is not
     found).

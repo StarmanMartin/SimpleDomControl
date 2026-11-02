@@ -246,7 +246,7 @@ Daphne serves HTTP and websockets on one port. It does not serve the files in
 
 .. note::
 
-   Projects created with versions before 0.159.0 have
+   Projects created with versions before 0.160.0 have
    ``os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ElnAdapter.settings')`` in
    their *asgi.py*. Change it to ``'<project>.settings'``.
 
@@ -259,7 +259,7 @@ Websocket routes
 origin is in ``ALLOWED_HOSTS``, so other sites cannot use them with a visitor's
 session. Connections without an ``Origin`` header are rejected unless
 ``ALLOWED_HOSTS`` contains ``'*'`` (as with ``DEBUG``). Projects created with
-version 0.159.0 or older lack the validator; add it to their *asgi.py*:
+version 0.160.0 or older lack the validator; add it to their *asgi.py*:
 
 .. code-block:: python
 
