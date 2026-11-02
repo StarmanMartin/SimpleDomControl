@@ -1,4 +1,4 @@
-import {AbstractSDC, app} from 'sdc_client';
+import {AbstractSDC, app, trigger} from 'sdc_client';
 
 
 /**
@@ -6,6 +6,7 @@ import {AbstractSDC, app} from 'sdc_client';
  *
  * - No arguments and no login needed. Enter the username or the e-mail address of the account.
  * - "Send E-mail" sends an e-mail with a link to `<sdc-reset-password>` to the account's address; the link is valid for 3 days and can be used once.
+ * - An empty input only shows a hint, no request is sent.
  * - Shows "User not found" if no account (or more than one) matches, and an error if the e-mail could not be sent.
  */
 class SdcPasswordForgottenController extends AbstractSDC {
@@ -59,6 +60,10 @@ class SdcPasswordForgottenController extends AbstractSDC {
 
     send_email() {
         const mail = this.find('#id_username').val();
+        if (!mail || !mail.trim()) {
+            trigger('pushErrorMsg', 'Upss!', 'Please enter your username or e-mail address.');
+            return;
+        }
         this.serverCall('send_email', {mail})
 
     }
