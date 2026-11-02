@@ -517,8 +517,10 @@ def test_request_counter_does_not_block_the_event_loop(monkeypatch):
             raise AssertionError('sync cache call in the event loop')
         return call
 
+    # Patch the backend class: ``cache`` is a proxy with one backend object per thread/context
+    backend = type(cache._connections[cache._alias] if hasattr(cache, '_connections') else cache)
     for name in ('add', 'incr', 'set'):
-        monkeypatch.setattr(cache, name, sync_only(getattr(cache, name)))
+        monkeypatch.setattr(backend, name, sync_only(getattr(backend, name)))
     with override_settings(**AI | {'SDC_AI_MAX_REQUESTS_PER_USER': 5}):
         _, received = run(_user(pk=45), [{'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], FakeClient(), monkeypatch)
     assert received[-1]['type'] == 'ai_answer'
