@@ -19,6 +19,10 @@ const SECRET_TYPES = ['password', 'hidden', 'file'];
 const SETTINGS_STORAGE_KEY = 'sdc_ai_settings';
 const TOKEN_STORAGE_KEY = 'sdc_ai_token';
 const SETTING_FIELDS = ['provider', 'base_url', 'model', 'effort', 'max_tokens'];
+// Position and size of the moved/resized window, kept in localStorage
+const WINDOW_STORAGE_KEY = 'sdc_ai_window';
+const MIN_WINDOW_WIDTH = 280;
+const MIN_WINDOW_HEIGHT = 240;
 
 
 /**
@@ -37,6 +41,8 @@ const SETTING_FIELDS = ['provider', 'base_url', 'model', 'effort', 'max_tokens']
  *   conversation. "Remember on this device" keeps the settings in the browser, the key only until the tab is closed.
  * - The panel starts collapsed at the right edge of the page; a click on it (or "⇆") expands it, "⇆" collapses it
  *   again. It opens by itself when the settings need the user's API key.
+ * - Dragging the header moves the panel and dragging its edges or corners resizes it (kept in the browser);
+ *   a double-click on the header docks it at the right edge again.
  */
 class SdcAiAssistantController extends AbstractSDC {
 
@@ -53,6 +59,9 @@ class SdcAiAssistantController extends AbstractSDC {
         this._restored = false;
         // A set_config of the settings menu waits for the server's answer
         this._savingSettings = false;
+        // {left, top, width, height} once the user moved or resized the window; null = docked at the right edge
+        this._geometry = null;
+        this._onWindowResize = () => this._applyGeometry();
 
         // Actions the assistant may run (tool names of SDCAiConsumer, see sdc_core/consumers.py)
         // SdcModels are read-only: there are no actions to create, change or delete records
@@ -93,9 +102,9 @@ class SdcAiAssistantController extends AbstractSDC {
             'click': {
                 '.ai-toggle': (_$elm, e) => {
                     e.stopPropagation();
-                    this.find('.ai-conversation-container').toggleClass('collapsed');
+                    this._setCollapsed(!this.find('.ai-conversation-container').hasClass('collapsed'));
                 },
-                '.ai-conversation-container': ($elm) => $elm.hasClass('collapsed') && $elm.removeClass('collapsed'),
+                '.ai-conversation-container': ($elm) => $elm.hasClass('collapsed') && this._setCollapsed(false),
                 '.ai-settings-toggle': () => this._showSettings(this.find('.ai-settings-form').hasClass('d-none')),
                 '.ai-settings-cancel': () => this._showSettings(false),
             },
@@ -111,6 +120,7 @@ class SdcAiAssistantController extends AbstractSDC {
         });
         // The template is empty when the assistant is disabled on the server
         if (this.find('.ai-conversation-container').length) {
+            this._setUpWindow();
             this._connect();
         }
         return super.willShow();
@@ -121,6 +131,7 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     onRemove() {
+        window.removeEventListener('resize', this._onWindowResize);
         if (this._socket) {
             this._socket.onclose = null;
             this._socket.close();
@@ -249,7 +260,7 @@ class SdcAiAssistantController extends AbstractSDC {
     _showSettings(show) {
         if (show) {
             this._renderSettings();
-            this.find('.ai-conversation-container').removeClass('collapsed');
+            this._setCollapsed(false);
         }
         this.find('.ai-settings-form').toggleClass('d-none', !show);
     }
@@ -608,6 +619,138 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         fields[0].value = value === null || value === undefined ? '' : String(value);
         return [fields[0]];
+    }
+
+    //-------------------------------------------------//
+    // Window: move, resize, dock                      //
+    //-------------------------------------------------//
+
+    _setUpWindow() {
+        const container = this.find('.ai-conversation-container')[0];
+        const header = this.find('.ai-header')[0];
+        try {
+            this._geometry = JSON.parse(window.localStorage.getItem(WINDOW_STORAGE_KEY) || 'null');
+        } catch (e) {
+            this._geometry = null;  // storage blocked or corrupt: docked
+        }
+        // Pointer events cover mouse, pen and touch; the SDC event list has no pointer events
+        header.addEventListener('pointerdown', (ev) => {
+            // The header's buttons keep working
+            if (!ev.target.closest('button, input, select, a')) {
+                this._startPointerAction(ev, null);
+            }
+        });
+        // A double click docks the window at the right edge again
+        header.addEventListener('dblclick', (ev) => {
+            if (!ev.target.closest('button')) {
+                this._saveGeometry(null);
+            }
+        });
+        for (const dir of ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw']) {
+            const handle = document.createElement('div');
+            handle.className = `ai-resize ai-resize-${dir}`;
+            handle.setAttribute('aria-hidden', 'true');
+            handle.addEventListener('pointerdown', (ev) => this._startPointerAction(ev, dir));
+            container.appendChild(handle);
+        }
+        window.addEventListener('resize', this._onWindowResize);
+        this._applyGeometry();
+    }
+
+    _setCollapsed(collapsed) {
+        this.find('.ai-conversation-container').toggleClass('collapsed', collapsed);
+        // The collapsed tab always sits at the right edge; the moved window comes back when expanded
+        this._applyGeometry();
+    }
+
+    /**
+     * Moves (``dir`` null) or resizes (``dir``: edges such as "n", "se") the window while the pointer is down.
+     * The first move or resize turns the docked panel into a floating window.
+     */
+    _startPointerAction(ev, dir) {
+        const $container = this.find('.ai-conversation-container');
+        if (ev.button !== 0 || $container.hasClass('collapsed')) {
+            return;
+        }
+        ev.preventDefault();
+        const rect = $container[0].getBoundingClientRect();
+        const start = {x: ev.clientX, y: ev.clientY, left: rect.left, top: rect.top, width: rect.width, height: rect.height};
+        $container.addClass('dragging');
+
+        const onMove = (e) => {
+            const dx = e.clientX - start.x, dy = e.clientY - start.y;
+            let {left, top, width, height} = start;
+            if (!dir) {
+                left += dx;
+                top += dy;
+            } else {
+                if (dir.includes('e')) width += dx;
+                if (dir.includes('s')) height += dy;
+                if (dir.includes('w')) {
+                    // The right edge stays where it is
+                    width = Math.max(MIN_WINDOW_WIDTH, width - dx);
+                    left = start.left + start.width - width;
+                }
+                if (dir.includes('n')) {
+                    height = Math.max(MIN_WINDOW_HEIGHT, height - dy);
+                    top = start.top + start.height - height;
+                }
+            }
+            this._geometry = {left, top, width, height};
+            this._applyGeometry();
+        };
+        const onUp = () => {
+            document.removeEventListener('pointermove', onMove);
+            document.removeEventListener('pointerup', onUp);
+            document.removeEventListener('pointercancel', onUp);
+            $container.removeClass('dragging');
+            this._saveGeometry(this._geometry);
+        };
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+        document.addEventListener('pointercancel', onUp);
+    }
+
+    /** Keeps the window inside the viewport and at least ``MIN_WINDOW_*`` large. */
+    _clampGeometry({left, top, width, height}) {
+        const maxWidth = window.innerWidth, maxHeight = window.innerHeight;
+        width = Math.min(Math.max(width, Math.min(MIN_WINDOW_WIDTH, maxWidth)), maxWidth);
+        height = Math.min(Math.max(height, Math.min(MIN_WINDOW_HEIGHT, maxHeight)), maxHeight);
+        return {
+            width, height,
+            left: Math.min(Math.max(left, 0), maxWidth - width),
+            top: Math.min(Math.max(top, 0), maxHeight - height),
+        };
+    }
+
+    _applyGeometry() {
+        const $container = this.find('.ai-conversation-container');
+        if (!$container.length) {
+            return;
+        }
+        const floating = this._geometry && !$container.hasClass('collapsed');
+        $container.toggleClass('floating', !!floating);
+        if (!floating) {
+            $container.css({left: '', top: '', width: '', height: '', right: ''});
+            return;
+        }
+        this._geometry = this._clampGeometry(this._geometry);
+        const {left, top, width, height} = this._geometry;
+        $container.css({left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`, right: 'auto'});
+    }
+
+    _saveGeometry(geometry) {
+        this._geometry = geometry;
+        this._applyGeometry();
+        try {
+            if (geometry) {
+                window.localStorage.setItem(WINDOW_STORAGE_KEY, JSON.stringify(this._geometry));
+            } else {
+                window.localStorage.removeItem(WINDOW_STORAGE_KEY);
+            }
+        } catch (e) {
+            // Storage blocked (private mode): the position only applies to this page
+        }
     }
 
     //-------------------------------------------------//

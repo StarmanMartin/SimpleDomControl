@@ -206,6 +206,61 @@ describe('SdcAiAssistant', () => {
         expect($div.length).toBeGreaterThan(0);
     });
 
+    describe('window', () => {
+        const pointer = (el, type, x, y) => el.dispatchEvent(new MouseEvent(type, {bubbles: true, button: 0, clientX: x, clientY: y}));
+        let $container, header;
+
+        beforeEach(() => {
+            window.localStorage.removeItem('sdc_ai_window');
+            controller._saveGeometry(null);
+            controller._setCollapsed(false);
+            $container = controller.find('.ai-conversation-container');
+            header = controller.find('.ai-header')[0];
+            // jsdom has no layout: the docked window is 360 x 700 at the right edge of the 1024 x 768 viewport
+            $container[0].getBoundingClientRect = () => ({left: 664, top: 0, width: 360, height: 700});
+        });
+
+        test('dragging the header moves the window and keeps it', () => {
+            pointer(header, 'pointerdown', 700, 10);
+            pointer(document, 'pointermove', 500, 60);
+            expect($container.hasClass('dragging')).toBe(true);
+            pointer(document, 'pointerup', 500, 60);
+            expect($container.hasClass('floating') && !$container.hasClass('dragging')).toBe(true);
+            expect($container[0].style.left).toBe('464px');
+            expect($container[0].style.top).toBe('50px');
+            expect(JSON.parse(window.localStorage.getItem('sdc_ai_window'))).toEqual({left: 464, top: 50, width: 360, height: 700});
+        });
+
+        test('resizing keeps the opposite edge and the minimum size, the window stays in the viewport', () => {
+            pointer(controller.find('.ai-resize-w')[0], 'pointerdown', 664, 300);
+            pointer(document, 'pointermove', 464, 300);
+            pointer(document, 'pointerup', 464, 300);
+            expect(controller._geometry).toEqual({left: 464, top: 0, width: 560, height: 700});
+            pointer(controller.find('.ai-resize-w')[0], 'pointerdown', 464, 300);
+            $container[0].getBoundingClientRect = () => ({left: 464, top: 0, width: 560, height: 700});
+            pointer(document, 'pointermove', 1000, 300);
+            pointer(document, 'pointerup', 1000, 300);
+            expect(controller._geometry.width).toBe(280);
+            expect(controller._geometry.left).toBe(1024 - 280);
+            expect(controller._clampGeometry({left: 900, top: -20, width: 400, height: 2000}))
+                .toEqual({left: 624, top: 0, width: 400, height: 768});
+        });
+
+        test('collapsing docks the tab, expanding restores the window; a double click docks it', () => {
+            controller._saveGeometry({left: 10, top: 10, width: 300, height: 300});
+            controller._setCollapsed(true);
+            expect($container.hasClass('floating')).toBe(false);
+            expect($container[0].style.left).toBe('');
+            pointer(header, 'pointerdown', 20, 20);
+            expect($container.hasClass('dragging')).toBe(false);  // the collapsed tab is not movable
+            controller._setCollapsed(false);
+            expect($container[0].style.left).toBe('10px');
+            header.dispatchEvent(new MouseEvent('dblclick', {bubbles: true}));
+            expect($container.hasClass('floating')).toBe(false);
+            expect(window.localStorage.getItem('sdc_ai_window')).toBe(null);
+        });
+    });
+
     describe('page actions', () => {
         let $page, events, getClientRects;
 
