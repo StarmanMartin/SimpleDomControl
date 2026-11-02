@@ -621,48 +621,57 @@ and its data models (SdcModels).
 
 You can act on the page with your tools. They run in the user's browser with the user's own permissions:
 - `navigate` opens a view, using the `/~view~child~&key=value` paths described in the context.
-- `model_load`, `model_create`, `model_update` and `model_delete` read and change SdcModel records.
+- `read_page` returns the current page: a simplified HTML of what the user sees and a list of its forms with their \
+fields and current values.
+- `fill_form` enters values into the fields of a form of the current page. It does not submit or save the form.
+- `model_get` and `model_load` read SdcModel records. You cannot create, change or delete records yourself.
 
 Rules:
 - Answer briefly in the user's language. Say what you did after you used a tool.
-- Only use views, arguments, models and fields that appear in the context. If something is not there, say so \
-instead of guessing.
-- Load records before you answer questions about data or change existing records.
-- Before deleting records or changing many records, tell the user what you are about to do. The user has to confirm \
-every deletion in the browser.
+- Only use views, arguments, models and fields that appear in the context or on the page. If something is not there, \
+say so instead of guessing.
+- Read the page before you answer questions about it or fill a form; load records before you answer questions about data.
+- A form with the attributes `SdcModelName` and `SdcModelPK` edits a record of that SdcModel (`SdcModelPK` -1: a new \
+record). To create or change records, navigate to the right form, fill it and ask the user to check the values and \
+submit or save it.
+- Only enter values the user asked for or clearly agreed to, never passwords.
 - If a tool returns an error, explain it to the user and do not retry the same call more than once."""
 
 _AI_MODEL = {'type': 'string', 'description': 'Name of the SdcModel, as listed in the context'}
 _AI_ID = {'type': 'integer', 'description': 'Primary key (id) of the record'}
-# Client tools: the server forwards the calls to the browser, which runs them and sends the results back
+# Client tools: the server forwards the calls to the browser, which runs them and sends the results back.
+# SdcModels are read-only for the assistant: there are no tools to create, change or delete records.
 AI_TOOLS = [
     {'name': 'navigate',
      'description': 'Open a view of this website in the browser, e.g. "/~main-view~book-edit~&pk=3". Paths and '
                     'arguments follow the SDC navigation rules described in the context; ".." goes one view up.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['path'],
                       'properties': {'path': {'type': 'string', 'description': 'SDC path, starting with "/~"'}}}},
+    {'name': 'read_page',
+     'description': 'Read the current page: URL, title, a simplified HTML of the visible content and all forms '
+                    '(index, SdcModelName/SdcModelPK if it is an SdcModel form, fields with name, type, label, '
+                    'current value and options). Password values are never returned.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'properties': {}}},
+    {'name': 'fill_form',
+     'description': 'Enter values into the fields of a form of the current page (input, textarea, select, '
+                    'checkbox, radio), like the user typing them. The form is not submitted and nothing is saved. '
+                    'Passwords, hidden and file fields cannot be filled. Returns the values that were set.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['form', 'values'],
+                      'properties': {
+                          'form': {'type': 'integer', 'description': 'Index of the form as returned by read_page'},
+                          'values': {'type': 'object', 'description': 'Field name -> value; true/false for '
+                                     'checkboxes, the option value or text for selects and radios, a list for '
+                                     'multiple selects'}}}},
+    {'name': 'model_get',
+     'description': 'Read one record of an SdcModel by its id, if the user is allowed to see it.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id'],
+                      'properties': {'model': _AI_MODEL, 'id': _AI_ID}}},
     {'name': 'model_load',
      'description': 'Load records of an SdcModel that the user is allowed to see. Returns at most 50 records.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model'],
                       'properties': {'model': _AI_MODEL,
                                      'filter': {'type': 'object', 'description': 'Django field lookups, '
                                                 'e.g. {"author__name": "Jane"}; omit to load all records'}}}},
-    {'name': 'model_create',
-     'description': 'Create a record of an SdcModel. Returns the new record or the form errors.',
-     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'data'],
-                      'properties': {'model': _AI_MODEL,
-                                     'data': {'type': 'object', 'description': 'Field values of the new record'}}}},
-    {'name': 'model_update',
-     'description': 'Change fields of an existing record of an SdcModel. Returns the saved record or the form '
-                    'errors.',
-     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id', 'data'],
-                      'properties': {'model': _AI_MODEL, 'id': _AI_ID,
-                                     'data': {'type': 'object', 'description': 'Only the fields to change'}}}},
-    {'name': 'model_delete',
-     'description': 'Delete a record of an SdcModel. The user has to confirm it in the browser; a declined '
-                    'deletion returns an error.',
-     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id'],
-                      'properties': {'model': _AI_MODEL, 'id': _AI_ID}}},
 ]
 _AI_JSON_TYPES = {'string': str, 'integer': int, 'object': dict}
 

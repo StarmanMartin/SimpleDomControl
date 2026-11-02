@@ -112,8 +112,8 @@ def test_prompt_streams_answer_and_keeps_history(monkeypatch):
     assert first['output_config'] == {'effort': 'medium'}
     assert first['system'][0]['text'].startswith('You are the assistant of this website')
     assert 'https://simpledomcontrol.readthedocs.io/en/latest/' in first['system'][0]['text']
-    assert [t['name'] for t in first['tools']] == ['navigate', 'model_load', 'model_create', 'model_update',
-                                                   'model_delete']
+    # SdcModels are read-only for the assistant
+    assert [t['name'] for t in first['tools']] == ['navigate', 'read_page', 'fill_form', 'model_get', 'model_load']
     assert all(t['eager_input_streaming'] for t in first['tools'])
     assert 'tool_choice' not in first
     # The second request carries the first answer with all of its content blocks
@@ -253,7 +253,7 @@ def test_actions_are_sent_and_results_continue_the_answer(monkeypatch):
 
 
 def test_invalid_tool_input_is_answered_by_the_server(monkeypatch):
-    broken = _tool_use('t3', 'model_delete', model='Author')  # id missing, e.g. truncated while streaming
+    broken = _tool_use('t3', 'model_get', model='Author')  # id missing, e.g. truncated while streaming
     client = FakeClient(script=[((), 'tool_use', [broken]), (('Sorry.',), 'end_turn', ())])
     with override_settings(**AI):
         _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Delete'}], client, monkeypatch)
@@ -439,3 +439,22 @@ def test_assistant_view_without_setting():
         del settings.SDC_AI_ASSISTANT
         response = SdcAiAssistant().get_content(RequestFactory().get('/'))
     assert response.status_code == 200 and response.content == b''
+
+
+def test_write_tools_are_rejected(monkeypatch):
+    """Even if a model calls a tool that does not exist (any more), it never reaches the browser."""
+    calls = [SimpleNamespace(type='tool_use', id='t1', name='model_delete', input={'model': 'Author', 'id': 1}),
+             _tool_use('t2', 'fill_form', form='0', values={'name': 'x'}),  # form must be an integer
+             _tool_use('t3', 'fill_form', form=0, values={'name': 'Jane'})]
+    client = FakeClient(script=[((), 'tool_use', calls), (('Done.',), 'end_turn', ())])
+    with override_settings(**AI):
+        _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Delete'},
+                                    {'event': 'action_results', 'id': 1,
+                                     'results': [{'tool_use_id': 't3', 'content': {'set': {'name': 'Jane'}}}]}],
+                          client, monkeypatch)
+    actions = next(m for m in received if m['type'] == 'ai_actions')['actions']
+    assert [a['tool_use_id'] for a in actions] == ['t3']
+    results = client.calls[1]['messages'][-1]['content']
+    assert results[0]['is_error'] and results[0]['content'] == 'Unknown tool model_delete'
+    assert results[1]['is_error'] and 'wrong type' in results[1]['content']
+    assert not results[2]['is_error']
