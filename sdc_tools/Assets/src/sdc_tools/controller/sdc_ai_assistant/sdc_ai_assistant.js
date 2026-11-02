@@ -402,9 +402,24 @@ class SdcAiAssistantController extends AbstractSDC {
     // Page: read_page / fill_form                     //
     //-------------------------------------------------//
 
-    /** Forms of the page without the assistant's own; read_page and fill_form use the same indexes. */
+    /**
+     * Forms of the page without the assistant's own and without those of inactive views: the navigator keeps
+     * previous views (e.g. after opening the current view again) hidden in the page, and their forms are exact
+     * copies of the visible ones. read_page and fill_form use the same indexes.
+     */
     _pageForms() {
-        return [...document.forms].filter((form) => !form.closest('sdc-ai-assistant'));
+        return [...document.forms].filter((form) => !form.closest('sdc-ai-assistant') && this._inActiveView(form));
+    }
+
+    /** False if the element lives in a navigator view container that is not active. */
+    _inActiveView(el) {
+        for (let box = el.closest('.sdc_sub_detail_container'); box;
+             box = box.parentElement?.closest('.sdc_sub_detail_container')) {
+            if (!box.classList.contains('active')) {
+                return false;
+            }
+        }
+        return true;
     }
 
     _readPage() {
@@ -544,6 +559,7 @@ class SdcAiAssistantController extends AbstractSDC {
         return {
             set,
             errors,
+            ...(form.getClientRects().length ? {} : {warning: 'This form is not visible to the user.'}),
             note: isModelForm
                 ? `SdcModel form (${form.getAttribute('SdcModelName')}): nothing is saved; the user has to check the values and submit or save the form.`
                 : 'The form was not submitted; the user has to submit it.',

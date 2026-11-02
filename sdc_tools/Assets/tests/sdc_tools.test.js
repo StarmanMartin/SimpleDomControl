@@ -277,6 +277,28 @@ describe('SdcAiAssistant', () => {
             expect(events).toEqual(['input:q', 'change:q']);
             expect(() => controller._fillForm({form: 99, values: {}})).toThrow('There is no form 99');
         });
+
+        test('forms of inactive views are left out', () => {
+            // The navigator keeps the previous copy of a reopened view hidden in the page
+            const $views = $(`<div>
+                <div class="sdc_sub_detail_container"><form SdcModelName="Book" SdcModelPK="-1">
+                    <input name="title" value="old"></form></div>
+                <div class="sdc_sub_detail_container active"><form SdcModelName="Book" SdcModelPK="-1">
+                    <input name="title" value=""></form></div>
+            </div>`).appendTo($page);
+            const books = controller._readPage().forms.filter((f) => f.sdc_model_name === 'Book');
+            expect(books.length).toBe(1);
+            controller._fillForm({form: books[0].index, values: {title: 'New'}});
+            expect($views.find('.active [name=title]').val()).toBe('New');
+            expect($views.find(':not(.active) > form [name=title]').val()).toBe('old');
+        });
+
+        test('fill_form warns about invisible forms', () => {
+            const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
+            const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));
+            expect(controller._fillForm({form: index, values: {z: '1'}}).warning).toContain('not visible');
+            $hidden.remove();
+        });
     });
 
 });
