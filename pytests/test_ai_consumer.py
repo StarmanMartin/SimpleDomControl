@@ -12,7 +12,7 @@ from channels.testing import WebsocketCommunicator  # noqa: E402
 from django.core.cache import cache  # noqa: E402
 from django.test import override_settings  # noqa: E402
 
-from sdc_core.consumers import AI_TOOLS, SDCAiConsumer  # noqa: E402
+from sdc_core.consumers import AI_TOOLS, SDCAiConsumer, _ai_tool_input_error  # noqa: E402
 
 AI = dict(SDC_AI_ASSISTANT=True, SDC_AI_PROVIDER='anthropic', SDC_AI_TOKEN_FROM_SYSTEM=True,
           SDC_AI_REQUIRE_LOGIN=True, SDC_AI_ALLOWED_GROUPS=None, SDC_AI_MAX_REQUESTS_PER_USER=None,
@@ -261,6 +261,23 @@ def test_invalid_tool_input_is_answered_by_the_server(monkeypatch):
     assert received[-1]['type'] == 'ai_answer'
     result = client.calls[1]['messages'][-1]['content'][0]
     assert result['is_error'] and result['content'].startswith('INVALID_JSON')
+
+
+def test_valid_input_of_every_tool_is_accepted():
+    valid = {'navigate': {'path': '/~main-view'}, 'read_page': {}, 'fill_form': {'form': 0, 'values': {'a': 'b'}},
+             'model_get': {'model': 'Author', 'id': 1}, 'model_load': {'model': 'Author'}}
+    assert sorted(valid) == sorted(t['name'] for t in AI_TOOLS)
+    for name, tool_input in valid.items():
+        assert _ai_tool_input_error(name, tool_input) is None, name
+    assert _ai_tool_input_error('read_page', {'x': 1}).startswith('INVALID_JSON')
+
+
+def test_read_page_action_is_sent_to_the_client(monkeypatch):
+    client = FakeClient(script=[((), 'tool_use', [_tool_use('t1', 'read_page')])])
+    with override_settings(**AI):
+        _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Read'}], client, monkeypatch)
+    actions = next(m for m in received if m['type'] == 'ai_actions')['actions']
+    assert [a['name'] for a in actions] == ['read_page']
 
 
 def test_wrong_action_results_keep_history(monkeypatch):

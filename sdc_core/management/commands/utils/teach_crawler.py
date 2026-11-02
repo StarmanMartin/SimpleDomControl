@@ -18,6 +18,9 @@ from collections import deque
 from urllib.parse import parse_qs
 
 SKIP_ALL = '__skip_all__'
+# Page elements that are not part of the app: hidden while crawling (e.g. the fixed AI assistant panel would cover
+# buttons at the right edge) and left out of every snapshot
+CRAWL_IGNORED = 'sdc-ai-assistant'
 DEFAULT_DENY = r'log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|löschen|abmelden'
 
 WAIT_READY_JS = """() => !!window.sdcNav
@@ -47,7 +50,9 @@ SNAPSHOT_JS = r"""() => {
         }
         return {nav_idx, active};
     };
+    const ignored = (el) => !!el.closest(__IGNORED__);
     const scoped = (els, fn) => els.map((el) => {
+        if (ignored(el)) return null;
         const scope = scopeOf(el);
         return scope.active ? {...fn(el), nav_idx: scope.nav_idx} : null;
     }).filter(Boolean);
@@ -144,7 +149,17 @@ SNAPSHOT_JS = r"""() => {
         modal_open: !!document.querySelector('.modal.show'),
         alerts: $('.alert:visible').toArray().map((a) => clean(a.innerText)).filter(Boolean),
     };
-}"""
+}""".replace('__IGNORED__', json.dumps(CRAWL_IGNORED))
+
+# Injected into every crawled page: hides the elements of CRAWL_IGNORED, so they cannot cover the app's buttons
+HIDE_IGNORED_JS = """(() => {
+    // Init scripts run before <html> exists: the style is added as soon as the document is parsed
+    document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style');
+        style.textContent = __IGNORED__ + ' { display: none !important; }';
+        document.documentElement.appendChild(style);
+    });
+})();""".replace('__IGNORED__', json.dumps(CRAWL_IGNORED))
 
 
 # Injected into every crawled page: logs each message sent over an SdcModel WebSocket together with the
@@ -360,6 +375,7 @@ class Crawler:
     # ----------------------------------------------------------------- crawl
     def crawl(self):
         self.context.add_init_script(MODEL_LOG_JS)
+        self.context.add_init_script(HIDE_IGNORED_JS)
         self.page = self.context.new_page()
         self._attach(self.page)
         self._goto(self.start)
@@ -507,6 +523,7 @@ class Crawler:
             f'in the browser window and submit it, or click "Skip" in the banner.'))
         context = browser.new_context(storage_state=self.context.storage_state())
         context.add_init_script(MODEL_LOG_JS)
+        context.add_init_script(HIDE_IGNORED_JS)
         context.add_init_script(ASK_FORM_JS.replace('__FIELDS__', json.dumps([f['name'] for f in form['fields'] if f['name']]))
                                 .replace('__LABEL__', json.dumps(form['controller'] or 'form')))
         crawl_page, self.page = self.page, context.new_page()

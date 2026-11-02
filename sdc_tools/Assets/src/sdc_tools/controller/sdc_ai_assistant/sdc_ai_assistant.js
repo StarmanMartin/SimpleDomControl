@@ -35,7 +35,8 @@ const SETTING_FIELDS = ['provider', 'base_url', 'model', 'effort', 'max_tokens']
  *   API key and may choose the provider (Anthropic or any OpenAI-compatible API such as the KIT KI-Toolbox) and set
  *   the API URL (https, public hosts only), model, effort and max tokens. Changing the provider starts a new
  *   conversation. "Remember on this device" keeps the settings in the browser, the key only until the tab is closed.
- * - The "⇆" button collapses the panel to the edge of the page and expands it again.
+ * - The panel starts collapsed at the right edge of the page; a click on it (or "⇆") expands it, "⇆" collapses it
+ *   again. It opens by itself when the settings need the user's API key.
  */
 class SdcAiAssistantController extends AbstractSDC {
 

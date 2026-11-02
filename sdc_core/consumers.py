@@ -684,7 +684,8 @@ def _ai_tool_input_error(name, tool_input):
     if not isinstance(tool_input, dict):
         return 'INVALID_JSON: the tool input is not a JSON object'
     schema = tool['input_schema']
-    missing = [k for k in schema['required'] if k not in tool_input]
+    # Tools without arguments (read_page) have no 'required' list
+    missing = [k for k in schema.get('required', []) if k not in tool_input]
     unknown = [k for k in tool_input if k not in schema['properties']]
     wrong = [k for k, v in tool_input.items() if k in schema['properties'] and not (
         isinstance(v, _AI_JSON_TYPES[schema['properties'][k]['type']]) and not isinstance(v, bool))]
