@@ -98,4 +98,5 @@ sdc.zip
 # Test projects created by the pytest fixtures (left over if a run is killed)
 /pytests/????????-????-????-????-????????????/
 /SDC_SKILL.md
-/sdc_tools/Assets/src/sdc_tools/controller/sdc_ai_assistant/sdc_ai_assistant.html
+/sdc_tools/Assets/src/sdc_tools/controller/sdc_ai_assistant/sdc_ai_assistant.html# Built Python packages (poetry build); they are published to PyPI, not kept in git
+/dist/
