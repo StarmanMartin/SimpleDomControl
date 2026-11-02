@@ -24,7 +24,9 @@ It adds one field:
 
 ``email_confirmed``
    ``BooleanField``, default ``False``. Set to ``True`` when the user opens the
-   link of the confirmation e-mail. It is **not** checked at login.
+   link of the confirmation e-mail, and back to ``False`` when the e-mail address
+   changes. It is only checked at login with
+   ``SDC_USER_REQUIRE_CONFIRMED_EMAIL = True``.
 
 Its ``SdcMeta``:
 
@@ -53,15 +55,13 @@ The model also has a ``SearchForm`` (search in ``username``, ``first_name``,
 ``last_name``, ``email``) used by the list view.
 
 Whenever an ``SdcUser`` is saved with an e-mail address that differs from the
-one the Python instance had when it was created or loaded, a confirmation
-e-mail is sent (see `E-mails`_). This includes new users registered through a
-form. Users created with ``SdcUser.objects.create_user(..., email=...)`` get no
-e-mail, because the address is already set when the instance is created.
-
-.. note::
-
-   The remembered address is not updated after ``save()``. Saving the same
-   Python instance again sends another confirmation e-mail.
+one the Python instance had when it was created or loaded, ``email_confirmed``
+is set to ``False`` (also with ``save(update_fields=['email'])``) and a
+confirmation e-mail is sent to the new address (see `E-mails`_). This includes
+new users registered through a form. Users created with
+``SdcUser.objects.create_user(..., email=...)`` get no e-mail, because the
+address is already set when the instance is created. The instance then
+remembers the new address, so saving it again sends no further e-mail.
 
 ``AUTH_USER_MODEL``
 -------------------

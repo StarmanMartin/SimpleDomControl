@@ -142,7 +142,10 @@ SDC_USER_FIELDS_EXCLUDE = None
 # If True, users (except superusers) can only log in after confirming their e-mail address.
 SDC_USER_REQUIRE_CONFIRMED_EMAIL = False
 
+# AI assistant <sdc-ai-assistant> (needs pip install "simpledomcontrol[ai]")
 SDC_AI_ASSISTANT = False
+# True: everybody uses the server's API key (environment variable, see below);
+# False: every user enters their own key in the assistant's settings menu
 SDC_AI_TOKEN_FROM_SYSTEM = False
 # Only logged-in users may use the assistant. Must stay True while SDC_AI_TOKEN_FROM_SYSTEM is True
 # (otherwise anonymous visitors would use the system's provider key).
@@ -151,10 +154,10 @@ SDC_AI_REQUIRE_LOGIN = True
 SDC_AI_ALLOWED_GROUPS = None
 # Optional cap of assistant requests per user and day on the system's key; None = unlimited.
 SDC_AI_MAX_REQUESTS_PER_USER = 100
-# AI model connection. Provider credentials (ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, AWS_*/GOOGLE_*
-# for Bedrock/Vertex, ...) stay plain environment variables read by the provider SDKs; never put them here.
-# SDC_AI_PROVIDER: anthropic, anthropic-bedrock, anthropic-vertex, openai, azure-openai, gemini, gemini-vertex,
-# mistral, ollama or openai-compatible (with SDC_AI_BASE_URL).
+# AI model connection. The server's API key stays an environment variable read by the provider SDK
+# (ANTHROPIC_API_KEY or OPENAI_API_KEY); never put it here.
+# SDC_AI_PROVIDER: anthropic (Claude) or openai-compatible (OpenAI or any compatible API such as the
+# KIT KI-Toolbox; set SDC_AI_BASE_URL and SDC_AI_MODEL)
 SDC_AI_PROVIDER = os.environ.get('SDC_AI_PROVIDER', 'anthropic')
 SDC_AI_MODEL = os.environ.get('SDC_AI_MODEL', 'claude-opus-5-5')
 SDC_AI_BASE_URL = os.environ.get('SDC_AI_BASE_URL', '')

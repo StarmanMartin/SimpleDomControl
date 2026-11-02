@@ -23,6 +23,8 @@ Let us first list all important commands:
     $ python manage.py sdc_cc
     # Create a new SDC model
     $ python manage.py sdc_new_model
+    # Describe the UI for AI agents (skill file)
+    $ python manage.py sdc_teach
 
 All commands have to be run in the directory that contains *manage.py*. The
 commands use the current working directory as project root. The project
@@ -501,7 +503,38 @@ build then uses the copy instead of the library file; see
 :ref:`sdc-build-label` for details and limits (styles cannot be overwritten
 this way).
 
-15 - Creating a new project (``sdc new``)
+15 - sdc_teach
+**************
+
+Crawls the running UI in a headless browser (Playwright) and writes the skill
+file *SDC_SKILL.md*: a description of the views, their navigation, arguments,
+buttons, forms and SDC models for AI agents and the :doc:`ai_assistant`.
+Undocumented models and controllers of the project are asked for in the
+terminal and written into the source code.
+
+.. code-block:: sh
+
+    $ python manage.py sdc_teach
+    $ python manage.py sdc_teach --user admin --password secret
+    $ python manage.py sdc_teach --per-app      # <app>/SDC_SKILL.json, no crawl
+
+See :doc:`teaching` for all options and the skill file.
+
+16 - sdc_prepare_teaching
+*************************
+
+Prints instructions for an AI agent on how to document SDC models (docstring)
+and controllers (JSDoc) so that ``sdc_teach`` produces a useful skill file,
+followed by the undocumented models and controllers with ``file:line``.
+``--all`` also lists the documented ones with their current text.
+
+.. code-block:: sh
+
+    $ python manage.py sdc_prepare_teaching
+
+See :ref:`sdc-teaching-label`.
+
+17 - Creating a new project (``sdc new``)
 *****************************************
 
 The package installs the command line tool ``sdc`` (also ``python -m sdc``). It

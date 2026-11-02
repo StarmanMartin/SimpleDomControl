@@ -131,6 +131,10 @@ the setting.
      - ``False``
      - If ``True``, only users with a confirmed e-mail address can log in
        (superusers excepted).
+   * - ``SDC_AI_*``
+     - Assistant off (``SDC_AI_ASSISTANT = False``)
+     - Settings of the AI assistant: switch, API key, access rules, provider,
+       model and additional skill files. See :doc:`ai_assistant`.
 
 See :doc:`sdc_user` for the ``SDC_USER_*`` settings and the user model.
 
@@ -263,3 +267,8 @@ Websocket routes
 ``sdc_ws/model/<model_name>/<model_id>``
     Also ``SDCModelConsumer``. The client uses this path when the queryset has
     a model id. The consumer only reads ``model_name`` from the URL.
+
+``sdc_ws/ai``
+    ``SDCAiConsumer``. The ``<sdc-ai-assistant>`` chat (see :doc:`ai_assistant`).
+    Projects created before the assistant existed need this line added to their
+    *routing.py*.

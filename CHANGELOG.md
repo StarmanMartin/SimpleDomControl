@@ -5,6 +5,46 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- `sdc_teach`: crawls the UI in a headless browser (Playwright) and writes `SDC_SKILL.md`, a skill file for
+  AI agents: navigation tree, view arguments, buttons with their observed effects and server calls, forms,
+  the SdcModel WebSocket messages of each controller, and the documented controllers and SDC models with
+  their fields. Forms are filled in by the developer in a browser window, never submitted automatically.
+  Missing documentation of models (docstring) and controllers (JSDoc) is asked for in the terminal and
+  written into the source.
+- `sdc_teach --per-app`: writes the controllers and SDC models of each app as `<app>/SDC_SKILL.json`
+  without crawling. Every `sdc_teach` run uses the documentation of the installed apps' JSON files;
+  `sdc_tools` and `sdc_user` ship one.
+- `sdc_prepare_teaching`: prints instructions for an AI agent on how to document models and controllers,
+  followed by the undocumented ones with `file:line`.
+- AI assistant `<sdc-ai-assistant>` (`sdc_tools`) with the consumer `SDCAiConsumer` (route `sdc_ws/ai`):
+  a chat panel that answers from the skill file and acts in the user's browser with the user's rights. It
+  opens views, reads the page and fills forms (never submits) and reads SdcModel records; it cannot create,
+  change or delete records. Providers: Anthropic (Claude) and any OpenAI-compatible API (e.g. the KIT
+  KI-Toolbox). Users can bring their own key and choose provider, API URL, model, effort and max tokens
+  in a settings menu; with the server's key the connection is fixed. The panel is movable and resizable,
+  starts collapsed and renders answers as Markdown. See the new documentation page "AI assistant".
+- Settings `SDC_AI_*` (switch, key mode, login/group/daily-limit rules, provider, model, API URL,
+  `SDC_AI_ALLOW_USER_BASE_URL`, `SDC_AI_ADDITIONAL_SKILL_FILE`, ...), written by `sdc_init`.
+- Optional extra `ai`: `pip install "simpledomcontrol[ai]"` installs `anthropic` and `openai`.
+- New projects get `<sdc-ai-assistant>` in `templates/base.html` and the `sdc_ws/ai` route in `routing.py`.
+- Documentation of all models and controllers of `sdc_tools`, `sdc_user` and the demo app.
+- Documentation pages "Teaching AI agents" and "AI assistant".
+
+### Fixed
+- `SdcUser`: changing the e-mail address resets `email_confirmed` to `False` (also with
+  `save(update_fields=['email'])`). Before, a user could switch to an unconfirmed address and stay
+  confirmed, bypassing `SDC_USER_REQUIRE_CONFIRMED_EMAIL`.
+- `sdc-password-forgotten`: an empty username/e-mail shows a hint instead of sending a server call.
+
+### Upgrading existing projects
+- For the AI assistant, add the `SDC_AI_*` settings you need (at least `SDC_AI_ASSISTANT = True`), the route
+  `re_path(r'sdc_ws/ai', consumers.SDCAiConsumer.as_asgi())` to `<project>/routing.py` and
+  `<sdc-ai-assistant></sdc-ai-assistant>` inside `<body>` of `templates/base.html`. Without the settings the
+  assistant stays switched off.
+
 ## 0.159.0
 
 ### Security
