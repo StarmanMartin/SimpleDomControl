@@ -1,5 +1,14 @@
 import { AbstractSDC, app, SdcModel, SdcQuerySet } from 'sdc_client';
 
+/**
+ * Generic live list of the records of one SDC model, rendered with the model's list template.
+ *
+ * - Arguments: `model` (required) is the SDC model name, e.g. `/~sdc-list-view~&model=Author`; optional `filter` restricts the records (normally only set from code by a parent view).
+ * - The list updates automatically when records are created, changed or deleted (model socket).
+ * - An embedded `<sdc-search-view>` (if the model's list template has one) filters and pages the list.
+ * - In the default list template each row has "Edit" (opens `<sdc-model-form>`), "Detail" (opens `<sdc-detail-view>`) and "Remove"; "Remove" asks for confirmation in a dialog and then deletes the record on the server; this cannot be undone.
+ * - What is listed and whether delete is allowed is decided by the model's server-side permissions.
+ */
 export class SdcListViewController extends AbstractSDC {
 
   constructor() {

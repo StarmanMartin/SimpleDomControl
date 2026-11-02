@@ -1,4 +1,7 @@
+from django.http import HttpResponse
 from django.shortcuts import render
+
+from django.conf import settings
 from sdc_core.sdc_extentions.views import SDCView
 
 
@@ -58,3 +61,13 @@ class SdcSearchSelect(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+class SdcAiAssistant(SDCView):
+    template_name='sdc_tools/sdc/sdc_ai_assistant.html'
+
+    def get_content(self, request, *args, **kwargs):
+        # Projects created before the AI settings existed have no SDC_AI_ASSISTANT: the assistant stays off
+        enabled = getattr(settings, 'SDC_AI_ASSISTANT', False)
+        if not enabled:
+            return HttpResponse("", content_type="text/html")
+        return render(request, self.template_name, {'SDC_AI_ASSISTANT': enabled})

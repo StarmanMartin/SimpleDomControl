@@ -61,6 +61,22 @@ _SDC_USER_FIELDS, _SDC_USER_FIELDS_EXCLUDE = _sdc_user_field_config()
 
 
 class SdcUser(AbstractUser, SdcModel):
+    """
+    A user account of the site (the project's Django user model); one record per person who can log in.
+
+    - `username` (unique, used to log in), `first_name`, `last_name`, `email`; `is_staff`, `is_superuser`,
+      `is_active`, `groups`, `date_joined`, `last_login` as in Django's standard user.
+    - `email_confirmed`: `true` once the user followed the link in the confirmation e-mail (`<sdc-confirm-email>`).
+    - The password is never sent to the client; it is changed with the `password_form` (`<sdc-change-password>`)
+      or reset by e-mail (`<sdc-password-forgotten>`).
+    - Anyone may create an account (registration in `<register>`). By default a logged-in user can read and
+      edit only their own record (`username`, names, `email`); superusers can see and edit all users, and only
+      superusers may delete users.
+    - Saving a new or changed `email` resets `email_confirmed` to `false` and sends a confirmation e-mail to
+      that address (link valid for 3 days).
+    - Edited in `<sdc-model-form>` via the "Edit <username>" link of `<sdc-user-nav-btn>`; `<sdc-user>` loads
+      the current user's record.
+    """
     email_confirmed = models.BooleanField(default=False)
 
     def __init__(self, *args, **kwargs):
@@ -104,6 +120,12 @@ class SdcUser(AbstractUser, SdcModel):
         return _sdc_user_get_queryset(cls, user, action, obj)
 
     def save(self, *args, **kwargs):
+        if self.email != self._origen_email:
+            # A new address is unconfirmed until its confirmation link is followed
+            self.email_confirmed = False
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None and 'email' in update_fields:
+                kwargs['update_fields'] = {*update_fields, 'email_confirmed'}
         super().save(*args, **kwargs)
         if self.email != self._origen_email:
             # Remember the new address first, so a failing or repeated save does not send again.

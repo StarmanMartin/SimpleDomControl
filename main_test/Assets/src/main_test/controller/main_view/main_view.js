@@ -1,6 +1,15 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Demo page of the framework's test project, used by the Jest tests to exercise controller features; it has no real business purpose.
+ *
+ * - Requires a logged-in user; anonymous users get a permission-denied (403) error instead of a login redirect.
+ * - Shows a list of `<test-item>` children (initially 5) and a test header.
+ * - "BB" removes one `<test-item>` from the list and sets the header to "Button Pressed!!"; the two unlabeled buttons only change the header text.
+ * - Server calls `call_echo` and `call_async_echo` return their arguments and each create a new `Author` named `XX FF` (age `2`).
+ * - Server call `test_echo_call` redirects the browser to `<logged-in>`; `call_no_response` does nothing.
+ */
 class MainViewController extends AbstractSDC {
 
     constructor() {

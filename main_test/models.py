@@ -16,6 +16,15 @@ class AuthorSearchForm(AbstractSearchForm):
     SEARCH_FIELDS = ("name", "book__title")
 
 class Author(models.Model, SdcModel):
+    """
+    Demo/test model of the framework's test project: an author of `Book` records.
+
+    - `name` (text, max. 255 characters) and `age` (integer, years); both required.
+    - Has no permission checks: anyone, even anonymous users, may read, create, edit and delete authors.
+    - Deleting an author also deletes all of that author's `Book` records.
+    - The list search matches `name` or the title of one of the author's books.
+    - Calling the `call_echo` / `call_async_echo` server calls of `<main-view>` creates an extra author `XX FF` (age `2`).
+    """
     edit_form = "main_test.forms.AuthorForm"
     create_form = "main_test.forms.AuthorForm"
     html_list_template = "main_test/models/Author/Author_list.html"
@@ -47,6 +56,16 @@ class BookSearchForm(AbstractSearchForm):
     SEARCH_FIELDS = ('title', 'author__name')
 
 class Book(models.Model, SdcModel):
+    """
+    Demo/test model of the framework's test project: a book with a title, written by one `Author`.
+
+    - `title` (text, max. 255 characters); `author` → `Author` (required).
+    - Has no permission checks: anyone, even anonymous users, may read, create, edit and delete books.
+    - Deleted automatically when its `Author` is deleted.
+    - Besides the full form there is a named form `test` that edits only `title`.
+    - The list search matches `title` or the author's `name`.
+    - Edited in `<book-edit>`.
+    """
 
     class _SdcMeta:
         edit_form = "main_test.forms.BookForm"
@@ -80,6 +99,14 @@ class BookContentSearchForm(AbstractSearchForm):
     SEARCH_FIELDS = ("id",)
 
 class BookContent(models.Model, SdcModel):
+    """
+    Demo/test model of the framework's test project: an uploaded file that belongs to one user.
+
+    - `text`: the uploaded file; `user` → the owning user.
+    - If `user` is left empty on save, the currently logged-in user becomes the owner.
+    - Only logged-in users may access it, and each user sees and changes only their own records.
+    - Deleting the user also deletes the user's `BookContent` records.
+    """
 
     edit_form = "main_test.forms.BookContentForm"
     create_form = "main_test.forms.BookContentForm"

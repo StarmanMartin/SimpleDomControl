@@ -32,6 +32,8 @@ This documentation now covers both parts of the system:
    build
    testing
    settings
+   teaching
+   ai_assistant
    intellij
 
 .. toctree::

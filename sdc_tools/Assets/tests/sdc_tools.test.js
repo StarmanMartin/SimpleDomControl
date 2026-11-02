@@ -5,6 +5,7 @@
 import {test_utils, trigger} from 'sdc_client';
 import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
+import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
 
 
 describe('SdcNavigator', () => {
@@ -189,4 +190,267 @@ describe('SdcSearchSelect', () => {
         expect($div.length).toBeGreaterThan(0);
     });
 
+});
+
+describe('SdcAiAssistant', () => {
+    let controller;
+
+    beforeEach(async () => {
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('sdc-ai-assistant',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        const $div = $('body').find('sdc-ai-assistant');
+        expect($div.length).toBeGreaterThan(0);
+    });
+
+    describe('window', () => {
+        const pointer = (el, type, x, y) => el.dispatchEvent(new MouseEvent(type, {bubbles: true, button: 0, clientX: x, clientY: y}));
+        let $container, header;
+
+        beforeEach(() => {
+            window.localStorage.removeItem('sdc_ai_window');
+            controller._saveGeometry(null);
+            controller._setCollapsed(false);
+            $container = controller.find('.ai-conversation-container');
+            header = controller.find('.ai-header')[0];
+            // jsdom has no layout: the docked window is 360 x 700 at the right edge of the 1024 x 768 viewport
+            $container[0].getBoundingClientRect = () => ({left: 664, top: 0, width: 360, height: 700});
+        });
+
+        test('dragging the header moves the window and keeps it', () => {
+            pointer(header, 'pointerdown', 700, 10);
+            pointer(document, 'pointermove', 500, 60);
+            expect($container.hasClass('dragging')).toBe(true);
+            pointer(document, 'pointerup', 500, 60);
+            expect($container.hasClass('floating') && !$container.hasClass('dragging')).toBe(true);
+            expect($container[0].style.left).toBe('464px');
+            expect($container[0].style.top).toBe('50px');
+            expect(JSON.parse(window.localStorage.getItem('sdc_ai_window'))).toEqual({left: 464, top: 50, width: 360, height: 700});
+        });
+
+        test('resizing keeps the opposite edge and the minimum size, the window stays in the viewport', () => {
+            pointer(controller.find('.ai-resize-w')[0], 'pointerdown', 664, 300);
+            pointer(document, 'pointermove', 464, 300);
+            pointer(document, 'pointerup', 464, 300);
+            expect(controller._geometry).toEqual({left: 464, top: 0, width: 560, height: 700});
+            pointer(controller.find('.ai-resize-w')[0], 'pointerdown', 464, 300);
+            $container[0].getBoundingClientRect = () => ({left: 464, top: 0, width: 560, height: 700});
+            pointer(document, 'pointermove', 1000, 300);
+            pointer(document, 'pointerup', 1000, 300);
+            expect(controller._geometry.width).toBe(280);
+            expect(controller._geometry.left).toBe(1024 - 280);
+            expect(controller._clampGeometry({left: 900, top: -20, width: 400, height: 2000}))
+                .toEqual({left: 624, top: 0, width: 400, height: 768});
+        });
+
+        test('collapsing docks the tab, expanding restores the window; a double click docks it', () => {
+            controller._saveGeometry({left: 10, top: 10, width: 300, height: 300});
+            controller._setCollapsed(true);
+            expect($container.hasClass('floating')).toBe(false);
+            expect($container[0].style.left).toBe('');
+            pointer(header, 'pointerdown', 20, 20);
+            expect($container.hasClass('dragging')).toBe(false);  // the collapsed tab is not movable
+            controller._setCollapsed(false);
+            expect($container[0].style.left).toBe('10px');
+            header.dispatchEvent(new MouseEvent('dblclick', {bubbles: true}));
+            expect($container.hasClass('floating')).toBe(false);
+            expect(window.localStorage.getItem('sdc_ai_window')).toBe(null);
+        });
+    });
+
+    describe('page actions', () => {
+        let $page, events, getClientRects;
+
+        beforeEach(() => {
+            // jsdom has no layout: elements count as visible unless they have the class "invisible"
+            getClientRects = Element.prototype.getClientRects;
+            Element.prototype.getClientRects = function () {
+                return this.closest('.invisible') ? [] : [{}];
+            };
+            $page = $(`<div class="ai-test-page">
+                <h2>Edit author</h2><p class="invisible">secret note</p><script>var x = 1;</script>
+                <form SdcModelName="Author" SdcModelPK="3" class="foo" data-x="1">
+                    <label for="ai-name">Name</label><input id="ai-name" name="name" value="Jo">
+                    <input name="age" type="number" value="3">
+                    <input name="active" type="checkbox">
+                    <select name="city"><option value="1">Berlin</option><option value="2">Paris</option></select>
+                    <input name="password" type="password" value="pw-123">
+                    <input name="csrfmiddlewaretoken" type="hidden" value="tok-456">
+                    <button type="submit">Save</button>
+                </form>
+                <form><input name="q"></form>
+            </div>`).appendTo('body');
+            events = [];
+            $page.find('input, select').each(function () {
+                this.addEventListener('input', () => events.push(`input:${this.name}`));
+                this.addEventListener('change', () => events.push(`change:${this.name}`));
+            });
+        });
+
+        afterEach(() => {
+            Element.prototype.getClientRects = getClientRects;
+            $page.remove();
+        });
+
+        test('read_page describes the page without secrets', () => {
+            const page = controller._readPage();
+            const forms = page.forms.filter((f) => f.fields.some((x) => ['name', 'q'].includes(x.name)));
+            expect(forms.map((f) => f.sdc_model_name)).toEqual(['Author', null]);
+            const author = forms[0];
+            expect(author.sdc_model_pk).toBe(3);
+            const fields = Object.fromEntries(author.fields.map((f) => [f.name, f]));
+            expect(fields.name).toMatchObject({type: 'text', label: 'Name', value: 'Jo'});
+            expect(fields.active.value).toBe(false);
+            expect(fields.city.options).toEqual([{value: '1', label: 'Berlin'}, {value: '2', label: 'Paris'}]);
+            expect(fields.password.value).toBeUndefined();
+            expect(fields.csrfmiddlewaretoken.value).toBeUndefined();
+            expect(page.html).toContain('<h2>Edit author</h2>');
+            expect(page.html).toContain('sdcmodelname="Author"');
+            for (const hidden of ['secret note', 'var x', 'pw-123', 'tok-456', 'class="foo"', 'data-x']) {
+                expect(page.html).not.toContain(hidden);
+            }
+        });
+
+        test('fill_form enters values without saving SdcModel forms', () => {
+            const index = controller._readPage().forms.findIndex((f) => f.sdc_model_name === 'Author');
+            const result = controller._fillForm({form: index, values: {
+                name: 'Jane', active: true, city: 'Paris', password: 'x', csrfmiddlewaretoken: 'y', nope: 1,
+            }});
+            expect(result.set).toEqual({name: 'Jane', active: true, city: '2'});
+            expect(Object.keys(result.errors).sort()).toEqual(['csrfmiddlewaretoken', 'nope', 'password']);
+            expect($page.find('[name=password]').val()).toBe('pw-123');
+            // Only input events: the change event would make edit forms save themselves
+            expect(events).toEqual(['input:name', 'input:active', 'input:city']);
+        });
+
+        test('fill_form fires change in other forms', () => {
+            const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'q'));
+            controller._fillForm({form: index, values: {q: 'books'}});
+            expect(events).toEqual(['input:q', 'change:q']);
+            expect(() => controller._fillForm({form: 99, values: {}})).toThrow('There is no form 99');
+        });
+
+        test('forms of inactive views are left out', () => {
+            // The navigator keeps the previous copy of a reopened view hidden in the page
+            const $views = $(`<div>
+                <div class="sdc_sub_detail_container"><form SdcModelName="Book" SdcModelPK="-1">
+                    <input name="title" value="old"></form></div>
+                <div class="sdc_sub_detail_container active"><form SdcModelName="Book" SdcModelPK="-1">
+                    <input name="title" value=""></form></div>
+            </div>`).appendTo($page);
+            const books = controller._readPage().forms.filter((f) => f.sdc_model_name === 'Book');
+            expect(books.length).toBe(1);
+            controller._fillForm({form: books[0].index, values: {title: 'New'}});
+            expect($views.find('.active [name=title]').val()).toBe('New');
+            expect($views.find(':not(.active) > form [name=title]').val()).toBe('old');
+        });
+
+        test('no new prompt while a request runs; stale actions are not run', async () => {
+            const sent = [];
+            controller._socket = {readyState: WebSocket.OPEN, send: (msg) => sent.push(JSON.parse(msg))};
+            const $textarea = controller.find('.ai-prompt-form textarea');
+            $textarea.val('first');
+            controller._sendPrompt();
+            $textarea.val('second');
+            controller._sendPrompt();
+            expect(sent.map((m) => m.prompt)).toEqual(['first']);
+            expect(controller.find('.ai-prompt-form [type="submit"]').prop('disabled')).toBe(true);
+            expect($textarea.val()).toBe('second');  // kept for later
+            const id = controller._requestId;
+            await controller._onMessage({type: 'error', id, msg: 'x'});
+            expect(controller._busy).toBe(false);
+
+            // Actions of a request that is no longer the current one stop before the next action
+            const read = [];
+            controller._actions.read_page = () => {
+                read.push(1);
+                controller._requestId += 1;
+                return {};
+            };
+            const actions = [{tool_use_id: 'a', name: 'read_page', input: {}}, {tool_use_id: 'b', name: 'read_page', input: {}}];
+            expect(await controller._runActions(actions, controller._requestId)).toBeNull();
+            expect(read.length).toBe(1);
+            controller._socket = null;
+        });
+
+        test('fill_form warns about invisible forms', () => {
+            const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
+            const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));
+            expect(controller._fillForm({form: index, values: {z: '1'}}).warning).toContain('not visible');
+            $hidden.remove();
+        });
+    });
+
+});
+
+describe('AI assistant Markdown', () => {
+    const render = (md) => {
+        const div = document.createElement('div');
+        div.append(renderMarkdown(md));
+        return div;
+    };
+    const html = (md) => render(md).innerHTML;
+
+    test('blocks', () => {
+        expect(html('# Title\nText line\nnext line')).toBe(
+            '<div class="ai-md-heading ai-md-h1">Title</div><p>Text line<br>next line</p>');
+        expect(html('- a\n- b\n  - b1\n  - b2\n- c')).toBe(
+            '<ul><li>a</li><li>b<ul><li>b1</li><li>b2</li></ul></li><li>c</li></ul>');
+        expect(html('3. three\n4. four')).toBe('<ol start="3"><li>three</li><li>four</li></ol>');
+        expect(html('```js\nconst a = 1 < 2;\n```\nafter')).toBe(
+            '<pre class="ai-md-code"><code data-language="js">const a = 1 &lt; 2;</code></pre><p>after</p>');
+        expect(html('> quoted **bold**\n> more')).toBe('<blockquote><p>quoted <strong>bold</strong><br>more</p></blockquote>');
+        expect(html('| Name | Age |\n|:--|--:|\n| Jane | 40 |')).toBe(
+            '<div class="ai-md-table"><table><thead><tr><th style="text-align: left;">Name</th>' +
+            '<th style="text-align: right;">Age</th></tr></thead><tbody><tr><td style="text-align: left;">Jane</td>' +
+            '<td style="text-align: right;">40</td></tr></tbody></table></div>');
+        expect(html('a\n\n* * *\n\nb')).toBe('<p>a</p><hr><p>b</p>');
+    });
+
+    test('inline', () => {
+        expect(html('`x_y` **b** *i* _i2_ ~~s~~ sdc_user_nav_btn')).toBe(
+            '<p><code>x_y</code> <strong>b</strong> <em>i</em> <em>i2</em> <del>s</del> sdc_user_nav_btn</p>');
+        const div = render('See [the docs](https://simpledomcontrol.readthedocs.io/en/latest/), ' +
+                           'https://example.com/a. and [login](/~sdc-login)');
+        const [docs, bare, login] = div.querySelectorAll('a');
+        expect(docs.getAttribute('href')).toBe('https://simpledomcontrol.readthedocs.io/en/latest/');
+        expect(docs.target).toBe('_blank');
+        expect(bare.getAttribute('href')).toBe('https://example.com/a');  // the trailing dot is not part of it
+        expect(login.className).toBe('ai-md-nav');
+        expect(login.target).toBe('');
+    });
+
+    test('HTML and unsafe links stay text', () => {
+        const div = render('<img src=x onerror=alert(1)> <script>alert(1)</script>\n' +
+                           '[click](javascript:alert(1)) [x](https://a.example/"onmouseover="alert(1))');
+        expect(div.querySelector('img, script')).toBeNull();
+        expect(div.textContent).toContain('<img src=x onerror=alert(1)>');
+        const links = div.querySelectorAll('a');
+        expect(links.length).toBe(1);
+        expect([...links[0].attributes].map((a) => a.name).sort()).toEqual(['href', 'rel', 'target']);
+        expect(div.textContent).toContain('[click](javascript:alert(1))');
+    });
+
+    test('incomplete syntax while streaming', () => {
+        expect(html('```py\nprint(1)')).toBe('<pre class="ai-md-code"><code data-language="py">print(1)</code></pre>');
+        expect(html('**bold not closed')).toBe('<p>**bold not closed</p>');
+        expect(html('| a | b')).toBe('<p>| a | b</p>');
+    });
+
+    test('a streamed answer renders like the complete text', async () => {
+        const controller = await test_utils.get_controller('sdc-ai-assistant', {}, '<div class="ai-messages"></div>');
+        const answer = '## Books\n\n| Title | Author |\n|---|---|\n| Faust | Goethe |\n\n- **one**\n- `two`';
+        controller._requestId = 7;
+        for (let i = 0; i < answer.length; i += 5) {
+            await controller._onMessage({type: 'ai_delta', id: 7, text: answer.slice(i, i + 5)});
+        }
+        await controller._onMessage({type: 'ai_answer', id: 7, text: answer});
+        const bubbles = controller.find('.ai-message.assistant.ai-markdown');
+        expect(bubbles.last().html()).toBe(html(answer));
+        expect(controller._$answer).toBeNull();
+    });
 });

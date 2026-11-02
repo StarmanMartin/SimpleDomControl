@@ -1,6 +1,13 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Form for the logged-in user to change their own password (the `password_form` of `SdcUser`).
+ *
+ * - No arguments; it always edits the current user. Requires login, otherwise it redirects to the login view.
+ * - Enter the current password, then the new password twice (must match and pass the password rules).
+ * - "Change password" saves the new password immediately. Other sessions of this user are logged out; the current session stays logged in.
+ */
 class SdcChangePasswordController extends AbstractSDC {
 
     constructor() {

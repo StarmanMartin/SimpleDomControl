@@ -1,6 +1,13 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Test fixture of the framework's test project; it shows only the static test heading "LoggedIn".
+ *
+ * - Open to everyone; despite its name it does not require a login.
+ * - Target of the `test_echo_call` server call of `<main-view>`, which redirects the browser to `/logged-in`.
+ * - Shows and changes no data.
+ */
 class LoggedInController extends AbstractSDC {
 
     constructor() {

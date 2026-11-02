@@ -1,0 +1,70 @@
+{% if SDC_AI_ASSISTANT %}
+    {# Starts collapsed so the fixed panel does not cover the page; a click on it expands it #}
+    <div class="ai-conversation-container collapsed">
+        <div class="ai-header" title="Drag to move, double-click to dock at the right edge">
+            <strong>Assistant</strong>
+            <span class="ai-status"></span>
+            <button type="button" class="btn btn-sm btn-outline-secondary ai-settings-toggle" title="AI settings">⚙</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ai-toggle" title="Show/hide the assistant">⇆</button>
+        </div>
+        <form class="ai-settings-form d-none" autocomplete="off">
+            <p class="ai-settings-readonly d-none">
+                The connection is managed by the server: <span class="ai-settings-summary"></span>
+            </p>
+            <fieldset class="ai-settings-fields">
+                <label class="form-label">Provider
+                    <select class="form-select form-select-sm" name="provider">
+                        <option value="anthropic">Anthropic (Claude)</option>
+                        <option value="openai-compatible">OpenAI-compatible (e.g. KIT KI-Toolbox, OpenAI, Ollama)</option>
+                    </select>
+                </label>
+                <label class="form-label">API key
+                    <input class="form-control form-control-sm" type="password" name="token" autocomplete="off">
+                </label>
+                <label class="form-check-label ai-clear-token">
+                    <input class="form-check-input" type="checkbox" name="clear_token"> Remove the key
+                </label>
+                <label class="form-label ai-base-url">API URL
+                    <input class="form-control form-control-sm" type="url" name="base_url" placeholder="Default (provider's API)">
+                </label>
+                <label class="form-label">Model
+                    <input class="form-control form-control-sm" type="text" name="model" list="ai-model-options">
+                    <datalist id="ai-model-options">
+                        <option value="claude-opus-5-5">
+                        <option value="claude-sonnet-5-5">
+                        <option value="claude-haiku-5-5">
+                        <option value="claude-fable-5-1">
+                    </datalist>
+                </label>
+                <label class="form-label">Effort
+                    <select class="form-select form-select-sm" name="effort">
+                        <option value="">Default</option>
+                        <option value="low">low</option>
+                        <option value="medium">medium</option>
+                        <option value="high">high</option>
+                        <option value="xhigh">xhigh</option>
+                        <option value="max">max</option>
+                    </select>
+                </label>
+                <label class="form-label">Max tokens per answer
+                    <input class="form-control form-control-sm" type="number" name="max_tokens" min="1" max="128000">
+                </label>
+                <label class="form-check-label">
+                    <input class="form-check-input" type="checkbox" name="remember">
+                    Remember on this device (the key only until the browser tab is closed)
+                </label>
+                <div class="ai-settings-buttons">
+                    <button class="btn btn-sm btn-primary" type="submit">Save</button>
+                    <button class="btn btn-sm btn-outline-secondary ai-settings-cancel" type="button">Cancel</button>
+                </div>
+            </fieldset>
+        </form>
+        <div class="ai-messages" aria-live="polite"></div>
+        <form class="ai-prompt-form">
+            <textarea class="form-control" name="prompt" rows="2" placeholder="Ask the assistant…" required></textarea>
+            <button class="btn btn-primary" type="submit">Send</button>
+        </form>
+    </div>
+{% else %}
+    <div></div>
+{% endif %}

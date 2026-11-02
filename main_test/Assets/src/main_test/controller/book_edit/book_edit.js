@@ -1,6 +1,14 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Demo form for one `Book`, used by the framework's tests; it reuses the `<sdc-model-form>` behaviour.
+ *
+ * - Arguments: `pk` (or `id`) is the id of the book to edit; without it the form creates a new `Book`.
+ * - In edit mode every field change is saved immediately via the model socket; there is no separate save button.
+ * - "Add X to name" appends ` X` to the title and sets `author` to the author with id `1`, in the form's model object only (not saved by this button itself).
+ * - Open to everyone, no login required.
+ */
 class BookEditController extends AbstractSDC {
 
     constructor() {

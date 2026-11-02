@@ -131,6 +131,10 @@ the setting.
      - ``False``
      - If ``True``, only users with a confirmed e-mail address can log in
        (superusers excepted).
+   * - ``SDC_AI_*``
+     - Assistant off (``SDC_AI_ASSISTANT = False``)
+     - Settings of the AI assistant: switch, API key, access rules, provider,
+       model and additional skill files. See :doc:`ai_assistant`.
 
 See :doc:`sdc_user` for the ``SDC_USER_*`` settings and the user model.
 
@@ -250,7 +254,23 @@ Websocket routes
 ^^^^^^^^^^^^^^^^
 
 ``sdc_init`` writes ``<project>/routing.py``. ``asgi.py`` wraps these routes in
-``AuthMiddlewareStack``, so the consumers see the logged-in Django user.
+``AuthMiddlewareStack``, so the consumers see the logged-in Django user, and in
+``AllowedHostsOriginValidator``: browsers may only open them from pages whose
+origin is in ``ALLOWED_HOSTS``, so other sites cannot use them with a visitor's
+session. Connections without an ``Origin`` header are rejected unless
+``ALLOWED_HOSTS`` contains ``'*'`` (as with ``DEBUG``). Projects created with
+version 0.159.0 or older lack the validator; add it to their *asgi.py*:
+
+.. code-block:: python
+
+   from channels.security.websocket import AllowedHostsOriginValidator
+
+   application = ProtocolTypeRouter({
+       "http": get_asgi_application(),
+       "websocket": AllowedHostsOriginValidator(
+           AuthMiddlewareStack(URLRouter(routing.websocket_urlpatterns))
+       ),
+   })
 
 ``sdc_ws/ws/``
     ``SDCConsumer``. Used for ``serverCall`` when
@@ -263,3 +283,8 @@ Websocket routes
 ``sdc_ws/model/<model_name>/<model_id>``
     Also ``SDCModelConsumer``. The client uses this path when the queryset has
     a model id. The consumer only reads ``model_name`` from the URL.
+
+``sdc_ws/ai``
+    ``SDCAiConsumer``. The ``<sdc-ai-assistant>`` chat (see :doc:`ai_assistant`).
+    Projects created before the assistant existed need this line added to their
+    *routing.py*.

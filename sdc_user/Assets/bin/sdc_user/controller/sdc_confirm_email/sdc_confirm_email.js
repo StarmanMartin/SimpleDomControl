@@ -1,6 +1,13 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Confirms the e-mail address of an `SdcUser`; this is the target of the link in the confirmation e-mail.
+ *
+ * - Arguments: `token` (required) is the token from the e-mail link (`/~sdc-confirm-email~&1.token=...`).
+ * - Opening the view with a valid token immediately marks the address as confirmed (`email_confirmed`) and shows a success message; there is nothing to click. No login is needed.
+ * - Each token works once and is valid for 3 days. An expired token automatically sends a new confirmation e-mail; an invalid or already used token shows "No valid token.".
+ */
 class SdcConfirmEmailController extends AbstractSDC {
 
     constructor() {

@@ -26,6 +26,21 @@ To use PostgreSQL, install the driver with the ``postgres`` extra:
 
    pip install "simpledomcontrol[postgres]"
 
+The :doc:`ai_assistant` needs the provider SDKs (``anthropic`` and ``openai``)
+from the ``ai`` extra:
+
+.. code-block:: sh
+
+   pip install "simpledomcontrol[ai]"
+
+``sdc_teach`` (see :doc:`teaching`, development only) needs Playwright and its
+browser, from the ``teach`` extra:
+
+.. code-block:: sh
+
+   pip install "simpledomcontrol[teach]"
+   playwright install chromium
+
 The package is also available from the project releases on GitHub, but PyPI is
 the normal installation path for application development.
 

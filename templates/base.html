@@ -26,6 +26,8 @@
 </head>
 <body>
 {% block content %}{% endblock %}
+<!-- AI assistant of sdc_tools: renders nothing unless SDC_AI_ASSISTANT is set -->
+<sdc-ai-assistant></sdc-ai-assistant>
 <div class="site-footer">
     <p>By: Martin Starman {% if debug %} DEBUG_MODE {% endif %}</p>
 </div>

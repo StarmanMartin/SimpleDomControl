@@ -1,6 +1,14 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Sets a new password with a reset token; this is the target of the link in the password-reset e-mail sent by `<sdc-password-forgotten>`.
+ *
+ * - Arguments: `token` (required) is the token from the e-mail link (`/~sdc-reset-password~&1.token=...`); it is kept in a hidden form field.
+ * - Enter the new password twice (at least 8 characters, must match and pass the password rules). No login is needed.
+ * - "Reset Password" sets the new password and shows "Password has been reset."; the user is not logged in and must then use `<sdc-login>`.
+ * - Each token works once and is valid for 3 days. An expired token automatically sends a new reset e-mail; an invalid or used token shows an error.
+ */
 class SdcResetPasswordController extends AbstractSDC {
 
     constructor() {

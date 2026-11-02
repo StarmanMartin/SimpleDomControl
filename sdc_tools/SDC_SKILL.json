@@ -1,0 +1,69 @@
+{
+  "app": "sdc_tools",
+  "generator": "manage.py sdc_teach --per-app",
+  "controllers": {
+    "sdc-ai-assistant": {
+      "doc": "Chat panel of the AI assistant, fixed at the right edge of the page; only rendered when the project sets `SDC_AI_ASSISTANT`.\n\n- The user types a question; the answer streams in. The assistant can also act on the page, always with the\n  logged-in user's permissions: open views like a navigation link, read the current page and enter values into\n  its forms, and read SdcModel records.\n- The assistant cannot create, change or delete records and never submits a form: it fills forms (SdcModel forms\n  are marked by `SdcModelName` / `SdcModelPK`) and the user checks and submits or saves them. It never reads or\n  fills password, hidden or file fields.\n- Depending on the project settings it requires a login, and either uses the server's API key or the user's own.\n- \"⚙\" opens the settings: with the server's key they only show the model in use; otherwise the user enters their\n  API key and may choose the provider (Anthropic or any OpenAI-compatible API such as the KIT KI-Toolbox) and set\n  the API URL (https, public hosts only), model, effort and max tokens. Changing the provider starts a new\n  conversation. \"Remember on this device\" keeps the settings in the browser, the key only until the tab is closed.\n- The panel starts collapsed at the right edge of the page; a click on it (or \"⇆\") expands it, \"⇆\" collapses it\n  again. It opens by itself when the settings need the user's API key.\n- Dragging the header moves the panel and dragging its edges or corners resizes it (kept in the browser);\n  a double-click on the header docks it at the right edge again.",
+      "view_class": "sdc_tools.sdc_views.SdcAiAssistant",
+      "url": "/sdc_view/sdc_tools/sdc_ai_assistant",
+      "url_params": []
+    },
+    "sdc-alert-messenger": {
+      "doc": "Global toast area for status messages; usually placed once in the page next to `<sdc-navigator>`.\n\nMessages pushed by other controllers (e.g. success or validation errors after a form submit) appear here with a header and time and disappear automatically after about 2 seconds; error messages are highlighted. Nothing to operate.",
+      "view_class": "sdc_tools.sdc_views.SdcAlertMessenger",
+      "url": "/sdc_view/sdc_tools/sdc_alert_messenger",
+      "url_params": []
+    },
+    "sdc-detail-view": {
+      "doc": "Generic read-only view of one record of an SDC model, rendered with the model's detail template.\n\n- Arguments: `model` (required) is the SDC model name and `pk` (or `id`) the record id, e.g. `/~sdc-detail-view~&model=Author&pk=3`.\n- The view refreshes automatically when the record changes on the server.\n- Usually reached via the \"Detail\" link of a `<sdc-list-view>` row; access depends on the model's server-side permissions.",
+      "view_class": "sdc_tools.sdc_views.SdcDetailView",
+      "url": "/sdc_view/sdc_tools/sdc_detail_view",
+      "url_params": []
+    },
+    "sdc-dummy": {
+      "doc": "Placeholder/test view that shows the text of its `text` argument (e.g. `/~sdc-dummy~&text=Hello`) followed by any content placed inside the tag. Has no actions.",
+      "view_class": "sdc_tools.sdc_views.SdcDummy",
+      "url": "/sdc_view/sdc_tools/sdc_dummy",
+      "url_params": []
+    },
+    "sdc-error": {
+      "doc": "Error page that shows \"We have an error: <code>\" for the HTTP status in its `code` argument.\n\n- `<sdc-navigator>` shows `sdc-error 404` when a path segment names an unknown controller.\n- `sdc-error 403` (or similar) means the server refused the view: log in, or use a user with the required permissions.\n- It has no actions; navigate elsewhere (link, breadcrumb, browser back) to leave it.",
+      "view_class": "sdc_tools.sdc_views.SdcError",
+      "url": "/sdc_view/sdc_tools/sdc_error/<int:code>",
+      "url_params": [
+        "code"
+      ]
+    },
+    "sdc-list-view": {
+      "doc": "Generic live list of the records of one SDC model, rendered with the model's list template.\n\n- Arguments: `model` (required) is the SDC model name, e.g. `/~sdc-list-view~&model=Author`; optional `filter` restricts the records (normally only set from code by a parent view).\n- The list updates automatically when records are created, changed or deleted (model socket).\n- An embedded `<sdc-search-view>` (if the model's list template has one) filters and pages the list.\n- In the default list template each row has \"Edit\" (opens `<sdc-model-form>`), \"Detail\" (opens `<sdc-detail-view>`) and \"Remove\"; \"Remove\" asks for confirmation in a dialog and then deletes the record on the server; this cannot be undone.\n- What is listed and whether delete is allowed is decided by the model's server-side permissions.",
+      "view_class": "sdc_tools.sdc_views.SdcListView",
+      "url": "/sdc_view/sdc_tools/sdc_list_view",
+      "url_params": []
+    },
+    "sdc-model-form": {
+      "doc": "Generic create/edit form for one record of an SDC model, generated from the model's server-side form; saves via the model socket.\n\n- Arguments: `model` (required) is the SDC model name; with `pk` (or `id`) it edits that record, without it it creates a new one (e.g. `/~sdc-model-form~&model=Author&pk=3`).\n- Edit mode: every field change is saved automatically, there is no save step; with `form_name=<name>` a named alternative form of the model is used, and with `auto_save=false` changes are only stored when the save button (`button_text`, default \"Save\") is pressed.\n- Create mode: \"Create\" creates the record and then navigates to `next` (default `..`, one level up); `reset_on_save=true` instead clears the form for another entry, `editing_after_save=true` switches to editing the new record.\n- After a successful save of an existing record the form navigates to `next` if given.\n- Other optional arguments: `form_header` (heading text) and `filter` (selects the record to edit instead of `pk`).\n- Validation errors are shown at the fields; who may create or edit is decided by the model's server-side permissions.\n- Also used as a mixin by app-specific form controllers.",
+      "view_class": "sdc_tools.sdc_views.SdcModelForm",
+      "url": "/sdc_view/sdc_tools/sdc_model_form",
+      "url_params": []
+    },
+    "sdc-navigator": {
+      "doc": "Root navigation frame of an SDC app: owns the URL, the nested views and the breadcrumb; there is one per page and it is exposed as `window.sdcNav`.\n\n- URL scheme: `/~<tag>~<child-tag>~&key=value&...`. Each `~` segment is a controller tag rendered nested inside the previous one; arguments after `~&` are passed to the views as data attributes (`N.key=value` targets only the view at depth `N`, plain `key` applies to the deepest one). Relative paths (`.`, `..`, `*` = keep the current segment at that depth) are resolved against the current path.\n- An empty path opens the controller named in its `default-controller` argument; a view container with its own `data-default-controller` opens that child automatically.\n- Links with the class `navigation-links` are handled client-side without page reload; `window.sdcNav.goTo('<path>', {args})` (or triggering the `goTo` event) navigates programmatically. Browser back/forward works.\n- An unknown tag in the path shows `sdc-error 404` instead of the view. Some containers open their view in a modal; closing the modal navigates back one level.\n- Links marked as login-only/logout-only are shown or hidden depending on whether a user is logged in; the `login`/`logout` events reload the whole page.",
+      "view_class": "sdc_tools.sdc_views.SdcNavigator",
+      "url": "/sdc_view/sdc_tools/sdc_navigator",
+      "url_params": []
+    },
+    "sdc-search-select": {
+      "doc": "Searchable dropdown that replaces a normal select field inside forms (rendered by the `SearchableSelect` form widget); the selected value(s) are submitted under the field's name.\n\nClick it to open the option list, type to filter (space or comma separated terms, all must match), click an option to select it. With multiple selection each selected value has a \"×\" button to remove it; the same applies to single selection when the field is not required. Each change fires a change event, so inside an edit-mode `<sdc-model-form>` it is saved immediately.",
+      "view_class": "sdc_tools.sdc_views.SdcSearchSelect",
+      "url": "/sdc_view/sdc_tools/sdc_search_select",
+      "url_params": []
+    },
+    "sdc-search-view": {
+      "doc": "Search and paging bar embedded at the top of a model list (inside `<sdc-list-view>`); its fields come from the model's server-side search form.\n\nChanging a search field filters the surrounding list immediately (no submit button needed). \"Prev\"/\"Next\" page through the results and the bar shows the current range and total count; the paging controls are hidden when everything fits on one page. It changes no data.",
+      "view_class": "sdc_tools.sdc_views.SdcSearchView",
+      "url": "/sdc_view/sdc_tools/sdc_search_view",
+      "url_params": []
+    }
+  },
+  "models": {}
+}

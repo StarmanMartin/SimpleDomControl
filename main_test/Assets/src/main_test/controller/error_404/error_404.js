@@ -1,6 +1,11 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Test fixture of the framework's test project; it shows only the static test heading "Error404".
+ *
+ * Despite its name it is not an error handler: it is open to everyone and shows and changes no data.
+ */
 class Error404Controller extends AbstractSDC {
 
     constructor() {

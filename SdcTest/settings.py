@@ -120,3 +120,34 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'webmaster@localhost')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = True
+
+# AI assistant <sdc-ai-assistant> (needs pip install "simpledomcontrol[ai]")
+SDC_AI_ASSISTANT = True
+# True: everybody uses the server's API key (environment variable, see below);
+# False: every user enters their own key in the assistant's settings menu
+SDC_AI_TOKEN_FROM_SYSTEM = False
+# Only logged-in users may use the assistant. Must stay True while SDC_AI_TOKEN_FROM_SYSTEM is True
+# (otherwise anonymous visitors would use the system's provider key).
+SDC_AI_REQUIRE_LOGIN = False
+# Optional list of group names allowed to use the assistant (staff and superusers always are); None = all users.
+SDC_AI_ALLOWED_GROUPS = None
+# Optional cap of model requests per user and day on the system's key (every tool round of an answer
+# is a request); None = unlimited.
+SDC_AI_MAX_REQUESTS_PER_USER = 100
+# AI model connection. The server's API key stays an environment variable read by the provider SDK
+# (ANTHROPIC_API_KEY or OPENAI_API_KEY); never put it here.
+# SDC_AI_PROVIDER: anthropic (Claude) or openai-compatible (OpenAI or any compatible API such as the
+# KIT KI-Toolbox; set SDC_AI_BASE_URL and SDC_AI_MODEL)
+SDC_AI_PROVIDER = os.environ.get('SDC_AI_PROVIDER', 'anthropic')
+SDC_AI_MODEL = os.environ.get('SDC_AI_MODEL', 'claude-opus-5-5')
+SDC_AI_BASE_URL = os.environ.get('SDC_AI_BASE_URL', '')
+# Users with their own key may set an API URL in the assistant's settings (https, public addresses only)
+SDC_AI_ALLOW_USER_BASE_URL = True
+SDC_AI_MAX_TOKENS = int(os.environ.get('SDC_AI_MAX_TOKENS', 16000))
+SDC_AI_TIMEOUT = float(os.environ.get('SDC_AI_TIMEOUT', 600))
+SDC_AI_MAX_RETRIES = int(os.environ.get('SDC_AI_MAX_RETRIES', 2))
+# Claude only: low, medium, high, xhigh or max
+SDC_AI_EFFORT = os.environ.get('SDC_AI_EFFORT', 'medium')
+# Additional skill file(s) for the assistant (path or list of paths, relative to BASE_DIR), appended to the
+# generated SDC_SKILL.md, e.g. hand-written knowledge about workflows of this project
+SDC_AI_ADDITIONAL_SKILL_FILE = None

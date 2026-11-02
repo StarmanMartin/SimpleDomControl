@@ -1,6 +1,11 @@
 import {AbstractSDC, app} from 'sdc_client';
 
 
+/**
+ * Small demo list item inside `<main-view>`: a single text input named `i_<idx>`.
+ *
+ * Argument `idx` is the item's position in the list; changing the input shows a browser alert with that `idx`. It saves no data and is open to everyone.
+ */
 class TestItemController extends AbstractSDC {
 
     constructor() {

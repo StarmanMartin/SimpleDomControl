@@ -585,6 +585,11 @@ Overview
 ``sdc-error`` and ``sdc-dummy``
    Minimal utility controllers for fallback and placeholder content.
 
+``sdc-ai-assistant``
+   Chat panel of the AI assistant: answers questions about the site and opens
+   views, reads the page, fills forms and reads SdcModel records for the user.
+   See :doc:`ai_assistant`.
+
 Navigator pattern
 ^^^^^^^^^^^^^^^^^
 

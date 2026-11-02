@@ -1,6 +1,17 @@
 import { AbstractSDC, app, trigger, SdcQuerySet, SdcModel } from 'sdc_client';
 
 
+/**
+ * Generic create/edit form for one record of an SDC model, generated from the model's server-side form; saves via the model socket.
+ *
+ * - Arguments: `model` (required) is the SDC model name; with `pk` (or `id`) it edits that record, without it it creates a new one (e.g. `/~sdc-model-form~&model=Author&pk=3`).
+ * - Edit mode: every field change is saved automatically, there is no save step; with `form_name=<name>` a named alternative form of the model is used, and with `auto_save=false` changes are only stored when the save button (`button_text`, default "Save") is pressed.
+ * - Create mode: "Create" creates the record and then navigates to `next` (default `..`, one level up); `reset_on_save=true` instead clears the form for another entry, `editing_after_save=true` switches to editing the new record.
+ * - After a successful save of an existing record the form navigates to `next` if given.
+ * - Other optional arguments: `form_header` (heading text) and `filter` (selects the record to edit instead of `pk`).
+ * - Validation errors are shown at the fields; who may create or edit is decided by the model's server-side permissions.
+ * - Also used as a mixin by app-specific form controllers.
+ */
 export class SdcModelFormController extends AbstractSDC {
 
 
