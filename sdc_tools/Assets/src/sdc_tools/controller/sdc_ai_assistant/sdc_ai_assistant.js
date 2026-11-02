@@ -1,4 +1,5 @@
 import {AbstractSDC, app, SdcQuerySet, trigger} from 'sdc_client';
+import {renderMarkdown} from './markdown.js';
 
 // Records returned to the model by one model_load action
 const MAX_LOADED_RECORDS = 50;
@@ -51,8 +52,10 @@ class SdcAiAssistantController extends AbstractSDC {
         this.contentUrl = "/sdc_view/sdc_tools/sdc_ai_assistant"; //<sdc-ai-assistant></sdc-ai-assistant>
         this._socket = null;
         this._requestId = 0;
-        // Answer bubble the streamed text of the current request goes into
+        // Answer bubble the streamed text of the current request goes into, and its Markdown source
         this._$answer = null;
+        this._answerText = '';
+        this._renderScheduled = false;
         // Connection settings reported by the server (ai_config)
         this._config = null;
         // Remembered settings are sent once per connection
@@ -186,16 +189,17 @@ class SdcAiAssistantController extends AbstractSDC {
         if (data.type === 'ai_config') {
             this._onConfig(data);
         } else if (data.type === 'ai_delta') {
-            this._answerBubble().append(document.createTextNode(data.text));
-            this._scrollDown();
+            this._answerBubble();
+            this._answerText += data.text;
+            this._scheduleRender();
         } else if (data.type === 'ai_actions') {
             // Text of the next round goes into a new bubble below the actions
-            this._$answer = null;
+            this._finishAnswer();
             const results = await this._runActions(data.actions);
             this._send({event: 'action_results', id: data.id, results});
             this._setStatus('thinking…');
         } else if (data.type === 'ai_answer') {
-            this._$answer = null;
+            this._finishAnswer();
             this._setStatus('');
         } else if (data.type === 'error') {
             // A partial answer of this request is discarded
@@ -655,6 +659,14 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         window.addEventListener('resize', this._onWindowResize);
         this._applyGeometry();
+        // Links to SDC views in answers open in the sdc-navigator instead of reloading the page
+        this.find('.ai-messages')[0].addEventListener('click', (ev) => {
+            const a = ev.target.closest('a.ai-md-nav');
+            if (a && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey && ev.button === 0) {
+                ev.preventDefault();
+                trigger('goTo', a.getAttribute('href'));
+            }
+        });
     }
 
     _setCollapsed(collapsed) {
@@ -767,9 +779,37 @@ class SdcAiAssistantController extends AbstractSDC {
 
     _answerBubble() {
         if (!this._$answer) {
-            this._$answer = this._addMessage('assistant', '');
+            this._$answer = this._addMessage('assistant', '').addClass('ai-markdown');
+            this._answerText = '';
         }
         return this._$answer;
+    }
+
+    /** Renders the streamed Markdown at most once per frame (a long answer arrives in many small deltas). */
+    _scheduleRender() {
+        if (this._renderScheduled) {
+            return;
+        }
+        this._renderScheduled = true;
+        const frame = window.requestAnimationFrame || ((cb) => setTimeout(cb, 16));
+        frame(() => {
+            this._renderScheduled = false;
+            this._renderAnswer();
+        });
+    }
+
+    _renderAnswer() {
+        if (this._$answer) {
+            this._$answer[0].replaceChildren(renderMarkdown(this._answerText));
+            this._scrollDown();
+        }
+    }
+
+    /** Renders the complete answer of this round; later text starts a new bubble. */
+    _finishAnswer() {
+        this._renderAnswer();
+        this._$answer = null;
+        this._answerText = '';
     }
 
     _scrollDown() {

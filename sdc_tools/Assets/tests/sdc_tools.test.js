@@ -5,6 +5,7 @@
 import {test_utils, trigger} from 'sdc_client';
 import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
+import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
 
 
 describe('SdcNavigator', () => {
@@ -356,4 +357,72 @@ describe('SdcAiAssistant', () => {
         });
     });
 
+});
+
+describe('AI assistant Markdown', () => {
+    const render = (md) => {
+        const div = document.createElement('div');
+        div.append(renderMarkdown(md));
+        return div;
+    };
+    const html = (md) => render(md).innerHTML;
+
+    test('blocks', () => {
+        expect(html('# Title\nText line\nnext line')).toBe(
+            '<div class="ai-md-heading ai-md-h1">Title</div><p>Text line<br>next line</p>');
+        expect(html('- a\n- b\n  - b1\n  - b2\n- c')).toBe(
+            '<ul><li>a</li><li>b<ul><li>b1</li><li>b2</li></ul></li><li>c</li></ul>');
+        expect(html('3. three\n4. four')).toBe('<ol start="3"><li>three</li><li>four</li></ol>');
+        expect(html('```js\nconst a = 1 < 2;\n```\nafter')).toBe(
+            '<pre class="ai-md-code"><code data-language="js">const a = 1 &lt; 2;</code></pre><p>after</p>');
+        expect(html('> quoted **bold**\n> more')).toBe('<blockquote><p>quoted <strong>bold</strong><br>more</p></blockquote>');
+        expect(html('| Name | Age |\n|:--|--:|\n| Jane | 40 |')).toBe(
+            '<div class="ai-md-table"><table><thead><tr><th style="text-align: left;">Name</th>' +
+            '<th style="text-align: right;">Age</th></tr></thead><tbody><tr><td style="text-align: left;">Jane</td>' +
+            '<td style="text-align: right;">40</td></tr></tbody></table></div>');
+        expect(html('a\n\n* * *\n\nb')).toBe('<p>a</p><hr><p>b</p>');
+    });
+
+    test('inline', () => {
+        expect(html('`x_y` **b** *i* _i2_ ~~s~~ sdc_user_nav_btn')).toBe(
+            '<p><code>x_y</code> <strong>b</strong> <em>i</em> <em>i2</em> <del>s</del> sdc_user_nav_btn</p>');
+        const div = render('See [the docs](https://simpledomcontrol.readthedocs.io/en/latest/), ' +
+                           'https://example.com/a. and [login](/~sdc-login)');
+        const [docs, bare, login] = div.querySelectorAll('a');
+        expect(docs.getAttribute('href')).toBe('https://simpledomcontrol.readthedocs.io/en/latest/');
+        expect(docs.target).toBe('_blank');
+        expect(bare.getAttribute('href')).toBe('https://example.com/a');  // the trailing dot is not part of it
+        expect(login.className).toBe('ai-md-nav');
+        expect(login.target).toBe('');
+    });
+
+    test('HTML and unsafe links stay text', () => {
+        const div = render('<img src=x onerror=alert(1)> <script>alert(1)</script>\n' +
+                           '[click](javascript:alert(1)) [x](https://a.example/"onmouseover="alert(1))');
+        expect(div.querySelector('img, script')).toBeNull();
+        expect(div.textContent).toContain('<img src=x onerror=alert(1)>');
+        const links = div.querySelectorAll('a');
+        expect(links.length).toBe(1);
+        expect([...links[0].attributes].map((a) => a.name).sort()).toEqual(['href', 'rel', 'target']);
+        expect(div.textContent).toContain('[click](javascript:alert(1))');
+    });
+
+    test('incomplete syntax while streaming', () => {
+        expect(html('```py\nprint(1)')).toBe('<pre class="ai-md-code"><code data-language="py">print(1)</code></pre>');
+        expect(html('**bold not closed')).toBe('<p>**bold not closed</p>');
+        expect(html('| a | b')).toBe('<p>| a | b</p>');
+    });
+
+    test('a streamed answer renders like the complete text', async () => {
+        const controller = await test_utils.get_controller('sdc-ai-assistant', {}, '<div class="ai-messages"></div>');
+        const answer = '## Books\n\n| Title | Author |\n|---|---|\n| Faust | Goethe |\n\n- **one**\n- `two`';
+        controller._requestId = 7;
+        for (let i = 0; i < answer.length; i += 5) {
+            await controller._onMessage({type: 'ai_delta', id: 7, text: answer.slice(i, i + 5)});
+        }
+        await controller._onMessage({type: 'ai_answer', id: 7, text: answer});
+        const bubbles = controller.find('.ai-message.assistant.ai-markdown');
+        expect(bubbles.last().html()).toBe(html(answer));
+        expect(controller._$answer).toBeNull();
+    });
 });
