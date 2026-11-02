@@ -602,3 +602,27 @@ def test_user_api_url_is_checked_on_every_connection(monkeypatch):
     async_to_sync(check)()
     # Only the checked address is connected to, never the host name (which could resolve differently)
     assert connected == ['93.184.215.14']
+
+
+def test_provider_client_is_closed(monkeypatch):
+    """A new configuration and the end of the connection close the provider client (its HTTP connections)."""
+    closed = []
+
+    class ClosingClient(FakeClient):
+        async def close(self):
+            closed.append(self)
+
+    clients = []
+
+    def make_client(self):
+        if self.client is None:
+            self.client = ClosingClient()
+            clients.append(self.client)
+        return self.client
+
+    monkeypatch.setattr(SDCAiConsumer, '_client', make_client)
+    with override_settings(**AI | {'SDC_AI_TOKEN_FROM_SYSTEM': False}):
+        run(_user(), [{'event': 'set_config', 'token': 'sk'}, {'event': 'prompt', 'id': 1, 'prompt': 'Hi'},
+                      {'event': 'set_config', 'model': 'claude-sonnet-5-5'},
+                      {'event': 'prompt', 'id': 2, 'prompt': 'Hi'}])
+    assert len(clients) == 2 and closed == clients

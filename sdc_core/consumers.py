@@ -922,8 +922,20 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             self.messages = []
             self.pending = None
         self.config = config
-        self.client = None
+        await self._close_client()
         await self._send_config()
+
+    async def _close_client(self):
+        """Closes the provider client (its HTTP connections); the next request creates a new one."""
+        client, self.client = getattr(self, 'client', None), None
+        if client is not None and hasattr(client, 'close'):
+            try:
+                await client.close()
+            except Exception:
+                logger.warning('AI assistant: closing the provider client failed', exc_info=True)
+
+    async def disconnect(self, code):
+        await self._close_client()
 
     async def _access_error(self):
         if not self._setting('SDC_AI_ASSISTANT', False):
