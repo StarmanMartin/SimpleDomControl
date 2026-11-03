@@ -482,10 +482,48 @@ class SdcAiAssistantController extends AbstractSDC {
     /**
      * Forms of the page without the assistant's own and without those of inactive views: the navigator keeps
      * previous views (e.g. after opening the current view again) hidden in the page, and their forms are exact
-     * copies of the visible ones. read_page and fill_form use the same indexes.
+     * copies of the visible ones. Fields outside any form (e.g. `<sdc-password-forgotten>`, the search bar of
+     * `<sdc-search-view>`) follow as one entry per controller element. read_page and fill_form use the same
+     * indexes.
+     *
+     * @return {{form: HTMLFormElement|null, container: Element, elements: Element[]}[]}
      */
     _pageForms() {
-        return [...document.forms].filter((form) => !form.closest('sdc-ai-assistant') && this._inActiveView(form));
+        const onPage = (el) => !el.closest('sdc-ai-assistant') && this._inActiveView(el);
+        const forms = [...document.forms].filter(onPage)
+            .map((form) => ({form, container: form, elements: [...form.elements]}));
+        const loose = new Map();
+        for (const el of document.body.querySelectorAll('input, select, textarea')) {
+            if (el.form || !onPage(el)) {
+                continue;
+            }
+            const container = this._controllerOf(el);
+            if (!loose.has(container)) {
+                loose.set(container, {form: null, container, elements: []});
+            }
+            loose.get(container).elements.push(el);
+        }
+        return forms.concat([...loose.values()]);
+    }
+
+    /** The nearest SDC controller element around ``el`` (or a custom element), else the body. */
+    _controllerOf(el) {
+        for (let node = el.parentElement; node && node !== document.body; node = node.parentElement) {
+            if (node.classList.contains('_sdc_controller_') || node.tagName.includes('-')) {
+                return node;
+            }
+        }
+        return document.body;
+    }
+
+    /** The controller's tag; the navigator renames view elements (``<x-view_sdc-navigation-client>``). */
+    _controllerTag(node) {
+        return $(node).data('_controller_')?._tagName || node.tagName.toLowerCase();
+    }
+
+    _isVisible(entry) {
+        return entry.form ? !!entry.form.getClientRects().length
+            : entry.elements.some((el) => el.getClientRects().length);
     }
 
     /** False if the element lives in a navigator view container that is not active. */
@@ -539,9 +577,9 @@ class SdcAiAssistantController extends AbstractSDC {
         return copy.innerHTML.replace(/\s+/g, ' ').replace(/> </g, '><').trim();
     }
 
-    _describeForm(form, index) {
+    _describeForm(entry, index) {
         const fields = {};
-        for (const el of form.elements) {
+        for (const el of entry.elements) {
             const type = this._fieldType(el);
             if (!el.name || ['submit', 'button', 'reset', 'image', 'fieldset'].includes(type)) {
                 continue;
@@ -572,12 +610,13 @@ class SdcAiAssistantController extends AbstractSDC {
                 delete field.options;
             }
         }
-        const pk = form.getAttribute('SdcModelPK');
+        const pk = entry.form?.getAttribute('SdcModelPK') ?? null;
         return {
             index,
-            sdc_model_name: form.getAttribute('SdcModelName'),
+            sdc_model_name: entry.form?.getAttribute('SdcModelName') ?? null,
             sdc_model_pk: pk === null ? null : Number(pk),
-            visible: !!form.getClientRects().length,
+            ...(entry.form ? {} : {form_element: false, controller: this._controllerTag(entry.container)}),
+            visible: this._isVisible(entry),
             fields: Object.values(fields),
         };
     }
@@ -597,17 +636,19 @@ class SdcAiAssistantController extends AbstractSDC {
     /**
      * Enters values like the user typing them. The form is never submitted. In SdcModel forms only `input` events
      * are fired: they update the form's model object, but not the `change` event that makes edit forms save
-     * themselves, so the user still checks and saves the values.
+     * themselves, so the user still checks and saves the values. Fields outside a form get `input` and `change`
+     * events like in other forms; the controller's buttons (which the assistant does not click) send them.
      */
     _fillForm({form: index, values}) {
-        const form = this._pageForms()[index];
-        if (!form) {
+        const entry = this._pageForms()[index];
+        if (!entry) {
             throw new Error(`There is no form ${index} on the page; use read_page to get the form indexes`);
         }
-        const isModelForm = form.hasAttribute('SdcModelName');
+        const {form} = entry;
+        const isModelForm = !!form?.hasAttribute('SdcModelName');
         const set = {}, errors = {};
         for (const [name, value] of Object.entries(values || {})) {
-            const fields = [...form.elements].filter((el) => el.name === name);
+            const fields = entry.elements.filter((el) => el.name === name);
             const type = fields.length ? this._fieldType(fields[0]) : null;
             if (!fields.length) {
                 errors[name] = 'no field with this name';
@@ -624,22 +665,26 @@ class SdcAiAssistantController extends AbstractSDC {
                             el.dispatchEvent(new Event('change', {bubbles: true}));
                         }
                     }
-                    set[name] = this._describeForm(form, index).fields.find((f) => f.name === name)?.value;
+                    set[name] = this._describeForm(entry, index).fields.find((f) => f.name === name)?.value;
                 } catch (e) {
                     errors[name] = e.message;
                 }
             }
         }
         if (Object.keys(set).length) {
-            form.scrollIntoView?.({block: 'nearest', behavior: 'smooth'});
+            (form || entry.elements[0]).scrollIntoView?.({block: 'nearest', behavior: 'smooth'});
+        }
+        let note = 'The form was not submitted; the user has to submit it.';
+        if (isModelForm) {
+            note = `SdcModel form (${form.getAttribute('SdcModelName')}): nothing is saved; the user has to check the values and submit or save the form.`;
+        } else if (!form) {
+            note = 'Nothing was submitted. Views that react to changes (e.g. a search bar) update by themselves; otherwise the user has to click the button of the view.';
         }
         return {
             set,
             errors,
-            ...(form.getClientRects().length ? {} : {warning: 'This form is not visible to the user.'}),
-            note: isModelForm
-                ? `SdcModel form (${form.getAttribute('SdcModelName')}): nothing is saved; the user has to check the values and submit or save the form.`
-                : 'The form was not submitted; the user has to submit it.',
+            ...(this._isVisible(entry) ? {} : {warning: 'This form is not visible to the user.'}),
+            note,
         };
     }
 

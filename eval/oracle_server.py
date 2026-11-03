@@ -12,7 +12,7 @@ application, i.e. that the expected paths, arguments, form values and answers ar
 
 The task is found by the first user message of the conversation (one of its prompts); the step is the number of
 assistant messages so far. A step is ``{tool: input}`` or ``{answer: text}``. ``fill_form`` may name the form by
-``model`` (SdcModelName, optionally ``pk``) or ``field`` (a field name it contains) instead of ``form`` (index);
+``model`` (SdcModelName, optionally ``pk``), ``controller`` (fields outside a ``<form>``) or ``field`` (a field name it contains) instead of ``form`` (index);
 the index is taken from the last ``read_page`` result. Tasks with a ``judge`` rubric are not graded by the oracle
 (use --judge-model or check the answers by hand).
 """
@@ -62,6 +62,8 @@ def resolve_fill_form(args, messages):
         if 'model' in args and form.get('sdc_model_name') != args['model']:
             continue
         if 'pk' in args and form.get('sdc_model_pk') != args['pk']:
+            continue
+        if 'controller' in args and form.get('controller') != args['controller']:
             continue
         if 'field' in args and not any(f['name'] == args['field'] for f in form.get('fields', [])):
             continue

@@ -97,3 +97,31 @@
     - read_page: {}
     - fill_form: {model: Author, values: {name: Hedy Lamarr, age: 85}}
     - answer: "Done, please check the form and click Create."
+- id: sdctest-T4-08
+  app: sdctest
+  category: form
+  role: regular
+  start: "/~sdc-login~sdc-password-forgotten"
+  prompt:
+    - "I want to reset my password. Enter jane@example.org for the reset e-mail, I'll send it myself."
+    - "Put my address jane@example.org into the password reset request, but don't send it yet."
+  expect:
+    form: {controller: sdc-password-forgotten, values: {username: jane@example.org}}
+  reference:
+    - read_page: {}
+    - fill_form: {controller: sdc-password-forgotten, values: {username: jane@example.org}}
+    - answer: "I entered your address; click 'Send E-mail' to request the reset link."
+- id: sdctest-T4-09
+  app: sdctest
+  category: form
+  role: regular
+  start: "/~sdc-list-view~&model=Author"
+  prompt:
+    - "Search the author list for Grace."
+    - "Filter the authors by the name Grace."
+  expect:
+    form: {controller: sdc-search-view, values: {search: Grace}}
+  reference:
+    - read_page: {}
+    - fill_form: {controller: sdc-search-view, values: {search: Grace}}
+    - answer: "The author list is filtered by 'Grace'."

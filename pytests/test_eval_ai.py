@@ -202,3 +202,12 @@ def test_prompt_warnings():
         'Model m: conditions apps and full used the same system prompt']
     assert prompt_warnings([r('full', 'a'), r('full', 'c')]) == [
         'Model m, condition full: 2 different system prompts (the knowledge changed during the evaluation)']
+
+
+def test_form_check_matches_fields_outside_a_form():
+    task = validate_task({'id': 'x', 'prompt': 'p', 'expect': {
+        'form': {'controller': 'sdc-password-forgotten', 'values': {'username': 'jane'}}}})
+    loose = {'model': None, 'pk': None, 'controller': 'sdc-password-forgotten', 'values': {'username': 'jane'}}
+    other = dict(loose, controller='sdc-search-view')
+    assert check_episode(task, {'final': {'forms': [loose]}})['form'] is True
+    assert check_episode(task, {'final': {'forms': [other]}})['form'] is False

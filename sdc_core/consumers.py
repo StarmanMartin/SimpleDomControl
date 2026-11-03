@@ -768,7 +768,8 @@ AI_TOOLS = [
     {'name': 'read_page',
      'description': 'Read the current page: URL, title, a simplified HTML of the visible content and all forms '
                     '(index, SdcModelName/SdcModelPK if it is an SdcModel form, fields with name, type, label, '
-                    'current value and options). Password values are never returned.',
+                    'current value and options). Fields outside a <form> element are listed as an extra form per '
+                    'view (form_element false, controller tag). Password values are never returned.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'properties': {}}},
     {'name': 'fill_form',
      'description': 'Enter values into the fields of a form of the current page (input, textarea, select, '

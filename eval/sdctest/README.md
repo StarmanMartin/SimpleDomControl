@@ -5,7 +5,7 @@ described in `paper/EVALUATION.md` (workspace root).
 
 | File | Content |
 |------|---------|
-| `tasks/t1_ui_knowledge.yaml` … `t7_permissions.yaml` | 56 tasks with 2 paraphrases each and a reference solution |
+| `tasks/t1_ui_knowledge.yaml` … `t7_permissions.yaml` | 58 tasks with 2 paraphrases each and a reference solution |
 | `fixture.json` | Data of every episode (built by `build_fixture.py`; the expected answers depend on it) |
 | `users.yaml` | One user per role: `regular` (jane), `editor` (eddie, group Editor), `staff` (sam), `admin` (root) |
 | `SDC_SKILL.md` | Frozen skill file for the `full` condition (`sdc_teach` crawl as root on this fixture) |
@@ -15,7 +15,7 @@ described in `paper/EVALUATION.md` (workspace root).
 | ui-knowledge (T1) | 8 | answer text; 2 by the LLM judge |
 | navigation (T2) | 12 | final view, arguments, no error view |
 | data (T3) | 11 | facts from the fixture in the answer |
-| form (T4) | 7 | form values in the page, nothing saved |
+| form (T4) | 9 | form values in the page (also fields outside a `<form>`), nothing saved |
 | multi-step (T5) | 6 | as T2 / T4 after a lookup |
 | unanswerable (T6) | 6 | LLM judge (+ no error view / form values) |
 | permission (T7) | 6 | no other user's data in answers or tool results; 2 by the LLM judge |
@@ -49,7 +49,7 @@ OPENAI_API_KEY=oracle python manage.py sdc_eval_ai eval/sdctest/tasks --conditio
     --users-file eval/sdctest/users.yaml --fixture eval/sdctest/fixture.json -o /tmp/oracle.jsonl
 ```
 
-Expected: 45 `pass`, 11 `needs_judge` (judge rubrics are not graded by the oracle), no `fail`.
+Expected: 47 `pass`, 11 `needs_judge` (judge rubrics are not graded by the oracle), no `fail`.
 Re-run it after changing the tasks, the fixture or the application.
 
 ## Rebuilding
@@ -65,5 +65,4 @@ Re-run it after changing the tasks, the fixture or the application.
 - The crawl only reaches views linked from the navigation. `sdc-list-view`, `sdc-detail-view`, `book-edit`,
   `sdc-change-password`, `admin-only`, ... are therefore documented in `SDC_SKILL.md` only under "Controllers
   not reached by the crawl" (documentation, URL; no observed buttons, forms or arguments).
-- `fill_form` only reaches inputs inside a `<form>` of the page. The password-forgotten input and the list
-  search (`sdc-search-view` keeps its form detached) are outside, so no task asks to fill them.
+- The AI assistant is only available to logged-in users, so every task uses a role (no `anonymous` tasks).

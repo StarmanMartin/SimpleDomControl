@@ -232,6 +232,8 @@ def _form_matches(spec, form):
         return False
     if 'pk' in spec and str(spec['pk']) != str(form.get('pk')):
         return False
+    if 'controller' in spec and spec['controller'] != form.get('controller'):
+        return False
     values = form.get('values') or {}
     return all(name in values and _same(expected, values[name]) for name, expected in (spec.get('values') or {}).items())
 

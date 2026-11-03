@@ -54,6 +54,11 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: `read_page` / `fill_form` only saw fields inside a `<form>` element, so inputs like the one of
+  `<sdc-password-forgotten>` or the search bar of `<sdc-search-view>` could not be filled. Such fields are now
+  listed after the forms as one form per controller (`form_element: false`, `controller`) and get `input` and
+  `change` events. `sdc_eval_ai` reports them in the final page state, and `expect.form` can match them by
+  `controller`.
 - `sdc_teach`: the skill file only documented the controllers the crawl reached, so views without a link
   (detail and edit pages, views of other roles) were missing although the apps' `SDC_SKILL.json` described
   them. They are now listed with their documentation under "Controllers not reached by the crawl".

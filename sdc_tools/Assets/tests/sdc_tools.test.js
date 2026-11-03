@@ -410,6 +410,36 @@ describe('SdcAiAssistant', () => {
             controller._socket = null;
         });
 
+        test('fields outside a form are one form per controller', () => {
+            const $loose = $(`<div>
+                <ai-loose-view><label for="ai-user">User</label><input id="ai-user" name="username">
+                    <div><select name="kind"><option value="a">A</option><option value="b">B</option></select></div>
+                    <input name="secret" type="password"></ai-loose-view>
+                <ai-other-view><textarea name="note"></textarea></ai-other-view>
+                <div class="sdc_sub_detail_container"><ai-old-view><input name="old"></ai-old-view></div>
+            </div>`).appendTo($page);
+            $loose.find('input, select, textarea').each(function () {
+                this.addEventListener('input', () => events.push(`input:${this.name}`));
+                this.addEventListener('change', () => events.push(`change:${this.name}`));
+            });
+            const loose = controller._readPage().forms.filter((f) => f.form_element === false);
+            expect(loose.map((f) => [f.controller, f.fields.map((x) => x.name)])).toEqual([
+                ['ai-loose-view', ['username', 'kind', 'secret']], ['ai-other-view', ['note']]]);
+            expect(loose[0]).toMatchObject({sdc_model_name: null, sdc_model_pk: null, visible: true});
+            expect(loose[0].fields[0].label).toBe('User');
+
+            const result = controller._fillForm({form: loose[0].index, values: {username: 'jane', kind: 'B', secret: 'x'}});
+            expect(result.set).toEqual({username: 'jane', kind: 'b'});
+            expect(Object.keys(result.errors)).toEqual(['secret']);
+            expect(result.note).toContain('Nothing was submitted');
+            expect($loose.find('[name=username]').val()).toBe('jane');
+            expect(events).toEqual(['input:username', 'change:username', 'input:kind', 'change:kind']);
+            // Real forms keep their indexes before the loose fields
+            expect(controller._readPage().forms.findIndex((f) => f.sdc_model_name === 'Author'))
+                .toBeLessThan(loose[0].index);
+            $loose.remove();
+        });
+
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
             const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));

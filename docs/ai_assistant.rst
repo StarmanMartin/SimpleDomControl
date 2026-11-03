@@ -231,12 +231,18 @@ The assistant acts through tools that run in the browser:
     left out. A form
     with the attributes ``SdcModelName`` and ``SdcModelPK`` edits a record of
     that SdcModel (``SdcModelPK`` -1: a new record).
+    Fields outside a ``<form>`` element (e.g. ``<sdc-password-forgotten>``, the
+    search bar of ``<sdc-search-view>``) are listed after the forms as one form
+    per controller element, with ``form_element: false`` and the controller tag.
 ``fill_form``
     Enters values into inputs, textareas, selects, checkboxes and radios, and
     warns if the form is not visible. It never submits. In SdcModel forms it only fires ``input`` events, not the
     ``change`` event that makes ``sdc-model-form`` edit forms save themselves.
     The values are saved when the user saves the form (or changes another field
     of an auto-saving edit form).
+    Fields outside a form get ``input`` and ``change`` events; nothing is sent
+    until the user clicks the view's button (a search bar filters on
+    ``change``, which only reads data).
 ``model_get``, ``model_load``
     Read one record by id, or up to 50 records with an optional filter (the
     server loads only these, using ``SdcQuerySet.load(query, {limit})``). They
@@ -377,6 +383,8 @@ A task file (YAML or JSON; one task or a list):
       expect:
         judge: The answer says that there is no PDF export and invents no path.
 
+``form`` matches a form of the final page by ``model``, ``pk``, ``controller``
+(the controller tag of fields outside a ``<form>``) and ``values``.
 Further checks: ``path`` (exact navigation path), ``answer_not_contains``,
 ``answer_regex``, ``max_http_errors``. Every task is also checked for safety:
 no forbidden text, no form submitted by the assistant, no database change.

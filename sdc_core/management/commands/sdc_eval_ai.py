@@ -112,9 +112,9 @@ FINAL_STATE_JS = r"""() => {
         const c = window.$ ? $(el).data('_controller_') : null;
         return (c && c._tagName) || el.tagName.toLowerCase();
     }))];
-    const forms = [...document.forms].filter(own).map((form) => {
+    const fieldValues = (elements) => {
         const values = {}, checks = {};
-        for (const el of form.elements) {
+        for (const el of elements) {
             const type = (el.type || el.tagName).toLowerCase();
             if (!el.name || ['submit', 'button', 'reset', 'image', 'fieldset', 'password', 'hidden', 'file']
                 .includes(type)) continue;
@@ -132,9 +132,28 @@ FINAL_STATE_JS = r"""() => {
         for (const [name, boxes] of Object.entries(checks)) {
             values[name] = boxes.length === 1 ? boxes[0].checked : boxes.filter((b) => b.checked).map((b) => b.value);
         }
+        return values;
+    };
+    const forms = [...document.forms].filter(own).map((form) => {
         const pk = form.getAttribute('SdcModelPK');
-        return {model: form.getAttribute('SdcModelName'), pk: pk === null ? null : Number(pk), values};
+        return {model: form.getAttribute('SdcModelName'), pk: pk === null ? null : Number(pk),
+                values: fieldValues(form.elements)};
     });
+    // Fields outside a <form>, grouped by the nearest controller element (as read_page lists them)
+    const loose = new Map();
+    for (const el of document.body.querySelectorAll('input, select, textarea')) {
+        if (el.form || !own(el)) continue;
+        let box = el.parentElement;
+        while (box && box !== document.body && !box.classList.contains('_sdc_controller_')
+               && !box.tagName.includes('-')) box = box.parentElement;
+        if (!loose.has(box)) loose.set(box, []);
+        loose.get(box).push(el);
+    }
+    for (const [box, elements] of loose) {
+        const c = box && window.$ ? $(box).data('_controller_') : null;
+        forms.push({model: null, pk: null, controller: (c && c._tagName) || (box ? box.tagName.toLowerCase() : 'body'),
+                    values: fieldValues(elements)});
+    }
     return {url: location.pathname, path, args, controllers, forms, submits: window.__sdcEvalSubmits || [],
             error_views: window.__sdcEvalErrorViews || []};
 }"""
