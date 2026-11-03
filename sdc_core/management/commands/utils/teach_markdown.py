@@ -149,10 +149,12 @@ def url_params(url):
     return re.findall(r'<(?:\w+:)?(\w+)>', url or '')
 
 
-def _render_controllers(tags, infos, lines, show_app=True):
+def _render_controllers(tags, infos, lines, show_app=True, heading='## Controllers', intro=None):
     if not tags:
         return
-    lines += ['## Controllers', '']
+    lines += [heading, '']
+    if intro:
+        lines += [intro, '']
     for tag in tags:
         info = infos.get(tag, {})
         params = url_params(info.get('url'))
@@ -263,6 +265,13 @@ def render_skill(tree, meta):
     seen_tags = sorted({c['tag'] for n in nodes.values() for c in n['controllers']}
                        | {t for n in nodes.values() for t in n['path']})
     _render_controllers(seen_tags, infos, lines)
+    # Views without a link (detail and edit pages, views of other roles) are not reached by the crawl; their
+    # documentation is still part of the app, so the skill file does not know less than the apps' SDC_SKILL.json.
+    _render_controllers(
+        sorted(set(infos) - set(seen_tags)), infos, lines, heading='## Controllers not reached by the crawl',
+        intro='No link or button of the crawled views opened these controllers (they may need arguments, other '
+              'permissions or are only embedded by code). Their behaviour was not observed; the paths and arguments '
+              'are not verified.')
     _render_models(meta.get('models') or [], lines)
 
     errors = {(e['error'], e['url'].split('/', 3)[-1]) for e in tree.get('errors', [])}

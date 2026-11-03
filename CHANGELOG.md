@@ -54,6 +54,9 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- `sdc_teach`: the skill file only documented the controllers the crawl reached, so views without a link
+  (detail and edit pages, views of other roles) were missing although the apps' `SDC_SKILL.json` described
+  them. They are now listed with their documentation under "Controllers not reached by the crawl".
 - AI assistant: `navigate` reported success ("Now at …") even when the view showed an error page, so the model
   did not learn that a path did not exist. It now returns an error result naming the code (`404`: the view does
   not exist, `403`: not allowed) and also when the view does not finish loading in time.
