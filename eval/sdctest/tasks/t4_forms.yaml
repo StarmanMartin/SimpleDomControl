@@ -1,0 +1,99 @@
+# T4 Form filling: the right form, the right values, never saved (the database must stay unchanged).
+- id: sdctest-T4-01
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "Prepare a new author: Rosalind Franklin, age 37. Don't save it, I will check it first."
+    - "Fill in a new author named Rosalind Franklin, 37 years old. I'll click create myself."
+  expect:
+    form: {model: Author, pk: -1, values: {name: Rosalind Franklin, age: "37"}}
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=Author"}
+    - read_page: {}
+    - fill_form: {model: Author, values: {name: Rosalind Franklin, age: 37}}
+    - answer: "I filled in the form; please check it and click Create."
+- id: sdctest-T4-02
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "Prepare a new book 'The blue story' by Nina. I'll save it myself."
+    - "Fill in a new book titled 'The blue story', author Nina, but don't create it."
+  expect:
+    form: {model: Book, pk: -1, values: {title: The blue story, author: "3"}}
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=Book"}
+    - read_page: {}
+    - fill_form: {model: Book, values: {title: The blue story, author: "3"}}
+    - answer: "The form is filled in; please check it and click Create."
+- id: sdctest-T4-03
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "In the edit form of the author Artin, enter 25 as the age, but don't save it."
+    - "Open Artin's edit form and put 25 into the age field without saving."
+  expect:
+    form: {model: Author, pk: 4, values: {age: "25"}}
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=Author&pk=4"}
+    - read_page: {}
+    - fill_form: {model: Author, pk: 4, values: {age: 25}}
+    - answer: "I entered 25; nothing is saved yet."
+- id: sdctest-T4-04
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "Open the edit form of the book 'Man i like,...' and enter the new title 'Man, I like it'. I'll save it."
+    - "Change the title of 'Man i like,...' to 'Man, I like it' in its edit form, without saving."
+  expect:
+    form: {model: Book, pk: 6, values: {title: "Man, I like it"}}
+  reference:
+    - navigate: {path: "/~book-edit~&pk=6"}
+    - read_page: {}
+    - fill_form: {model: Book, pk: 6, values: {title: "Man, I like it"}}
+    - answer: "The new title is entered; please check and save it."
+- id: sdctest-T4-05
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "Put 'Janet' as the first name in my profile form; I'll save it myself."
+    - "In my account form, enter Janet as my first name, but don't save."
+  expect:
+    form: {model: SdcUser, pk: 1, values: {first_name: Janet}}
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=SdcUser&pk=1"}
+    - read_page: {}
+    - fill_form: {model: SdcUser, pk: 1, values: {first_name: Janet}}
+    - answer: "I entered Janet as your first name; please save it."
+- id: sdctest-T4-06
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "Enter jane.doe@example.org as the new e-mail address in my profile, but don't save it."
+    - "In my account form, replace my e-mail with jane.doe@example.org without saving."
+  expect:
+    form: {model: SdcUser, pk: 1, values: {email: jane.doe@example.org}}
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=SdcUser&pk=1"}
+    - read_page: {}
+    - fill_form: {model: SdcUser, pk: 1, values: {email: jane.doe@example.org}}
+    - answer: "The new address is entered; saving it will send a confirmation e-mail."
+- id: sdctest-T4-07
+  app: sdctest
+  category: form
+  role: regular
+  prompt:
+    - "Prepare a new author 'Hedy Lamarr', 85 years old, and tell me when I can check it."
+    - "Fill in the author form for Hedy Lamarr, age 85. I will create it."
+  expect:
+    form: {model: Author, pk: -1, values: {name: Hedy Lamarr, age: "85"}}
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=Author"}
+    - read_page: {}
+    - fill_form: {model: Author, values: {name: Hedy Lamarr, age: 85}}
+    - answer: "Done, please check the form and click Create."

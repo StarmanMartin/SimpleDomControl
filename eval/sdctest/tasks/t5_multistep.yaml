@@ -1,0 +1,93 @@
+# T5 Multi-step: find data first, then navigate or fill a form with it.
+- id: sdctest-T5-01
+  app: sdctest
+  category: multi-step
+  role: regular
+  prompt:
+    - "Open the detail page of the author who wrote 'How to read'."
+    - "Who wrote 'How to read'? Open that author's details."
+  expect:
+    controller: sdc-detail-view
+    args: {model: Author, pk: 2}
+    max_error_views: 0
+  reference:
+    - model_load: {model: Book, filter: {title: How to read}}
+    - navigate: {path: "/~sdc-detail-view~&model=Author&pk=2"}
+    - answer: "Martin wrote it; his detail page is open."
+- id: sdctest-T5-02
+  app: sdctest
+  category: multi-step
+  role: regular
+  prompt:
+    - "Prepare a new book titled 'Programming Pioneers' for the oldest author. Don't save it."
+    - "Fill in a new book 'Programming Pioneers' whose author is the oldest author; I'll create it."
+  expect:
+    form: {model: Book, pk: -1, values: {title: Programming Pioneers, author: "5"}}
+  reference:
+    - model_load: {model: Author}
+    - navigate: {path: "/~sdc-model-form~&model=Book"}
+    - read_page: {}
+    - fill_form: {model: Book, values: {title: Programming Pioneers, author: "5"}}
+    - answer: "The book is prepared for Grace Hopper; please click Create."
+- id: sdctest-T5-03
+  app: sdctest
+  category: multi-step
+  role: regular
+  prompt:
+    - "Find Ada Lovelace's edit form and enter 37 as her age, without saving."
+    - "Open the edit form of Ada Lovelace and put 37 as the age. Don't save."
+  expect:
+    form: {model: Author, pk: 6, values: {age: "37"}}
+  reference:
+    - model_load: {model: Author, filter: {name: Ada Lovelace}}
+    - navigate: {path: "/~sdc-model-form~&model=Author&pk=6"}
+    - read_page: {}
+    - fill_form: {model: Author, pk: 6, values: {age: 37}}
+    - answer: "37 is entered; nothing is saved."
+- id: sdctest-T5-04
+  app: sdctest
+  category: multi-step
+  role: regular
+  prompt:
+    - "Open the edit page of Nina's book with the highest id."
+    - "Of all of Nina's books, take the one with the largest id and open its edit page."
+  expect:
+    controller: [[book-edit, sdc-model-form]]
+    args: {pk: 9}
+    max_error_views: 0
+  reference:
+    - model_load: {model: Book, filter: {author__name: Nina}}
+    - navigate: {path: "/~book-edit~&pk=9"}
+    - answer: "The edit page of 'The red story' is open."
+- id: sdctest-T5-05
+  app: sdctest
+  category: multi-step
+  role: regular
+  start: "/~sdc-list-view~&model=Book"
+  prompt:
+    - "Open the detail page of the youngest author who has at least one book."
+    - "Among the authors with books, who is the youngest? Show me their detail page."
+  expect:
+    controller: sdc-detail-view
+    args: {model: Author, pk: 2}
+    max_error_views: 0
+  reference:
+    - model_load: {model: Author}
+    - model_load: {model: Book}
+    - navigate: {path: "/~sdc-detail-view~&model=Author&pk=2"}
+    - answer: "Martin (22) is the youngest author with books; his page is open."
+- id: sdctest-T5-06
+  app: sdctest
+  category: multi-step
+  role: regular
+  prompt:
+    - "Prepare a new book with the same title as Artin's book, but by Ada Lovelace. Don't save it."
+    - "Fill in a new book that has Artin's book title and Ada Lovelace as author; I'll create it."
+  expect:
+    form: {model: Book, pk: -1, values: {title: "Man i like,...", author: "6"}}
+  reference:
+    - model_load: {model: Book, filter: {author__name: Artin}}
+    - navigate: {path: "/~sdc-model-form~&model=Book"}
+    - read_page: {}
+    - fill_form: {model: Book, values: {title: "Man i like,...", author: "6"}}
+    - answer: "Prepared; please check and click Create."

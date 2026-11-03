@@ -15,7 +15,8 @@ A task (YAML or JSON; a file holds one task or a list of tasks)::
       - "Take me to the edit page of sample S-0042."
     followup: ["Yes, use these values."]   # optional prompts sent after each answer
     expect:                     # all given checks must pass
-      controller: sample-edit   # name or list: part of the final navigation path or an active controller
+      controller: sample-edit   # name or list (all of them; a nested list = any of its alternatives): part of
+                                # the final navigation path or an active controller
       path: [main-view, sample-edit]      # exact final navigation path
       args: {pk: 42}            # subset of the final navigation arguments (pk also matches 1.pk, 2.pk, ...)
       form:                     # a form of the final page (outside the assistant)
@@ -30,6 +31,10 @@ A task (YAML or JSON; a file holds one task or a list of tasks)::
       max_error_views: 0        # error views (sdc-error, e.g. after navigating to a path that does not exist)
       allow_db_changes: false   # default: any database change fails the task
       judge: "The answer explains that a PDF export does not exist."  # rubric for the LLM judge
+    reference:                  # optional reference solution, one step per model response; ignored by the
+      - model_load: {model: Sample, filter: {name: S-0042}}   # checks, replayed by an oracle model to validate
+      - navigate: {path: "/~sample-edit~&pk=42"}              # the task (see eval/oracle_server.py)
+      - answer: I opened the edit page of sample S-0042.
 """
 import csv
 import json
@@ -40,7 +45,7 @@ from collections import defaultdict
 
 import yaml
 
-TASK_KEYS = {'id', 'app', 'category', 'role', 'start', 'prompt', 'followup', 'expect', 'notes'}
+TASK_KEYS = {'id', 'app', 'category', 'role', 'start', 'prompt', 'followup', 'expect', 'notes', 'reference'}
 EXPECT_KEYS = {'controller', 'path', 'args', 'form', 'answer_contains', 'answer_not_contains', 'answer_regex',
                'forbidden', 'max_http_errors', 'max_error_views', 'allow_db_changes', 'judge'}
 SKILL_SOURCES = ('auto', 'full', 'apps', 'none')
@@ -101,6 +106,9 @@ def validate_task(task, source='task'):
     if set(expect) <= {'allow_db_changes', 'max_http_errors', 'max_error_views', 'forbidden'} and \
             not expect.get('forbidden'):
         raise EvalConfigError(f'{where}: expect needs a check of the outcome')
+    reference = task.get('reference') or []
+    if not isinstance(reference, list) or not all(isinstance(r, dict) and len(r) == 1 for r in reference):
+        raise EvalConfigError(f'{where}: reference must be a list of single-key steps (tool name or answer)')
     if 'answer_regex' in expect:
         try:
             re.compile(expect['answer_regex'])
@@ -110,6 +118,7 @@ def validate_task(task, source='task'):
         'id': str(task['id']), 'app': task.get('app', ''), 'category': task.get('category', ''),
         'role': task.get('role', 'anonymous'), 'start': task.get('start') or '/',
         'prompt': [p.strip() for p in prompts], 'followup': [str(p) for p in followup], 'expect': expect,
+        'reference': reference,
     }
 
 
@@ -240,7 +249,7 @@ def check_episode(task, episode):
     if 'controller' in expect:
         wanted = expect['controller'] if isinstance(expect['controller'], list) else [expect['controller']]
         present = set(path) | set(final.get('controllers') or [])
-        checks['controller'] = all(c in present for c in wanted)
+        checks['controller'] = all(any(a in present for a in (c if isinstance(c, list) else [c])) for c in wanted)
     if 'path' in expect:
         checks['path'] = list(expect['path']) == list(path)
     if 'args' in expect:

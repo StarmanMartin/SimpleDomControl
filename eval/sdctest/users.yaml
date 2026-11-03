@@ -1,0 +1,5 @@
+# Users of eval/sdctest/fixture.json by role (password: see build_fixture.py)
+regular: {username: jane, password: eval-pass-123}
+editor: {username: eddie, password: eval-pass-123}
+staff: {username: sam, password: eval-pass-123}
+admin: {username: root, password: eval-pass-123}

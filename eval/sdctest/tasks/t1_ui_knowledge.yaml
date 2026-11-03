@@ -1,0 +1,90 @@
+# T1 UI knowledge: questions about the application itself; answered without (necessarily) acting.
+- id: sdctest-T1-01
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "What is the URL path of the page where I can change my password? Just tell me, don't open it."
+    - "Don't navigate anywhere: which path do I open to change my password?"
+  expect:
+    answer_contains: ["sdc-change-password"]
+  reference:
+    - answer: "The password form is at /~sdc-change-password."
+- id: sdctest-T1-02
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "Which page do new users use to create an account? Tell me its path."
+    - "Where do new people sign up? Give me the path of that page."
+  expect:
+    answer_contains: ["register"]
+  reference:
+    - answer: "New users register at /~register~&model=SdcUser&next=.."
+- id: sdctest-T1-03
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "How can I delete an author? Only explain it, don't do anything."
+    - "Explain to me how authors are removed. Do not change anything."
+  expect:
+    answer_contains: [["remove", "entfernen"]]
+    judge: "Explains that an author is deleted with the 'Remove' button of its row in the author list (sdc-list-view with model Author), which asks for confirmation. Does not claim to have deleted anything."
+  reference:
+    - answer: "Open the author list (/~sdc-list-view~&model=Author) and click 'Remove' in the author's row, then confirm the dialog."
+- id: sdctest-T1-04
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "What does the BB button on the main page do?"
+    - "On the main view there is a button labelled BB. What happens when I click it?"
+  expect:
+    answer_contains: ["Button Pressed"]
+  reference:
+    - answer: "BB removes one test item from the list and sets the header to 'Button Pressed!!'."
+- id: sdctest-T1-05
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "Who is allowed to open the editor-no-staff page?"
+    - "Which users can access the page editor-no-staff?"
+  expect:
+    answer_contains: ["Editor", ["superuser", "admin"]]
+  reference:
+    - answer: "Logged-in users in the group Editor and superusers; staff status alone is not enough."
+- id: sdctest-T1-06
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "If I change a title in the book edit form, do I still have to click a save button?"
+    - "When I edit an existing book, is there a save step or is it stored right away?"
+  expect:
+    judge: "Says that changes in the edit form of an existing book are saved automatically/immediately and no save button has to be clicked."
+  reference:
+    - answer: "No. In edit mode every field change is saved automatically; there is no save button."
+- id: sdctest-T1-07
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "How long is the link in a password reset e-mail valid?"
+    - "For how many days can I use a password reset link?"
+  expect:
+    answer_regex: "\\b(3|three)\\b.{0,3}days?"
+  reference:
+    - answer: "The reset link is valid for 3 days and can be used once."
+- id: sdctest-T1-08
+  app: sdctest
+  category: ui-knowledge
+  role: regular
+  prompt:
+    - "What happens to an author's books when the author is deleted?"
+    - "If an author gets removed, what happens with their books?"
+  expect:
+    judge: "Says that the author's books are deleted as well (cascade)."
+  reference:
+    - answer: "All books of that author are deleted too."

@@ -55,6 +55,7 @@ def test_load_tasks(tmp_path):
     ({'id': 1, 'prompt': 'a', 'expect': {'allow_db_changes': True}}, 'check of the outcome'),
     ({'id': 1, 'prompt': 'a', 'expect': {'answer_regex': '('}}, 'invalid answer_regex'),
     ({'id': 1, 'prompt': 'a', 'expect': {'path': []}, 'extra': 1}, 'unknown keys'),
+    ({'id': 1, 'prompt': 'a', 'expect': {'path': []}, 'reference': [{'navigate': {}, 'answer': 'x'}]}, 'reference'),
 ])
 def test_invalid_tasks(task, msg):
     with pytest.raises(EvalConfigError, match=msg):
@@ -124,6 +125,8 @@ def test_check_navigation_and_form():
     assert checks == {'controller': True, 'path': True, 'args': True, 'form': True, 'no_forbidden': True,
                       'no_submit': True, 'db_unchanged': True}
     assert outcome(checks) == 'pass'
+    assert check_episode(_task(controller=[['book-edit', 'sample-edit'], 'main-view']), episode)['controller']
+    assert not check_episode(_task(controller=[['book-edit', 'sdc-model-form']]), episode)['controller']
     checks = check_episode(_task(args={'pk': 41}, form={'model': 'Sample', 'values': {'room': '3.13'}}), episode)
     assert checks['args'] is False and checks['form'] is False and outcome(checks) == 'fail'
 

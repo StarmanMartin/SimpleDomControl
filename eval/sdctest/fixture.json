@@ -1,0 +1,232 @@
+[
+ {
+  "model": "auth.group",
+  "pk": 1,
+  "fields": {
+   "name": "Editor",
+   "permissions": []
+  }
+ },
+ {
+  "model": "sdc_user.sdcuser",
+  "pk": 1,
+  "fields": {
+   "password": "pbkdf2_sha256$1200000$sdcevaljane$iPUoUYNAfRTj1GUwGzwreSfiR4OGobnKgDU56lTu8wU=",
+   "last_login": null,
+   "is_superuser": false,
+   "username": "jane",
+   "first_name": "Jane",
+   "last_name": "Doe",
+   "email": "jane@example.org",
+   "is_staff": false,
+   "is_active": true,
+   "date_joined": "2026-01-15T09:00:00Z",
+   "email_confirmed": true,
+   "groups": [],
+   "user_permissions": []
+  }
+ },
+ {
+  "model": "sdc_user.sdcuser",
+  "pk": 2,
+  "fields": {
+   "password": "pbkdf2_sha256$1200000$sdcevaleddie$9vMsc86lDEJBeu0zj70ATwucN80g2u58E041r93TF0s=",
+   "last_login": null,
+   "is_superuser": false,
+   "username": "eddie",
+   "first_name": "Eddie",
+   "last_name": "Editor",
+   "email": "eddie@example.org",
+   "is_staff": false,
+   "is_active": true,
+   "date_joined": "2026-01-15T09:00:00Z",
+   "email_confirmed": true,
+   "groups": [
+    1
+   ],
+   "user_permissions": []
+  }
+ },
+ {
+  "model": "sdc_user.sdcuser",
+  "pk": 3,
+  "fields": {
+   "password": "pbkdf2_sha256$1200000$sdcevalsam$yWTK8eOpWXrfJlcqudvsh+/Cl251JttY3C1d0jAXQTQ=",
+   "last_login": null,
+   "is_superuser": false,
+   "username": "sam",
+   "first_name": "Sam",
+   "last_name": "Staff",
+   "email": "sam@example.org",
+   "is_staff": true,
+   "is_active": true,
+   "date_joined": "2026-01-15T09:00:00Z",
+   "email_confirmed": true,
+   "groups": [],
+   "user_permissions": []
+  }
+ },
+ {
+  "model": "sdc_user.sdcuser",
+  "pk": 4,
+  "fields": {
+   "password": "pbkdf2_sha256$1200000$sdcevalroot$t2sgW+KqvZ2HXSLnRmYq7znSazYh9yBLLz3FkznStGo=",
+   "last_login": null,
+   "is_superuser": true,
+   "username": "root",
+   "first_name": "Ruth",
+   "last_name": "Admin",
+   "email": "admin@example.org",
+   "is_staff": true,
+   "is_active": true,
+   "date_joined": "2026-01-15T09:00:00Z",
+   "email_confirmed": true,
+   "groups": [],
+   "user_permissions": []
+  }
+ },
+ {
+  "model": "main_test.author",
+  "pk": 1,
+  "fields": {
+   "name": "Test",
+   "age": 0
+  }
+ },
+ {
+  "model": "main_test.author",
+  "pk": 2,
+  "fields": {
+   "name": "Martin",
+   "age": 22
+  }
+ },
+ {
+  "model": "main_test.author",
+  "pk": 3,
+  "fields": {
+   "name": "Nina",
+   "age": 23
+  }
+ },
+ {
+  "model": "main_test.author",
+  "pk": 4,
+  "fields": {
+   "name": "Artin",
+   "age": 24
+  }
+ },
+ {
+  "model": "main_test.author",
+  "pk": 5,
+  "fields": {
+   "name": "Grace Hopper",
+   "age": 85
+  }
+ },
+ {
+  "model": "main_test.author",
+  "pk": 6,
+  "fields": {
+   "name": "Ada Lovelace",
+   "age": 36
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 1,
+  "fields": {
+   "title": "My super Book",
+   "author": 2
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 2,
+  "fields": {
+   "title": "Nothing to do",
+   "author": 2
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 3,
+  "fields": {
+   "title": "How to read",
+   "author": 2
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 4,
+  "fields": {
+   "title": "The black story",
+   "author": 3
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 5,
+  "fields": {
+   "title": "The green story",
+   "author": 3
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 6,
+  "fields": {
+   "title": "Man i like,...",
+   "author": 4
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 7,
+  "fields": {
+   "title": "Notes on the Analytical Engine",
+   "author": 6
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 8,
+  "fields": {
+   "title": "Compiler Design Basics",
+   "author": 5
+  }
+ },
+ {
+  "model": "main_test.book",
+  "pk": 9,
+  "fields": {
+   "title": "The red story",
+   "author": 3
+  }
+ },
+ {
+  "model": "main_test.bookcontent",
+  "pk": 1,
+  "fields": {
+   "user": 1,
+   "text": "eval/jane_notes.txt"
+  }
+ },
+ {
+  "model": "main_test.bookcontent",
+  "pk": 2,
+  "fields": {
+   "user": 1,
+   "text": "eval/jane_summary.txt"
+  }
+ },
+ {
+  "model": "main_test.bookcontent",
+  "pk": 3,
+  "fields": {
+   "user": 2,
+   "text": "eval/eddie_notes.txt"
+  }
+ }
+]
