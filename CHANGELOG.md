@@ -54,6 +54,11 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: `navigate` reported success ("Now at …") even when the view showed an error page, so the model
+  did not learn that a path did not exist. It now returns an error result naming the code (`404`: the view does
+  not exist, `403`: not allowed) and also when the view does not finish loading in time.
+- `sdc_update_links` wrote `.gitignore` without a final newline: entries added later by hand were glued to the
+  last line, and the generated entry was appended again on every build.
 - `SdcUser`: changing the e-mail address resets `email_confirmed` to `False` (also with
   `save(update_fields=['email'])`). Before, a user could switch to an unconfirmed address and stay
   confirmed, bypassing `SDC_USER_REQUIRE_CONFIRMED_EMAIL`.

@@ -377,6 +377,39 @@ describe('SdcAiAssistant', () => {
             controller._socket = null;
         });
 
+        test('error views of active views are found, also with the navigator\'s suffixed tag', () => {
+            const $views = $(`<div>
+                <div class="sdc_sub_detail_container"><sdc-error data-code="500"></sdc-error></div>
+                <div class="sdc_sub_detail_container active">
+                    <sdc-error_sdc-navigation-client data-code="404"></sdc-error_sdc-navigation-client></div>
+                <div><sdc-error data-code="403"></sdc-error></div>
+            </div>`).appendTo($page);
+            controller.find('.ai-messages').append('<sdc-error data-code="401"></sdc-error>');
+            expect(controller._errorViews()).toEqual(['404', '403']);
+            $views.remove();
+            controller.find('.ai-messages sdc-error').remove();
+            expect(controller._errorViews()).toEqual([]);
+        });
+
+        test('navigate fails when the opened view shows an error page', async () => {
+            const $error = $('<sdc-error data-code="404"></sdc-error>').appendTo($page);
+            await expect(controller._navigate({path: '.'})).rejects.toThrow(
+                /^Navigation to \. failed: the view shows an error page \(404: this view does not exist\)\. Now at /);
+            $error.attr('data-code', '403');
+            await expect(controller._navigate({path: '.'})).rejects.toThrow('403: the user may not open this view');
+            $error.remove();
+            await expect(controller._navigate({path: '.'})).resolves.toMatch(/^Now at /);
+            // The model gets the failure as an error result
+            controller._socket = {readyState: WebSocket.OPEN, send: () => null};
+            $page.append('<sdc-error data-code="404"></sdc-error>');
+            const [result] = await controller._runActions([{tool_use_id: 'n', name: 'navigate', input: {path: '.'}}],
+                controller._requestId);
+            expect(result).toMatchObject({tool_use_id: 'n', is_error: true});
+            expect(result.content).toContain('404: this view does not exist');
+            $page.find('sdc-error').remove();
+            controller._socket = null;
+        });
+
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
             const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));

@@ -5,6 +5,11 @@ import {renderMarkdown} from './markdown.js';
 const MAX_LOADED_RECORDS = 50;
 // How long a navigate action waits for the new view
 const NAVIGATION_TIMEOUT_MS = 10000;
+// What a navigate action tells the model about an error view (sdc-error) by HTTP code
+const ERROR_HINTS = {
+    '404': 'this view does not exist',
+    '403': 'the user may not open this view (not logged in or missing permissions)',
+};
 // read_page: size limits of what is sent to the model
 const MAX_PAGE_HTML = 30000;
 const MAX_FIELD_VALUE = 500;
@@ -391,15 +396,43 @@ class SdcAiAssistantController extends AbstractSDC {
         }
     }
 
+    /**
+     * Opens ``path`` and waits for the new view. Fails (the model gets an error result) if the view shows an error
+     * page, e.g. ``sdc-error 404`` for a path that does not exist or ``403`` for a view the user may not open, or
+     * if it does not finish loading in time.
+     */
     async _navigate({path}) {
         trigger('goTo', path);
         // Wait until the navigator has loaded the new view
         const start = Date.now();
+        const loading = () => window.sdcNav?._is_processing
+            || document.querySelector('.sdc_sub_detail_container.loading');
         await new Promise((resolve) => setTimeout(resolve, 100));
-        while (window.sdcNav?._is_processing && Date.now() - start < NAVIGATION_TIMEOUT_MS) {
+        while (loading() && Date.now() - start < NAVIGATION_TIMEOUT_MS) {
             await new Promise((resolve) => setTimeout(resolve, 100));
         }
-        return `Now at ${window.location.pathname}`;
+        const at = window.location.pathname;
+        const codes = this._errorViews();
+        if (codes.length) {
+            throw new Error(`Navigation to ${path} failed: the view shows an error page (${codes.map((c) => ERROR_HINTS[c]
+                ? `${c}: ${ERROR_HINTS[c]}` : c || 'error').join('; ')}). Now at ${at}. Use only paths and arguments `
+                + 'from the context or from links on the page.');
+        }
+        if (loading()) {
+            throw new Error(`The view did not finish loading within ${NAVIGATION_TIMEOUT_MS / 1000}s. Now at ${at}.`);
+        }
+        return `Now at ${at}`;
+    }
+
+    /**
+     * HTTP codes of the error views (``<sdc-error>``) in the active views, outside the assistant. The navigator
+     * inserts them with a suffixed tag, e.g. ``<sdc-error_sdc-navigation-client data-code="404">``.
+     */
+    _errorViews() {
+        return [...document.body.querySelectorAll('*')]
+            .filter((el) => el.tagName.startsWith('SDC-ERROR') && !el.closest('sdc-ai-assistant')
+                && this._inActiveView(el))
+            .map((el) => String(el.getAttribute('data-code') ?? $(el).data('code') ?? ''));
     }
 
     /**
