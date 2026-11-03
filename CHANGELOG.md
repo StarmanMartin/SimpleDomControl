@@ -8,6 +8,18 @@ The server and the client are released with the same version number.
 ## Unreleased
 
 ### Added
+- `sdc_eval_ai`: evaluates the AI assistant. Runs task files (prompt and paraphrases, user role, start page,
+  checks of the final page state, the answer and safety) for every condition (knowledge in the system prompt:
+  none, apps, full, an older skill file, ...) and model against a throwaway server, drives the real
+  `<sdc-ai-assistant>` in a headless browser, resets the database from a fixture before every episode and
+  detects database changes, form submissions and error views. Writes one JSON line per episode (resumable),
+  optionally grades rubrics with an LLM judge, and prints a summary or a CSV for statistics.
+- AI assistant settings `SDC_AI_SKILL_SOURCE` (`auto`, `full`, `apps`, `none`), `SDC_AI_SKILL_FILE` and
+  `SDC_AI_NO_SKILL_NOTE`: choose the knowledge in the system prompt. Without any knowledge the prompt now
+  contains a short note telling the model to explore the page.
+- AI assistant metrics: `SDC_AI_METRICS_FILE` (JSON lines) or `SDC_AI_METRICS = True` (logger
+  `sdc_core.ai_metrics`) record every model request (duration, token usage, tool calls, hash of the system
+  prompt) and every round of action results.
 - `sdc_teach`: crawls the UI in a headless browser (Playwright) and writes `SDC_SKILL.md`, a skill file for
   AI agents: navigation tree, view arguments, buttons with their observed effects and server calls, forms,
   the SdcModel WebSocket messages of each controller, and the documented controllers and SDC models with

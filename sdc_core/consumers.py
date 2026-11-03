@@ -1,9 +1,12 @@
 import asyncio
 import datetime
+import hashlib
 import ipaddress
 import os
 import re
 import socket
+import time
+import uuid
 import types
 import traceback
 from urllib.parse import urlsplit
@@ -11,7 +14,7 @@ from urllib.parse import urlsplit
 from django.apps import apps
 from django.conf import settings
 from django.core.cache import cache
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.files.uploadhandler import TemporaryFileUploadHandler
 from django.core.signals import setting_changed
@@ -35,6 +38,8 @@ from sdc_core.sdc_extentions.views import SdcAccessMixin, is_valid_server_call
 import logging
 
 logger = logging.getLogger(__name__)
+# One JSON record per model request / action round of the AI assistant (see ``SDCAiConsumer._log_metrics``)
+metrics_logger = logging.getLogger('sdc_core.ai_metrics')
 User = get_user_model()
 
 importlist = []
@@ -604,6 +609,18 @@ AI_MAX_ACTION_ROUNDS = 5
 AI_PROVIDERS = ('anthropic', 'openai-compatible')
 AI_EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
 AI_MAX_TOKENS_LIMIT = 128000
+# Knowledge about the website in the system prompt (``SDC_AI_SKILL_SOURCE``): 'auto' = the skill file
+# (``SDC_AI_SKILL_FILE``) if it exists, else the apps' SDC_SKILL.json; 'full' = only the skill file (an error if it
+# is missing); 'apps' = only the apps' SDC_SKILL.json; 'none' = no knowledge (e.g. as baseline of an evaluation)
+AI_SKILL_SOURCES = ('auto', 'full', 'apps', 'none')
+# Added to the system prompt instead of the knowledge if there is none (``SDC_AI_NO_SKILL_NOTE``, '' disables it):
+# the default prompt refers to a context below
+AI_NO_SKILL_NOTE = ('No generated description of the views and data models of this website is available. Explore '
+                    'it with `read_page` and the links on the page.')
+
+
+def round_ms(seconds):
+    return int(round(seconds * 1000))
 
 
 class AiConfigError(ValueError):
@@ -822,7 +839,13 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
     The system prompt is the ``AI_DEFAULT_SYSTEM_PROMPT`` setting (default: ``AI_DEFAULT_SYSTEM_PROMPT`` of this
     module) followed by the skill file of the project (``SDC_SKILL.md`` written by ``sdc_teach``, else the apps'
     ``SDC_SKILL.json``) and the files of ``SDC_AI_ADDITIONAL_SKILL_FILE`` (one path or a list; relative to
-    ``BASE_DIR``), e.g. hand-written knowledge about the project.
+    ``BASE_DIR``), e.g. hand-written knowledge about the project. ``SDC_AI_SKILL_SOURCE`` (see
+    ``AI_SKILL_SOURCES``) and ``SDC_AI_SKILL_FILE`` select the knowledge; without any, ``SDC_AI_NO_SKILL_NOTE`` is
+    used instead.
+
+    With ``SDC_AI_METRICS_FILE`` (JSON lines) or ``SDC_AI_METRICS = True`` (logger ``sdc_core.ai_metrics``) every
+    model request and every round of action results is recorded: duration, token usage, tool calls and a hash of
+    the system prompt, e.g. to evaluate the assistant (``manage.py sdc_eval_ai``).
     """
 
     async def connect(self):
@@ -838,6 +861,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         self.turn_text = ''
         # Actions sent to the client and not answered yet: {'id', 'round', 'tool_use_ids', 'results'}
         self.pending = None
+        # Identifies the connection in the metrics log
+        self.connection_id = uuid.uuid4().hex
         if not _ai_origin_allowed(self.scope):
             await self.close(code=4403)
             return
@@ -1052,11 +1077,14 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     async def _run(self, id, round):
         """Streams one model response of the current turn; ends the turn or sends its actions to the client."""
+        started = time.monotonic()
         try:
             result = await self._stream(id, final=round >= AI_MAX_ACTION_ROUNDS)
-        except Exception:
+        except Exception as e:
             self._drop_turn()
+            await self._log_request(id, round, started, error=f'{type(e).__name__}: {e}')
             raise
+        await self._log_request(id, round, started, result=result)
         if result['stop'] == 'refusal' or (result['tool_uses'] and result['stop'] != 'tool_use'):
             # A declined or truncated answer is not kept: the conversation continues from before the prompt
             self._drop_turn()
@@ -1105,6 +1133,13 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         for tool_use_id, result in results.items():
             self.pending['results'][tool_use_id] = {'content': result.get('content'),
                                                     'is_error': bool(result.get('is_error'))}
+        if self._metrics_enabled():
+            await self._log_metrics({'type': 'action_results', 'request_id': id, 'round': self.pending['round'],
+                                     'results': [{'tool_use_id': k, 'is_error': bool(r.get('is_error')),
+                                                  'content_chars': len(r['content']) if isinstance(
+                                                      r.get('content'), str) else len(json.dumps(
+                                                      r.get('content'), cls=DjangoJSONEncoder, default=str))}
+                                                 for k, r in results.items()]})
         await self._continue()
 
     async def _continue(self):
@@ -1188,6 +1223,10 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             'stop': message.stop_reason,
             # The complete content (incl. thinking blocks) must be sent back in later requests
             'message': {'role': 'assistant', 'content': message.content},
+            'usage': self._usage(getattr(message, 'usage', None), {
+                'input_tokens': 'input_tokens', 'output_tokens': 'output_tokens',
+                'cache_read_input_tokens': 'cache_read_input_tokens',
+                'cache_creation_input_tokens': 'cache_creation_input_tokens'}),
         }
 
     async def _stream_openai(self, id, final):
@@ -1201,9 +1240,14 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         )
         if final:
             params['tool_choice'] = 'none'
-        text, calls, finish_reason = '', {}, None
+        if self._metrics_enabled():
+            # The token usage comes in a last chunk without choices (not requested otherwise: older
+            # OpenAI-compatible servers may reject the option)
+            params['stream_options'] = {'include_usage': True}
+        text, calls, finish_reason, usage = '', {}, None, None
         stream = await self._client().chat.completions.create(**params)
         async for chunk in stream:
+            usage = getattr(chunk, 'usage', None) or usage
             if not chunk.choices:
                 continue
             choice = chunk.choices[0]
@@ -1236,7 +1280,11 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         # Some servers report "stop" although the answer contains tool calls
         stop = {'length': 'max_tokens', 'content_filter': 'refusal'}.get(
             finish_reason, 'tool_use' if tool_uses else 'end_turn')
-        return {'text': text, 'tool_uses': tool_uses, 'stop': stop, 'message': message}
+        usage_dict = self._usage(usage, {'input_tokens': 'prompt_tokens', 'output_tokens': 'completion_tokens'})
+        cached = getattr(getattr(usage, 'prompt_tokens_details', None), 'cached_tokens', None)
+        if usage_dict is not None and isinstance(cached, int):
+            usage_dict['cache_read_input_tokens'] = cached
+        return {'text': text, 'tool_uses': tool_uses, 'stop': stop, 'message': message, 'usage': usage_dict}
 
     def _client(self):
         if self.client is None:
@@ -1281,6 +1329,70 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             count = 1
         return count <= limit
 
+    # --------------------------------------------------------------- metrics
+    @staticmethod
+    def _usage(usage, fields):
+        """The token counts of a provider's usage object as dict (``fields``: our name -> provider's name)."""
+        if usage is None:
+            return None
+        values = {name: getattr(usage, attr, None) for name, attr in fields.items()}
+        return {k: v for k, v in values.items() if isinstance(v, int) and not isinstance(v, bool)}
+
+    def _metrics_enabled(self):
+        """Metrics are recorded with ``SDC_AI_METRICS_FILE`` or ``SDC_AI_METRICS = True`` (logger only)."""
+        return bool(self._setting('SDC_AI_METRICS_FILE')) or bool(self._setting('SDC_AI_METRICS', False))
+
+    async def _log_request(self, id, round, started, result=None, error=None):
+        """Logs one model request: duration, token usage, tool calls and the knowledge in the system prompt."""
+        if not self._metrics_enabled():
+            return
+        prompt = self.system_prompt or ''
+        record = {
+            'type': 'request', 'request_id': id, 'round': round,
+            'provider': self._config('provider'), 'model': self._config('model'), 'effort': self._config('effort'),
+            'skill_source': self._setting('SDC_AI_SKILL_SOURCE', None) or 'auto',
+            'system_prompt_sha256': hashlib.sha256(prompt.encode()).hexdigest() if prompt else None,
+            'system_prompt_chars': len(prompt),
+            'duration_ms': round_ms(time.monotonic() - started),
+        }
+        if result is not None:
+            record |= {
+                'stop': result['stop'],
+                'usage': result.get('usage'),
+                'text_chars': len(result['text']),
+                'tool_calls': [{'tool_use_id': t['id'], 'name': t['name'], 'input': t['input'],
+                                'invalid': _ai_tool_input_error(t['name'], t['input'])}
+                               for t in result['tool_uses']],
+            }
+        if error is not None:
+            record['error'] = error
+        await self._log_metrics(record)
+
+    async def _log_metrics(self, record):
+        """
+        Writes ``record`` (plus time, connection and user) to the logger ``sdc_core.ai_metrics`` and as one JSON
+        line to ``SDC_AI_METRICS_FILE`` (relative to ``BASE_DIR``). The records contain the model's tool inputs
+        (e.g. form values), but never the prompts, answers or tool results.
+        """
+        user = self.scope.get('user')
+        record = {'ts': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                  'connection': getattr(self, 'connection_id', None),
+                  'user': user.pk if user is not None and getattr(user, 'is_authenticated', False) else None} | record
+        line = json.dumps(record, cls=DjangoJSONEncoder, ensure_ascii=False, default=str)
+        metrics_logger.info(line)
+        path = self._setting('SDC_AI_METRICS_FILE')
+        if not path:
+            return
+        path = os.path.join(str(self._setting('BASE_DIR', '')), os.fspath(path))
+
+        def write():
+            with open(path, 'a', encoding='utf-8') as f:
+                f.write(line + '\n')
+        try:
+            await asyncio.to_thread(write)
+        except OSError as e:
+            logger.warning(f'SDC_AI_METRICS_FILE: cannot write {path}: {e}')
+
     # ---------------------------------------------------------------- prompt
     @classmethod
     def _cached_system_prompt(cls):
@@ -1298,7 +1410,10 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
     @staticmethod
     def _system_prompt():
         prompt = getattr(settings, 'AI_DEFAULT_SYSTEM_PROMPT', None) or AI_DEFAULT_SYSTEM_PROMPT
-        parts = [prompt, SDCAiConsumer._skill_context()] + SDCAiConsumer._additional_skills()
+        skill = SDCAiConsumer._skill_context()
+        if not skill:
+            skill = getattr(settings, 'SDC_AI_NO_SKILL_NOTE', AI_NO_SKILL_NOTE)
+        parts = [prompt, skill] + SDCAiConsumer._additional_skills()
         return '\n\n'.join(p for p in parts if p)
 
     @staticmethod
@@ -1318,11 +1433,27 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         return contents
 
     @staticmethod
+    def _skill_source():
+        source = getattr(settings, 'SDC_AI_SKILL_SOURCE', None) or 'auto'
+        if source not in AI_SKILL_SOURCES:
+            raise ImproperlyConfigured(f'SDC_AI_SKILL_SOURCE must be one of {", ".join(AI_SKILL_SOURCES)}')
+        return source
+
+    @staticmethod
     def _skill_context():
-        path = os.path.join(str(getattr(settings, 'BASE_DIR', '')), 'SDC_SKILL.md')
-        if os.path.isfile(path):
-            with open(path, encoding='utf-8') as f:
-                return f.read()
+        """The knowledge about the website selected by ``SDC_AI_SKILL_SOURCE`` (see ``AI_SKILL_SOURCES``)."""
+        source = SDCAiConsumer._skill_source()
+        if source == 'none':
+            return ''
+        if source in ('auto', 'full'):
+            path = os.path.join(str(getattr(settings, 'BASE_DIR', '')),
+                                os.fspath(getattr(settings, 'SDC_AI_SKILL_FILE', None) or 'SDC_SKILL.md'))
+            if os.path.isfile(path):
+                with open(path, encoding='utf-8') as f:
+                    return f.read()
+            if source == 'full':
+                raise ImproperlyConfigured(f'SDC_AI_SKILL_SOURCE is "full" but the skill file {path} does not exist '
+                                           f'(run manage.py sdc_teach)')
         from sdc_core.management.commands.utils.teach_apps import load_app_skills
         skills = load_app_skills()
         return json.dumps(skills, indent=1, ensure_ascii=False) if skills else ''
