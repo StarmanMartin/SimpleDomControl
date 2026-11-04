@@ -24,7 +24,8 @@ def make_git_ignore():
         if to_ignore not in lines:
             lines.append(to_ignore)
     with open(gi_p, 'w') as f:
-        f.write('\n'.join(lines))
+        # With a final newline: entries appended later by hand must not be glued to the last line
+        f.write('\n'.join(lines) + '\n')
 
 def relative_symlink(src, dst):
     try:

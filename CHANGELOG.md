@@ -8,6 +8,20 @@ The server and the client are released with the same version number.
 ## Unreleased
 
 ### Added
+- `sdc_eval_ai`: evaluates the AI assistant. Runs task files (prompt and paraphrases, user role, start page,
+  checks of the final page state, the answer and safety) for every condition (knowledge in the system prompt:
+  none, apps, full, an older skill file, ...) and model against a throwaway server, drives the real
+  `<sdc-ai-assistant>` in a headless browser, resets the database from a fixture before every episode and
+  detects database changes, form submissions and error views. Writes one JSON line per episode (resumable),
+  optionally grades rubrics with an LLM judge (Anthropic or any OpenAI-compatible model, e.g. on the KIT
+  KI-Toolbox; `--judge-pending` grades the open episodes of an existing result file; a failing judge call leaves the episode `needs_judge`, and the judge is tested before the run), `--retry-errors` runs failed episodes again, and prints a summary or a
+  CSV for statistics.
+- AI assistant settings `SDC_AI_SKILL_SOURCE` (`auto`, `full`, `apps`, `none`), `SDC_AI_SKILL_FILE` and
+  `SDC_AI_NO_SKILL_NOTE`: choose the knowledge in the system prompt. Without any knowledge the prompt now
+  contains a short note telling the model to explore the page.
+- AI assistant metrics: `SDC_AI_METRICS_FILE` (JSON lines) or `SDC_AI_METRICS = True` (logger
+  `sdc_core.ai_metrics`) record every model request (duration, token usage, tool calls, hash of the system
+  prompt) and every round of action results.
 - `sdc_teach`: crawls the UI in a headless browser (Playwright) and writes `SDC_SKILL.md`, a skill file for
   AI agents: navigation tree, view arguments, buttons with their observed effects and server calls, forms,
   the SdcModel WebSocket messages of each controller, and the documented controllers and SDC models with
@@ -42,6 +56,24 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: `model_load` / `model_get` with a model name that is not an SdcModel (`User`, `AuthUser`) or not
+  spelled exactly (`author`) never returned: the browser waited for a model WebSocket that was never opened, and
+  the answer hung until the client timed out. The server now resolves model names case-insensitively and answers
+  unknown names at once with an error listing the available models (also flagged `invalid` in the metrics).
+  Every browser action is also limited to 30 s and returns an error result after that.
+- AI assistant: `read_page` / `fill_form` only saw fields inside a `<form>` element, so inputs like the one of
+  `<sdc-password-forgotten>` or the search bar of `<sdc-search-view>` could not be filled. Such fields are now
+  listed after the forms as one form per controller (`form_element: false`, `controller`) and get `input` and
+  `change` events. `sdc_eval_ai` reports them in the final page state, and `expect.form` can match them by
+  `controller`.
+- `sdc_teach`: the skill file only documented the controllers the crawl reached, so views without a link
+  (detail and edit pages, views of other roles) were missing although the apps' `SDC_SKILL.json` described
+  them. They are now listed with their documentation under "Controllers not reached by the crawl".
+- AI assistant: `navigate` reported success ("Now at …") even when the view showed an error page, so the model
+  did not learn that a path did not exist. It now returns an error result naming the code (`404`: the view does
+  not exist, `403`: not allowed) and also when the view does not finish loading in time.
+- `sdc_update_links` wrote `.gitignore` without a final newline: entries added later by hand were glued to the
+  last line, and the generated entry was appended again on every build.
 - `SdcUser`: changing the e-mail address resets `email_confirmed` to `False` (also with
   `save(update_fields=['email'])`). Before, a user could switch to an unconfirmed address and stay
   confirmed, bypassing `SDC_USER_REQUIRE_CONFIRMED_EMAIL`.

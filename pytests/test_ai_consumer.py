@@ -3,6 +3,7 @@ import os
 from types import SimpleNamespace
 
 import django
+import pytest
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'SdcTest.settings')
 django.setup()
@@ -264,6 +265,26 @@ def test_invalid_tool_input_is_answered_by_the_server(monkeypatch):
     assert received[-1]['type'] == 'ai_answer'
     result = client.calls[1]['messages'][-1]['content'][0]
     assert result['is_error'] and result['content'].startswith('INVALID_JSON')
+
+
+def test_model_names_are_resolved_or_answered_by_the_server(monkeypatch):
+    # A wrong model name used to leave the browser waiting for a model socket that never opened
+    lower = _tool_use('t1', 'model_load', model='author')
+    unknown = _tool_use('t2', 'model_get', model='AuthUser')
+    unknown.input['id'] = 1
+    client = FakeClient(script=[((), 'tool_use', [lower, unknown]), (('Done.',), 'end_turn', ())])
+    with override_settings(**AI):
+        _, received = run(_user(), [
+            {'event': 'prompt', 'id': 1, 'prompt': 'Users?'},
+            {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1', 'content': []}]},
+        ], client, monkeypatch)
+    actions = next(m for m in received if m['type'] == 'ai_actions')
+    assert actions['actions'] == [{'tool_use_id': 't1', 'name': 'model_load', 'input': {'model': 'Author'}}]
+    results = {r['tool_use_id']: r for r in client.calls[1]['messages'][-1]['content']}
+    assert results['t2']['is_error']
+    assert results['t2']['content'].startswith('Unknown SdcModel "AuthUser". Available models: ')
+    assert 'Author' in results['t2']['content'] and 'Book' in results['t2']['content']
+    assert not results['t1']['is_error']
 
 
 def test_valid_input_of_every_tool_is_accepted():
@@ -626,3 +647,93 @@ def test_provider_client_is_closed(monkeypatch):
                       {'event': 'set_config', 'model': 'claude-sonnet-5-5'},
                       {'event': 'prompt', 'id': 2, 'prompt': 'Hi'}])
     assert len(clients) == 2 and closed == clients
+
+
+def test_skill_source_selects_the_knowledge(tmp_path):
+    from django.core.exceptions import ImproperlyConfigured
+    from sdc_core.consumers import AI_NO_SKILL_NOTE
+    (tmp_path / 'SDC_SKILL.md').write_text('# Crawled skill')
+    (tmp_path / 'old.md').write_text('# Old skill')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE=None):
+        assert SDCAiConsumer._system_prompt().endswith('# Crawled skill')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='full', SDC_AI_SKILL_FILE='old.md'):
+        assert SDCAiConsumer._system_prompt().endswith('# Old skill')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='apps'):
+        prompt = SDCAiConsumer._system_prompt()
+        # The apps' SDC_SKILL.json (main_test and the bundled apps ship one), not the Markdown file
+        assert '# Crawled skill' not in prompt and '"controllers"' in prompt
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='none', SDC_AI_ADDITIONAL_SKILL_FILE='old.md'):
+        prompt = SDCAiConsumer._system_prompt()
+        assert '# Crawled skill' not in prompt and '"controllers"' not in prompt
+        # The note replaces the missing knowledge; additional files are still added
+        assert prompt.endswith(AI_NO_SKILL_NOTE + '\n\n# Old skill')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='none', SDC_AI_NO_SKILL_NOTE=''):
+        assert SDCAiConsumer._system_prompt() == SDCAiConsumer._system_prompt().rstrip()
+        assert AI_NO_SKILL_NOTE not in SDCAiConsumer._system_prompt()
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='full', SDC_AI_SKILL_FILE='missing.md'):
+        with pytest.raises(ImproperlyConfigured):
+            SDCAiConsumer._system_prompt()
+    with override_settings(SDC_AI_SKILL_SOURCE='everything'):
+        with pytest.raises(ImproperlyConfigured):
+            SDCAiConsumer._system_prompt()
+
+
+class Usage(SimpleNamespace):
+    pass
+
+
+def test_metrics_file_records_requests_and_action_results(monkeypatch, tmp_path):
+    class UsageStream(FakeStream):
+        async def get_final_message(self):
+            message = await super().get_final_message()
+            message.usage = Usage(input_tokens=10, output_tokens=5, cache_read_input_tokens=100,
+                                  cache_creation_input_tokens=None)
+            return message
+
+    class UsageClient(FakeClient):
+        def _stream(self, **params):
+            stream = super()._stream(**params)
+            return UsageStream(stream.chunks, stream.stop_reason, stream.tool_uses)
+
+    broken = _tool_use('t3', 'model_get', model='Author')
+    client = UsageClient(script=[((), 'tool_use', [NAV, broken]), (('Done.',), 'end_turn', ())])
+    metrics = tmp_path / 'metrics.jsonl'
+    with override_settings(**AI | {'SDC_AI_METRICS_FILE': str(metrics), 'SDC_AI_SKILL_SOURCE': 'none'}):
+        run(_user(pk=7), [{'event': 'prompt', 'id': 1, 'prompt': 'Go'},
+                          {'event': 'action_results', 'id': 1,
+                           'results': [{'tool_use_id': 't2', 'content': 'not found', 'is_error': True}]}],
+            client, monkeypatch)
+    records = [json.loads(line) for line in metrics.read_text().splitlines()]
+    assert [r['type'] for r in records] == ['request', 'action_results', 'request']
+    first, results, last = records
+    assert first['user'] == 7 and first['request_id'] == 1 and first['round'] == 0
+    assert first['connection'] == last['connection'] and len(first['connection']) == 32
+    assert first['skill_source'] == 'none' and first['system_prompt_chars'] > 0
+    assert len(first['system_prompt_sha256']) == 64
+    assert first['usage'] == {'input_tokens': 10, 'output_tokens': 5, 'cache_read_input_tokens': 100}
+    assert first['stop'] == 'tool_use' and first['duration_ms'] >= 0
+    assert [(c['name'], bool(c['invalid'])) for c in first['tool_calls']] == [('navigate', False), ('model_get', True)]
+    assert results['results'] == [{'tool_use_id': 't2', 'is_error': True, 'content_chars': 9}]
+    assert last['round'] == 1 and last['stop'] == 'end_turn' and last['text_chars'] == 5
+    # Answers are never written
+    assert 'Done.' not in metrics.read_text()
+
+
+def test_metrics_are_off_by_default(monkeypatch, tmp_path):
+    client = FakeOpenAIClient([[_chunk('Hi'), _chunk(finish_reason='stop')]])
+    with override_settings(**OPENAI | {'SDC_AI_METRICS_FILE': None, 'SDC_AI_METRICS': False}):
+        run(_user(), [OPENAI_TOKEN, {'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], client, monkeypatch)
+    assert 'stream_options' not in client.calls[0]
+
+
+def test_openai_usage_is_recorded(monkeypatch, tmp_path):
+    usage_chunk = SimpleNamespace(choices=[], usage=SimpleNamespace(
+        prompt_tokens=50, completion_tokens=7, prompt_tokens_details=SimpleNamespace(cached_tokens=40)))
+    client = FakeOpenAIClient([[_chunk('Hi'), _chunk(finish_reason='stop'), usage_chunk]])
+    metrics = tmp_path / 'metrics.jsonl'
+    with override_settings(**OPENAI | {'SDC_AI_METRICS_FILE': str(metrics)}):
+        run(_user(), [OPENAI_TOKEN, {'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], client, monkeypatch)
+    assert client.calls[0]['stream_options'] == {'include_usage': True}
+    record = json.loads(metrics.read_text())
+    assert record['usage'] == {'input_tokens': 50, 'output_tokens': 7, 'cache_read_input_tokens': 40}
+    assert record['provider'] == 'openai-compatible' and record['model'] == 'GPT-OSS:120b'

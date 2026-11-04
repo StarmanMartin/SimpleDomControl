@@ -151,3 +151,7 @@ SDC_AI_EFFORT = os.environ.get('SDC_AI_EFFORT', 'medium')
 # Additional skill file(s) for the assistant (path or list of paths, relative to BASE_DIR), appended to the
 # generated SDC_SKILL.md, e.g. hand-written knowledge about workflows of this project
 SDC_AI_ADDITIONAL_SKILL_FILE = None
+# Knowledge in the system prompt: 'auto' (SDC_SKILL.md, else the apps' SDC_SKILL.json), 'full', 'apps' or 'none'
+SDC_AI_SKILL_SOURCE = os.environ.get('SDC_AI_SKILL_SOURCE', 'auto')
+# One JSON line per model request (duration, tokens, tool calls), e.g. for manage.py sdc_eval_ai
+SDC_AI_METRICS_FILE = os.environ.get('SDC_AI_METRICS_FILE') or None

@@ -1,0 +1,113 @@
+# T3 Data lookup: facts from the fixture (eval/sdctest/build_fixture.py), read with model_get / model_load.
+- id: sdctest-T3-01
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["How many authors are there?", "Count the authors for me."]
+  expect:
+    answer_regex: "\\b(6|six)\\b"
+  reference:
+    - model_load: {model: Author}
+    - answer: "There are 6 authors."
+- id: sdctest-T3-02
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["How many books did Martin write?", "What is the number of books by Martin?"]
+  expect:
+    answer_regex: "\\b(3|three)\\b"
+  reference:
+    - model_load: {model: Book, filter: {author__name: Martin}}
+    - answer: "Martin wrote 3 books."
+- id: sdctest-T3-03
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["Who wrote 'Notes on the Analytical Engine'?", "Which author has the book 'Notes on the Analytical Engine'?"]
+  expect:
+    answer_contains: ["Ada Lovelace"]
+  reference:
+    - model_load: {model: Book, filter: {title: Notes on the Analytical Engine}}
+    - model_get: {model: Author, id: 6}
+    - answer: "It was written by Ada Lovelace."
+- id: sdctest-T3-04
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["Which author is the oldest?", "Who is the oldest of all authors?"]
+  expect:
+    answer_contains: ["Grace Hopper"]
+  reference:
+    - model_load: {model: Author}
+    - answer: "Grace Hopper (85) is the oldest author."
+- id: sdctest-T3-05
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["How old is Nina?", "What age is the author Nina?"]
+  expect:
+    answer_regex: "\\b23\\b"
+  reference:
+    - model_load: {model: Author, filter: {name: Nina}}
+    - answer: "Nina is 23."
+- id: sdctest-T3-06
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["List the titles of Nina's books.", "Which books did Nina write?"]
+  expect:
+    answer_contains: ["The black story", "The green story", "The red story"]
+  reference:
+    - model_load: {model: Book, filter: {author__name: Nina}}
+    - answer: "The black story, The green story and The red story."
+- id: sdctest-T3-07
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["Which author has no books?", "Is there an author without any book? Who?"]
+  expect:
+    answer_contains: ["Test"]
+  reference:
+    - model_load: {model: Author}
+    - model_load: {model: Book}
+    - answer: "The author 'Test' has no books."
+- id: sdctest-T3-08
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["What e-mail address is stored in my account?", "Which e-mail address do I have on file?"]
+  expect:
+    answer_contains: ["jane@example.org"]
+  reference:
+    - model_load: {model: SdcUser}
+    - answer: "Your e-mail address is jane@example.org."
+- id: sdctest-T3-09
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["How many files (book contents) have I uploaded?", "Count my uploaded book content files."]
+  expect:
+    answer_regex: "\\b(2|two)\\b"
+  reference:
+    - model_load: {model: BookContent}
+    - answer: "You have uploaded 2 files."
+- id: sdctest-T3-10
+  app: sdctest
+  category: data
+  role: admin
+  prompt: ["How many user accounts exist?", "Count all user accounts of the site."]
+  expect:
+    answer_regex: "\\b(4|four)\\b"
+  reference:
+    - model_load: {model: SdcUser}
+    - answer: "There are 4 user accounts."
+- id: sdctest-T3-11
+  app: sdctest
+  category: data
+  role: regular
+  prompt: ["How many books have the word 'story' in their title?", "Count the books whose title contains 'story'."]
+  expect:
+    answer_regex: "\\b(3|three)\\b"
+  reference:
+    - model_load: {model: Book, filter: {title__icontains: story}}
+    - answer: "3 books: The black story, The green story and The red story."

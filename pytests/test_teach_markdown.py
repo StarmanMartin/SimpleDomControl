@@ -258,3 +258,23 @@ def test_model_fields_respect_sdc_meta():
     fields = {m['name']: [f['name'] for f in m['fields']] for m in sdc_models()}
     assert 'password' not in fields['SdcUser']
     assert fields['Book'] == ['id', 'title', 'author']
+
+
+def test_unreached_controllers_are_documented():
+    md = render_skill(_tree(_node(['main-view'])), {
+        'project': 'Demo', 'crawled_as': ['user admin'], 'date': '2026-01-01',
+        'controller_infos': {'main-view': {'app': 'main_test', 'doc': 'Start page.'},
+                             'book-edit': {'app': 'main_test', 'url': '/sdc_view/main_test/book_edit/<int:pk>',
+                                           'doc': 'Edits a book.'}}})
+    reached, unreached = md.split('## Controllers not reached by the crawl')
+    assert '### `<main-view>`' in reached and '<book-edit>' not in reached
+    assert ('### `<book-edit>`\n\nEdits a book.\n\n_app `main_test`, Django URL '
+            '`/sdc_view/main_test/book_edit/<int:pk>`, required URL params `pk`_\n') in unreached
+    assert '<main-view>' not in unreached
+
+
+def test_no_unreached_section_when_all_controllers_were_seen():
+    md = render_skill(_tree(_node(['main-view'])), {
+        'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01',
+        'controller_infos': {'main-view': {'app': 'main_test', 'doc': 'Start page.'}}})
+    assert 'not reached by the crawl' not in md

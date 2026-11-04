@@ -112,6 +112,10 @@ The skill file contains:
   messages each controller sends;
 - every controller reached, with its documentation, app, server view and
   Django URL;
+- every other controller of the installed apps in the section *Controllers not
+  reached by the crawl* (views no link opens, such as detail or edit pages that
+  need arguments, or views of other roles), with the same information but
+  without observed behaviour;
 - every SDC model with its documentation and the fields clients can read;
 - errors observed while crawling.
 

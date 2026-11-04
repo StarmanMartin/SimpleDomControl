@@ -377,6 +377,86 @@ describe('SdcAiAssistant', () => {
             controller._socket = null;
         });
 
+        test('error views of active views are found, also with the navigator\'s suffixed tag', () => {
+            const $views = $(`<div>
+                <div class="sdc_sub_detail_container"><sdc-error data-code="500"></sdc-error></div>
+                <div class="sdc_sub_detail_container active">
+                    <sdc-error_sdc-navigation-client data-code="404"></sdc-error_sdc-navigation-client></div>
+                <div><sdc-error data-code="403"></sdc-error></div>
+            </div>`).appendTo($page);
+            controller.find('.ai-messages').append('<sdc-error data-code="401"></sdc-error>');
+            expect(controller._errorViews()).toEqual(['404', '403']);
+            $views.remove();
+            controller.find('.ai-messages sdc-error').remove();
+            expect(controller._errorViews()).toEqual([]);
+        });
+
+        test('navigate fails when the opened view shows an error page', async () => {
+            const $error = $('<sdc-error data-code="404"></sdc-error>').appendTo($page);
+            await expect(controller._navigate({path: '.'})).rejects.toThrow(
+                /^Navigation to \. failed: the view shows an error page \(404: this view does not exist\)\. Now at /);
+            $error.attr('data-code', '403');
+            await expect(controller._navigate({path: '.'})).rejects.toThrow('403: the user may not open this view');
+            $error.remove();
+            await expect(controller._navigate({path: '.'})).resolves.toMatch(/^Now at /);
+            // The model gets the failure as an error result
+            controller._socket = {readyState: WebSocket.OPEN, send: () => null};
+            $page.append('<sdc-error data-code="404"></sdc-error>');
+            const [result] = await controller._runActions([{tool_use_id: 'n', name: 'navigate', input: {path: '.'}}],
+                controller._requestId);
+            expect(result).toMatchObject({tool_use_id: 'n', is_error: true});
+            expect(result.content).toContain('404: this view does not exist');
+            $page.find('sdc-error').remove();
+            controller._socket = null;
+        });
+
+        test('fields outside a form are one form per controller', () => {
+            const $loose = $(`<div>
+                <ai-loose-view><label for="ai-user">User</label><input id="ai-user" name="username">
+                    <div><select name="kind"><option value="a">A</option><option value="b">B</option></select></div>
+                    <input name="secret" type="password"></ai-loose-view>
+                <ai-other-view><textarea name="note"></textarea></ai-other-view>
+                <div class="sdc_sub_detail_container"><ai-old-view><input name="old"></ai-old-view></div>
+            </div>`).appendTo($page);
+            $loose.find('input, select, textarea').each(function () {
+                this.addEventListener('input', () => events.push(`input:${this.name}`));
+                this.addEventListener('change', () => events.push(`change:${this.name}`));
+            });
+            const loose = controller._readPage().forms.filter((f) => f.form_element === false);
+            expect(loose.map((f) => [f.controller, f.fields.map((x) => x.name)])).toEqual([
+                ['ai-loose-view', ['username', 'kind', 'secret']], ['ai-other-view', ['note']]]);
+            expect(loose[0]).toMatchObject({sdc_model_name: null, sdc_model_pk: null, visible: true});
+            expect(loose[0].fields[0].label).toBe('User');
+
+            const result = controller._fillForm({form: loose[0].index, values: {username: 'jane', kind: 'B', secret: 'x'}});
+            expect(result.set).toEqual({username: 'jane', kind: 'b'});
+            expect(Object.keys(result.errors)).toEqual(['secret']);
+            expect(result.note).toContain('Nothing was submitted');
+            expect($loose.find('[name=username]').val()).toBe('jane');
+            expect(events).toEqual(['input:username', 'change:username', 'input:kind', 'change:kind']);
+            // Real forms keep their indexes before the loose fields
+            expect(controller._readPage().forms.findIndex((f) => f.sdc_model_name === 'Author'))
+                .toBeLessThan(loose[0].index);
+            $loose.remove();
+        });
+
+        test('a hanging action returns an error result instead of blocking the answer', async () => {
+            controller._socket = {readyState: WebSocket.OPEN, send: () => null};
+            controller._actionTimeoutMs = 50;
+            const original = controller._actions.model_load;
+            controller._actions.model_load = () => new Promise(() => null);  // never settles
+            const [result, next] = await controller._runActions([
+                {tool_use_id: 'h', name: 'model_load', input: {model: 'Author'}},
+                {tool_use_id: 'r', name: 'read_page', input: {}},
+            ], controller._requestId);
+            expect(result).toMatchObject({tool_use_id: 'h', is_error: true});
+            expect(result.content).toContain('model_load did not finish within 0.05s');
+            expect(next).toMatchObject({tool_use_id: 'r', is_error: false});
+            controller._actions.model_load = original;
+            delete controller._actionTimeoutMs;
+            controller._socket = null;
+        });
+
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
             const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));

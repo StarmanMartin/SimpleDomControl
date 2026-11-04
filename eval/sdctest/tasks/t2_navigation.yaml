@@ -1,0 +1,169 @@
+# T2 Navigation: the assistant has to open the right view with the right arguments.
+- id: sdctest-T2-01
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Show me the list of all authors."
+    - "Open the author list."
+  expect:
+    controller: sdc-list-view
+    args: {model: Author}
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~sdc-list-view~&model=Author"}
+    - answer: "I opened the author list."
+- id: sdctest-T2-02
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Open the list of books."
+    - "Take me to all books."
+  expect:
+    controller: sdc-list-view
+    args: {model: Book}
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~sdc-list-view~&model=Book"}
+    - answer: "Here is the book list."
+- id: sdctest-T2-03
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Open the detail page of the author Nina."
+    - "Show me Nina's author details page."
+  expect:
+    controller: sdc-detail-view
+    args: {model: Author, pk: 3}
+    max_error_views: 0
+  reference:
+    - model_load: {model: Author, filter: {name: Nina}}
+    - navigate: {path: "/~sdc-detail-view~&model=Author&pk=3"}
+    - answer: "I opened Nina's detail page."
+- id: sdctest-T2-04
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "I want to edit the book 'The green story'. Take me to its edit page."
+    - "Open the edit form of the book 'The green story'."
+  expect:
+    controller: [[book-edit, sdc-model-form]]
+    args: {pk: 5}
+    max_error_views: 0
+  reference:
+    - model_load: {model: Book, filter: {title: The green story}}
+    - navigate: {path: "/~book-edit~&pk=5"}
+    - answer: "The edit form of 'The green story' is open."
+- id: sdctest-T2-05
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Open my profile so I can edit my name."
+    - "Take me to the form where I edit my own account."
+  expect:
+    controller: sdc-model-form
+    args: {model: SdcUser, pk: 1}
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=SdcUser&pk=1"}
+    - answer: "Your profile form is open."
+- id: sdctest-T2-06
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Open the page to change my password."
+    - "Take me to the change password form."
+  expect:
+    controller: sdc-change-password
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~sdc-change-password"}
+    - answer: "The change password form is open."
+- id: sdctest-T2-07
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Open the 'password forgotten' page."
+    - "I forgot a password; open the page where a reset e-mail can be requested."
+  expect:
+    controller: sdc-password-forgotten
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~sdc-login~sdc-password-forgotten"}
+    - answer: "The password forgotten page is open."
+- id: sdctest-T2-08
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Open the form to add a new author."
+    - "I want to create an author. Open the right form."
+  expect:
+    controller: sdc-model-form
+    args: {model: Author}
+    form: {model: Author, pk: -1}
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~sdc-model-form~&model=Author"}
+    - answer: "The form for a new author is open."
+- id: sdctest-T2-09
+  app: sdctest
+  category: navigation
+  role: regular
+  start: "/~sdc-list-view~&model=Book"
+  prompt:
+    - "Go back to the main page."
+    - "Take me to the start page."
+  expect:
+    path: [main-view]
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~main-view"}
+    - answer: "You are on the main page."
+- id: sdctest-T2-10
+  app: sdctest
+  category: navigation
+  role: editor
+  prompt:
+    - "Open the editor-no-staff page."
+    - "Take me to the page editor-no-staff."
+  expect:
+    path: [editor-no-staff]
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~editor-no-staff"}
+    - answer: "The page is open."
+- id: sdctest-T2-11
+  app: sdctest
+  category: navigation
+  role: admin
+  prompt:
+    - "Open the admin-only page."
+    - "Take me to the page that only admins can see (admin-only)."
+  expect:
+    path: [admin-only]
+    max_error_views: 0
+  reference:
+    - navigate: {path: "/~admin-only"}
+    - answer: "The admin-only page is open."
+- id: sdctest-T2-12
+  app: sdctest
+  category: navigation
+  role: regular
+  prompt:
+    - "Show me the details of the book 'Compiler Design Basics'."
+    - "Open the detail view of 'Compiler Design Basics'."
+  expect:
+    controller: sdc-detail-view
+    args: {model: Book, pk: 8}
+    max_error_views: 0
+  reference:
+    - model_load: {model: Book, filter: {title: Compiler Design Basics}}
+    - navigate: {path: "/~sdc-detail-view~&model=Book&pk=8"}
+    - answer: "Here are the details of 'Compiler Design Basics'."
