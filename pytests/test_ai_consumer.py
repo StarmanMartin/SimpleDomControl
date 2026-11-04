@@ -267,6 +267,26 @@ def test_invalid_tool_input_is_answered_by_the_server(monkeypatch):
     assert result['is_error'] and result['content'].startswith('INVALID_JSON')
 
 
+def test_model_names_are_resolved_or_answered_by_the_server(monkeypatch):
+    # A wrong model name used to leave the browser waiting for a model socket that never opened
+    lower = _tool_use('t1', 'model_load', model='author')
+    unknown = _tool_use('t2', 'model_get', model='AuthUser')
+    unknown.input['id'] = 1
+    client = FakeClient(script=[((), 'tool_use', [lower, unknown]), (('Done.',), 'end_turn', ())])
+    with override_settings(**AI):
+        _, received = run(_user(), [
+            {'event': 'prompt', 'id': 1, 'prompt': 'Users?'},
+            {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1', 'content': []}]},
+        ], client, monkeypatch)
+    actions = next(m for m in received if m['type'] == 'ai_actions')
+    assert actions['actions'] == [{'tool_use_id': 't1', 'name': 'model_load', 'input': {'model': 'Author'}}]
+    results = {r['tool_use_id']: r for r in client.calls[1]['messages'][-1]['content']}
+    assert results['t2']['is_error']
+    assert results['t2']['content'].startswith('Unknown SdcModel "AuthUser". Available models: ')
+    assert 'Author' in results['t2']['content'] and 'Book' in results['t2']['content']
+    assert not results['t1']['is_error']
+
+
 def test_valid_input_of_every_tool_is_accepted():
     valid = {'navigate': {'path': '/~main-view'}, 'read_page': {}, 'fill_form': {'form': 0, 'values': {'a': 'b'}},
              'model_get': {'model': 'Author', 'id': 1}, 'model_load': {'model': 'Author'}}

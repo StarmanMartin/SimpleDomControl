@@ -25,16 +25,23 @@ Every task also fails on any database change, form submission or forbidden text.
 ## Running
 
 From `SimpleDomControl/`, with the `ai` and `teach` extras and built assets (`yarn build`). The runs flush and
-reload the `jest` database (`test_db.sqlite3`) before every episode.
+reload the `jest` database (`test_db.sqlite3`) before every episode. Models and judge of the study: see
+`paper/EVALUATION.md` §7 (KIT KI-Toolbox, key in `OPENAI_API_KEY`); check the exact model IDs with
+`curl -H "Authorization: Bearer $OPENAI_API_KEY" https://ki-toolbox.scc.kit.edu/api/v1/models`.
 
 ```bash
+KIT=https://ki-toolbox.scc.kit.edu/api/v1
 python manage.py sdc_eval_ai eval/sdctest/tasks \
     --condition none --condition apps --condition full:eval/sdctest/SDC_SKILL.md \
-    --model anthropic:claude-opus-5-5 --model anthropic:claude-haiku-5-5 \
-    --runs 3 --users-file eval/sdctest/users.yaml --fixture eval/sdctest/fixture.json \
-    --judge-model claude-opus-5-5 -o eval/sdctest/results.jsonl
+    --model mistral=openai-compatible:kit.mistral-small-4-119b-a8b@$KIT \
+    --model deepseek=openai-compatible:kit.deepseek-v4-flash@$KIT \
+    --runs 3 --seed 1 --users-file eval/sdctest/users.yaml --fixture eval/sdctest/fixture.json \
+    --judge-model openai-compatible:kit.glm-5.3-flash@$KIT -o eval/sdctest/results.jsonl
 python manage.py sdc_eval_ai --summarize -o eval/sdctest/results.jsonl --by condition,model,category
 ```
+
+A run without `--judge-model` leaves the rubric tasks as `needs_judge`; grade them later with
+`python manage.py sdc_eval_ai eval/sdctest/tasks -o eval/sdctest/results.jsonl --judge-pending --judge-model ...`.
 
 ## Validating the tasks
 

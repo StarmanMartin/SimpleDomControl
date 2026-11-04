@@ -211,3 +211,105 @@ def test_form_check_matches_fields_outside_a_form():
     other = dict(loose, controller='sdc-search-view')
     assert check_episode(task, {'final': {'forms': [loose]}})['form'] is True
     assert check_episode(task, {'final': {'forms': [other]}})['form'] is False
+
+
+def test_judge_model_spec():
+    from sdc_core.management.commands.utils.eval_ai import parse_judge_model
+    assert parse_judge_model('claude-opus-5-5') == {'label': 'claude-opus-5-5', 'provider': 'anthropic',
+                                                    'model': 'claude-opus-5-5', 'base_url': ''}
+    glm = parse_judge_model('openai-compatible:GLM-5.3@https://ki-toolbox.scc.kit.edu/api/v1')
+    assert glm == {'label': 'openai-compatible:GLM-5.3@https://ki-toolbox.scc.kit.edu/api/v1',
+                   'provider': 'openai-compatible', 'model': 'GLM-5.3',
+                   'base_url': 'https://ki-toolbox.scc.kit.edu/api/v1'}
+    assert parse_judge_model('glm=openai-compatible:GLM-5.3@https://x.org/v1')['label'] == \
+        'glm=openai-compatible:GLM-5.3@https://x.org/v1'
+    with pytest.raises(EvalConfigError):
+        parse_judge_model('openai-compatible:')
+
+
+def test_judge_reply_of_thinking_models():
+    assert parse_judge('<think>The rubric says...\nFAIL?</think>\n**PASS**\nIt says so.')['pass'] is True
+    assert parse_judge('## FAIL\nInvents a page.')['pass'] is False
+    assert parse_judge('<think>unfinished reasoning')['pass'] is None
+
+
+def test_judge_pending_grades_stored_episodes(tmp_path, monkeypatch):
+    import io
+    import sys
+    import types
+    from django.core.management import call_command
+
+    tasks = tmp_path / 'tasks.yaml'
+    tasks.write_text('- id: t6\n  role: regular\n  prompt: Export as PDF.\n'
+                     '  expect: {judge: Says there is no PDF export.}\n'
+                     '- id: t3\n  role: regular\n  prompt: How many?\n  expect: {answer_contains: ["3"]}\n')
+    base = {'condition': 'none', 'model': 'm', 'followup': [], 'checks': {'no_submit': True}}
+    lines = [base | {'task': 't6', 'run': 0, 'prompt': 'Export as PDF.', 'answer': 'There is no PDF export.',
+                     'outcome': 'needs_judge', 'checks': {'no_submit': True, 'judge': None}},
+             base | {'task': 't6', 'run': 1, 'prompt': 'Export as PDF.', 'answer': 'Click Export.',
+                     'outcome': 'needs_judge', 'checks': {'no_submit': True, 'judge': None}},
+             base | {'task': 't3', 'run': 0, 'prompt': 'How many?', 'answer': '3', 'outcome': 'pass'}]
+    out = tmp_path / 'results.jsonl'
+    out.write_text(''.join(json.dumps(r) + '\n' for r in lines))
+
+    calls = []
+
+    class FakeOpenAI:
+        def __init__(self, base_url=None):
+            calls.append(base_url)
+            self.chat = types.SimpleNamespace(completions=types.SimpleNamespace(create=self.create))
+
+        @staticmethod
+        def create(model, max_tokens, messages):
+            verdict = 'PASS' if 'There is no PDF export.' in messages[0]['content'] else 'FAIL'
+            message = types.SimpleNamespace(content=f'<think>check</think>{verdict}\nreason')
+            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
+
+    monkeypatch.setitem(sys.modules, 'openai', types.SimpleNamespace(OpenAI=FakeOpenAI))
+    monkeypatch.setenv('OPENAI_API_KEY', 'test')
+    call_command('sdc_eval_ai', str(tasks), '-o', str(out), '--judge-pending',
+                 '--judge-model', 'openai-compatible:GLM-5.3@https://kit.example.org/v1', stdout=io.StringIO())
+    results = [json.loads(line) for line in out.read_text().splitlines()]
+    assert [r['outcome'] for r in results] == ['pass', 'fail', 'pass']
+    assert results[0]['checks'] == {'no_submit': True, 'judge': True}
+    assert results[1]['judge']['model'] == 'openai-compatible:GLM-5.3@https://kit.example.org/v1'
+    assert results[2] == lines[2]  # untouched
+    assert calls == ['https://kit.example.org/v1'] * 2
+
+
+def test_wrong_judge_model_stops_before_the_run(monkeypatch):
+    import sys
+    import types
+    from django.core.management.base import CommandError
+    from sdc_core.management.commands.sdc_eval_ai import Command
+
+    class NotFound(Exception):
+        body = {'detail': 'Model not found'}
+
+    def create(**kwargs):
+        raise NotFound('Error code: 400')
+
+    fake = types.SimpleNamespace(OpenAI=lambda base_url=None: types.SimpleNamespace(
+        chat=types.SimpleNamespace(completions=types.SimpleNamespace(create=create))))
+    monkeypatch.setitem(sys.modules, 'openai', fake)
+    judge = {'label': 'openai-compatible:GLM-5.3@https://x.org/v1', 'provider': 'openai-compatible',
+             'model': 'GLM-5.3', 'base_url': 'https://x.org/v1'}
+    with pytest.raises(CommandError, match="does not answer: NotFound: Error code: 400 {'detail': 'Model not found'}"):
+        Command()._test_judge(judge)
+
+
+def test_retry_errors_and_changed_model_warning(tmp_path):
+    import io
+    from sdc_core.management.commands.sdc_eval_ai import Command
+    out = tmp_path / 'results.jsonl'
+    rows = [{'task': 't', 'condition': 'none', 'model': 'mistral', 'run': 0, 'outcome': 'error',
+             'model_spec': 'mistral=openai-compatible:Mistral-4-Small@https://x.org/v1'},
+            {'task': 't', 'condition': 'none', 'model': 'mistral', 'run': 1, 'outcome': 'pass',
+             'model_spec': 'mistral=openai-compatible:kit.mistral@https://x.org/v1'}]
+    out.write_text(''.join(json.dumps(r) + '\n' for r in rows))
+    command = Command(stderr=io.StringIO())
+    command._warn_changed_models(rows, [parse_model('mistral=openai-compatible:kit.mistral@https://x.org/v1')])
+    warning = command.stderr._out.getvalue()
+    assert 'Mistral-4-Small' in warning and warning.count('Model mistral') == 1
+    Command._drop_errors(str(out))
+    assert [json.loads(line)['run'] for line in out.read_text().splitlines()] == [1]

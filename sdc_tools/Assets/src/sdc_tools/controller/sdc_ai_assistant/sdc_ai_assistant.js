@@ -5,6 +5,8 @@ import {renderMarkdown} from './markdown.js';
 const MAX_LOADED_RECORDS = 50;
 // How long a navigate action waits for the new view
 const NAVIGATION_TIMEOUT_MS = 10000;
+// Upper limit of every action: a hanging action (e.g. a model socket that never answers) returns an error result
+const ACTION_TIMEOUT_MS = 30000;
 // What a navigate action tells the model about an error view (sdc-error) by HTTP code
 const ERROR_HINTS = {
     '404': 'this view does not exist',
@@ -369,7 +371,8 @@ class SdcAiAssistantController extends AbstractSDC {
                 if (!handler) {
                     throw new Error(`Unknown action ${action.name}`);
                 }
-                results.push({tool_use_id: action.tool_use_id, content: await handler(action.input), is_error: false});
+                const content = await this._withTimeout(handler(action.input), action.name);
+                results.push({tool_use_id: action.tool_use_id, content, is_error: false});
             } catch (e) {
                 const msg = e?.msg || e?.message || String(e);
                 this._addMessage('error', msg);
@@ -377,6 +380,17 @@ class SdcAiAssistantController extends AbstractSDC {
             }
         }
         return results;
+    }
+
+    /** Rejects if ``promise`` does not settle within ``this._actionTimeoutMs`` (default ``ACTION_TIMEOUT_MS``). */
+    _withTimeout(promise, name) {
+        const ms = this._actionTimeoutMs ?? ACTION_TIMEOUT_MS;
+        let timer;
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(
+                `${name} did not finish within ${ms / 1000}s; check the input and do not repeat it unchanged`)), ms);
+        });
+        return Promise.race([Promise.resolve(promise), timeout]).finally(() => clearTimeout(timer));
     }
 
     _describeAction({name, input}) {

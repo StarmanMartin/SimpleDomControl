@@ -14,10 +14,13 @@ from django.core.management.base import BaseCommand, CommandError
 
 from sdc_core.management.commands.sdc_teach import Command as TeachCommand
 from sdc_core.management.commands.utils.eval_ai import (
-    JUDGE_PROMPT, EvalConfigError, check_episode, db_changes, episode_key, episode_metrics, format_table, load_tasks,
-    outcome, parse_condition, parse_judge, parse_model, parse_users, prompt_for_run, prompt_warnings, read_results,
-    settings_module_source, summarize, write_csv)
+    JUDGE_PROMPT, EvalConfigError, apply_judge, check_episode, db_changes, episode_key, episode_metrics, format_table,
+    load_tasks, outcome, parse_condition, parse_judge, parse_judge_model, parse_model, parse_users, prompt_for_run,
+    prompt_warnings, read_results, settings_module_source, summarize, write_csv)
 from sdc_core.management.commands.utils.teach_crawler import WAIT_READY_JS
+
+# Room for the reasoning of thinking models (e.g. GLM, DeepSeek) before the verdict
+JUDGE_MAX_TOKENS = 2000
 
 # Run in the evaluation database (manage.py shell -c): optionally resets it from the fixtures, creates a session
 # for each given user and prints a snapshot of all tables (row count and hash per model)
@@ -191,7 +194,12 @@ class Command(BaseCommand):
         parser.add_argument('--episode-timeout', type=int, default=300, help='Seconds per prompt')
         parser.add_argument('--timeout', type=int, default=15000, help='Timeout of page actions in ms')
         parser.add_argument('--judge-model', default=None,
-                            help='Anthropic model that grades tasks with a "judge" rubric (else needs_judge)')
+                            help='Model that grades tasks with a "judge" rubric (else needs_judge): a spec like '
+                                 '--model (openai-compatible:kit.glm-5.3-flash@https://.../v1) or an Anthropic model name')
+        parser.add_argument('--retry-errors', action='store_true',
+                            help='Run the episodes with outcome "error" in --output again (their lines are replaced)')
+        parser.add_argument('--judge-pending', action='store_true',
+                            help='Do not run: grade the needs_judge episodes of --output with --judge-model')
         parser.add_argument('--port', type=int, default=0, help='Port of the evaluation server (default: free)')
         parser.add_argument('--browser-path', default=None, help='Chromium/Chrome executable')
         parser.add_argument('--headed', action='store_true', help='Show the browser window')
@@ -207,6 +215,12 @@ class Command(BaseCommand):
         if ops['summarize']:
             return self._summarize(ops)
         try:
+            ops['judge'] = parse_judge_model(ops['judge_model']) if ops['judge_model'] else None
+        except EvalConfigError as e:
+            raise CommandError(f'--judge-model: {e}')
+        if ops['judge_pending']:
+            return self._judge_pending(ops)
+        try:
             tasks = load_tasks(ops['tasks'] or self._fail('Give task files or directories'))
             if ops['only']:
                 import re
@@ -218,7 +232,11 @@ class Command(BaseCommand):
             raise CommandError(str(e))
         self._validate(tasks, conditions, models, users, ops)
 
-        done = {episode_key(r) for r in read_results(ops['output'])}
+        if ops['retry_errors'] and not ops['dry_run']:
+            self._drop_errors(ops['output'])
+        previous = read_results(ops['output'])
+        self._warn_changed_models(previous, models)
+        done = {episode_key(r) for r in previous if not (ops['retry_errors'] and r.get('outcome') == 'error')}
         rng = random.Random(ops['seed'])
         groups = [(c, m) for c in conditions for m in models]
         rng.shuffle(groups)
@@ -303,6 +321,10 @@ class Command(BaseCommand):
             key = keys[m['settings']['SDC_AI_PROVIDER']]
             if not os.environ.get(key) and not ops['dry_run']:
                 self.stderr.write(self.style.WARNING(f'Model {m["label"]}: {key} is not set'))
+        if ops['judge']:
+            self._check_judge_key(ops['judge'])
+            if not ops['dry_run']:
+                self._test_judge(ops['judge'])
         if any('judge' in t['expect'] for t in tasks) and not ops['judge_model']:
             self.stderr.write(self.style.WARNING('Tasks with a judge rubric are marked needs_judge '
                                                  '(no --judge-model)'))
@@ -395,9 +417,13 @@ class Command(BaseCommand):
             error = episode.get('error')
         except Exception as e:  # noqa: BLE001 - one failing episode must not stop the evaluation
             error = f'{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ""}'
-        if not error and 'judge' in task['expect'] and ops['judge_model']:
-            episode['judge'] = self._judge(ops['judge_model'], [prompt] + task['followup'], task['expect']['judge'],
-                                           episode.get('answer', ''))
+        if not error and 'judge' in task['expect'] and ops['judge']:
+            try:
+                episode['judge'] = self._judge(ops['judge'], [prompt] + task['followup'], task['expect']['judge'],
+                                               episode.get('answer', ''))
+            except Exception as e:  # noqa: BLE001 - stays needs_judge; grade it later with --judge-pending
+                result['judge_error'] = self._error_text(e)
+                self.stderr.write(f'Judge failed for {task["id"]}: {result["judge_error"]}')
         checks = check_episode(task, episode) if not error else {}
         result |= {
             'outcome': outcome(checks, error), 'error': error, 'checks': checks,
@@ -538,17 +564,97 @@ class Command(BaseCommand):
             return [json.loads(line) for line in f if line.strip()]
 
     @staticmethod
-    def _judge(model, prompts, rubric, answer):
+    def _error_text(e):
+        body = getattr(e, 'body', None)
+        return f'{type(e).__name__}: {e}' + (f' {body}' if body and str(body) not in str(e) else '')
+
+    def _test_judge(self, judge):
+        """One small request before the run, so a wrong judge model or key stops the run before it starts."""
         try:
-            import anthropic
+            self._judge(judge, ['Say hello.'], 'The answer greets the user.', 'Hello!')
+        except CommandError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            raise CommandError(f'Judge {judge["label"]} does not answer: {self._error_text(e)}. Check the model ID '
+                               f'(e.g. GET <base_url>/models) and the API key.')
+
+    @staticmethod
+    def _drop_errors(path):
+        """Removes the episodes with outcome "error" from the result file, so they are run again."""
+        results = read_results(path)
+        kept = [r for r in results if r.get('outcome') != 'error']
+        if len(kept) != len(results):
+            tmp = path + '.tmp'
+            with open(tmp, 'w', encoding='utf-8') as f:
+                for r in kept:
+                    f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
+            os.replace(tmp, path)
+
+    def _warn_changed_models(self, results, models):
+        specs = {m['label']: m['spec'] for m in models}
+        changed = sorted({(r['model'], r.get('model_spec')) for r in results
+                          if r.get('model') in specs and r.get('model_spec') != specs[r['model']]})
+        for label, spec in changed:
+            self.stderr.write(self.style.WARNING(
+                f'Model {label}: the result file has episodes of {spec}, not of {specs[label]}; they are kept '
+                f'and counted as done. Use a new label or another --output file for a different model.'))
+
+    def _check_judge_key(self, judge):
+        key = 'ANTHROPIC_API_KEY' if judge['provider'] == 'anthropic' else 'OPENAI_API_KEY'
+        if not os.environ.get(key):
+            self.stderr.write(self.style.WARNING(f'Judge {judge["label"]}: {key} is not set'))
+
+    @staticmethod
+    def _judge(judge, prompts, rubric, answer):
+        """Grades one answer against a rubric with ``judge`` (see ``parse_judge_model``)."""
+        content = JUDGE_PROMPT.format(prompt='\n'.join(prompts), rubric=rubric, answer=answer or '(no answer)')
+        try:
+            if judge['provider'] == 'anthropic':
+                import anthropic
+                message = anthropic.Anthropic().messages.create(
+                    model=judge['model'], max_tokens=JUDGE_MAX_TOKENS, messages=[{'role': 'user', 'content': content}])
+                text = ''.join(b.text for b in message.content if b.type == 'text')
+            else:
+                import openai
+                completion = openai.OpenAI(base_url=judge['base_url'] or None).chat.completions.create(
+                    model=judge['model'], max_tokens=JUDGE_MAX_TOKENS, messages=[{'role': 'user', 'content': content}])
+                text = completion.choices[0].message.content or ''
         except ImportError:
-            raise CommandError('--judge-model needs the anthropic package: pip install "simpledomcontrol[ai]"')
-        message = anthropic.Anthropic().messages.create(
-            model=model, max_tokens=300,
-            messages=[{'role': 'user', 'content': JUDGE_PROMPT.format(
-                prompt='\n'.join(prompts), rubric=rubric, answer=answer or '(no answer)')}])
-        text = ''.join(b.text for b in message.content if b.type == 'text')
-        return parse_judge(text) | {'model': model}
+            raise CommandError('--judge-model needs the anthropic/openai packages: pip install "simpledomcontrol[ai]"')
+        return parse_judge(text) | {'model': judge['label']}
+
+    def _judge_pending(self, ops):
+        """Grades the needs_judge episodes of --output (e.g. after a run without --judge-model)."""
+        if not ops['judge']:
+            raise CommandError('--judge-pending needs --judge-model')
+        try:
+            tasks = {t['id']: t for t in load_tasks(ops['tasks'] or self._fail('Give the task files or directories'))}
+        except EvalConfigError as e:
+            raise CommandError(str(e))
+        self._check_judge_key(ops['judge'])
+        results = read_results(ops['output'])
+        pending = [r for r in results if r.get('outcome') == 'needs_judge' and r['task'] in tasks
+                   and 'judge' in tasks[r['task']]['expect']]
+        self.stdout.write(f'{len(pending)} episodes of {ops["output"]} to grade with {ops["judge"]["label"]}')
+        for i, r in enumerate(pending, 1):
+            task = tasks[r['task']]
+            prompts = [r.get('prompt') or ''] + list(r.get('followup') or task['followup'])
+            try:
+                judge = self._judge(ops['judge'], prompts, task['expect']['judge'], r.get('answer'))
+            except CommandError:
+                raise
+            except Exception as e:  # noqa: BLE001 - keep the verdicts graded so far
+                self.stderr.write(f'[{i}/{len(pending)}] {r["task"]} run {r["run"]}: {type(e).__name__}: {e}')
+                continue
+            apply_judge(task, r, judge)
+            self.stdout.write(f'[{i}/{len(pending)}] {r["task"]} {r["condition"]} run {r["run"]}: {r["outcome"]}')
+        # Rewrite the whole file at once: an interrupted write must not lose results
+        tmp = ops['output'] + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            for r in results:
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + '\n')
+        os.replace(tmp, ops['output'])
+        self._summarize(ops)
 
     @staticmethod
     def _version():

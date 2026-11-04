@@ -813,6 +813,22 @@ def _ai_tool_input_error(name, tool_input):
     return None
 
 
+def _ai_resolve_model(name, tool_input):
+    """
+    ``model_get`` / ``model_load``: replaces the model name with the exact name of the SdcModel (names are matched
+    case-insensitively, ``author`` -> ``Author``). Returns an error text for an unknown model, else None. Without
+    this, the browser would wait for a model WebSocket that is never opened.
+    """
+    if name not in ('model_get', 'model_load'):
+        return None
+    model = ALL_MODELS.get(tool_input['model'])
+    if model is None:
+        return (f'Unknown SdcModel "{tool_input["model"]}". Available models: '
+                f'{", ".join(sorted(m.__name__ for m in ALL_MODELS.values()))}')
+    tool_input['model'] = model.__name__
+    return None
+
+
 class SDCAiConsumer(AsyncWebsocketConsumer):
     """
     WebSocket of the ``<sdc-ai-assistant>``: receives prompts from the user and streams the model's answer.
@@ -1110,7 +1126,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                         'results': {}}
         actions = []
         for tool_use in result['tool_uses']:
-            error = _ai_tool_input_error(tool_use['name'], tool_use['input'])
+            error = (_ai_tool_input_error(tool_use['name'], tool_use['input'])
+                     or _ai_resolve_model(tool_use['name'], tool_use['input']))
             if error:
                 self.pending['results'][tool_use['id']] = {'content': error, 'is_error': True}
             else:
@@ -1362,7 +1379,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                 'usage': result.get('usage'),
                 'text_chars': len(result['text']),
                 'tool_calls': [{'tool_use_id': t['id'], 'name': t['name'], 'input': t['input'],
-                                'invalid': _ai_tool_input_error(t['name'], t['input'])}
+                                'invalid': _ai_tool_input_error(t['name'], t['input'])
+                                or _ai_resolve_model(t['name'], dict(t['input']))}
                                for t in result['tool_uses']],
             }
         if error is not None:

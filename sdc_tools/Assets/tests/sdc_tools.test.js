@@ -440,6 +440,23 @@ describe('SdcAiAssistant', () => {
             $loose.remove();
         });
 
+        test('a hanging action returns an error result instead of blocking the answer', async () => {
+            controller._socket = {readyState: WebSocket.OPEN, send: () => null};
+            controller._actionTimeoutMs = 50;
+            const original = controller._actions.model_load;
+            controller._actions.model_load = () => new Promise(() => null);  // never settles
+            const [result, next] = await controller._runActions([
+                {tool_use_id: 'h', name: 'model_load', input: {model: 'Author'}},
+                {tool_use_id: 'r', name: 'read_page', input: {}},
+            ], controller._requestId);
+            expect(result).toMatchObject({tool_use_id: 'h', is_error: true});
+            expect(result.content).toContain('model_load did not finish within 0.05s');
+            expect(next).toMatchObject({tool_use_id: 'r', is_error: false});
+            controller._actions.model_load = original;
+            delete controller._actionTimeoutMs;
+            controller._socket = null;
+        });
+
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
             const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));

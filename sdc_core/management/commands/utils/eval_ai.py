@@ -170,6 +170,19 @@ def parse_model(spec):
             'settings': {'SDC_AI_PROVIDER': provider, 'SDC_AI_MODEL': model, 'SDC_AI_BASE_URL': base_url}}
 
 
+def parse_judge_model(spec):
+    """
+    ``--judge-model``: a model spec like ``--model`` (``[label=]provider:model[@base_url]``, e.g.
+    ``openai-compatible:kit.glm-5.3-flash@https://ki-toolbox.scc.kit.edu/api/v1``) or a bare Anthropic model name.
+    Returns ``{'label', 'provider', 'model', 'base_url'}``.
+    """
+    has_provider = any(p in spec for p in ('anthropic:', 'openai-compatible:'))
+    parsed = parse_model(spec if has_provider else f'anthropic:{spec}')
+    s = parsed['settings']
+    return {'label': spec, 'provider': s['SDC_AI_PROVIDER'], 'model': s['SDC_AI_MODEL'],
+            'base_url': s['SDC_AI_BASE_URL']}
+
+
 def parse_users(specs, file=None):
     """``role=username:password`` specs and/or a YAML/JSON file ``{role: {username, password}}``."""
     users = {}
@@ -468,6 +481,20 @@ Reply with PASS or FAIL on the first line, then one sentence of reasoning."""
 
 
 def parse_judge(text):
-    first = (text or '').strip().splitlines()[0].strip().upper() if (text or '').strip() else ''
+    """
+    The verdict of a judge reply: ``PASS``/``FAIL`` on the first line. Reasoning blocks (``<think>...</think>``)
+    and Markdown around the word (``**PASS**``) are ignored.
+    """
+    text = re.sub(r'<think>.*?(</think>|$)', '', text or '', flags=re.S).strip()
+    first = text.splitlines()[0].strip().lstrip('*#_>` ').upper() if text else ''
     verdict = True if first.startswith('PASS') else False if first.startswith('FAIL') else None
-    return {'pass': verdict, 'reason': (text or '').strip()}
+    return {'pass': verdict, 'reason': text}
+
+
+def apply_judge(task, result, judge):
+    """Stores a judge verdict in a result line and updates its ``judge`` check and outcome."""
+    result['judge'] = judge
+    if 'judge' in task['expect']:
+        result['checks'] = (result.get('checks') or {}) | {'judge': judge.get('pass')}
+    result['outcome'] = outcome(result['checks'], result.get('error'))
+    return result

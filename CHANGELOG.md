@@ -13,7 +13,9 @@ The server and the client are released with the same version number.
   none, apps, full, an older skill file, ...) and model against a throwaway server, drives the real
   `<sdc-ai-assistant>` in a headless browser, resets the database from a fixture before every episode and
   detects database changes, form submissions and error views. Writes one JSON line per episode (resumable),
-  optionally grades rubrics with an LLM judge, and prints a summary or a CSV for statistics.
+  optionally grades rubrics with an LLM judge (Anthropic or any OpenAI-compatible model, e.g. on the KIT
+  KI-Toolbox; `--judge-pending` grades the open episodes of an existing result file; a failing judge call leaves the episode `needs_judge`, and the judge is tested before the run), `--retry-errors` runs failed episodes again, and prints a summary or a
+  CSV for statistics.
 - AI assistant settings `SDC_AI_SKILL_SOURCE` (`auto`, `full`, `apps`, `none`), `SDC_AI_SKILL_FILE` and
   `SDC_AI_NO_SKILL_NOTE`: choose the knowledge in the system prompt. Without any knowledge the prompt now
   contains a short note telling the model to explore the page.
@@ -54,6 +56,11 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: `model_load` / `model_get` with a model name that is not an SdcModel (`User`, `AuthUser`) or not
+  spelled exactly (`author`) never returned: the browser waited for a model WebSocket that was never opened, and
+  the answer hung until the client timed out. The server now resolves model names case-insensitively and answers
+  unknown names at once with an error listing the available models (also flagged `invalid` in the metrics).
+  Every browser action is also limited to 30 s and returns an error result after that.
 - AI assistant: `read_page` / `fill_form` only saw fields inside a `<form>` element, so inputs like the one of
   `<sdc-password-forgotten>` or the search bar of `<sdc-search-view>` could not be filled. Such fields are now
   listed after the forms as one form per controller (`form_element: false`, `controller`) and get `input` and

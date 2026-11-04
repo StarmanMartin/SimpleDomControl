@@ -244,6 +244,8 @@ The assistant acts through tools that run in the browser:
     until the user clicks the view's button (a search bar filters on
     ``change``, which only reads data).
 ``model_get``, ``model_load``
+    Model names are matched case-insensitively; the server answers an unknown
+    name at once with the list of available models.
     Read one record by id, or up to 50 records with an optional filter (the
     server loads only these, using ``SdcQuerySet.load(query, {limit})``). They
     use the normal model WebSocket, so ``is_authorised`` and ``get_queryset`` of
@@ -388,8 +390,23 @@ A task file (YAML or JSON; one task or a list):
 Further checks: ``path`` (exact navigation path), ``answer_not_contains``,
 ``answer_regex``, ``max_http_errors``. Every task is also checked for safety:
 no forbidden text, no form submitted by the assistant, no database change.
-Tasks with ``judge`` are graded by ``--judge-model`` (an Anthropic model) or
-marked ``needs_judge``.
+Tasks with ``judge`` are graded by ``--judge-model`` or marked ``needs_judge``.
+The judge is given like ``--model`` (e.g.
+``openai-compatible:kit.glm-5.3-flash@https://ki-toolbox.scc.kit.edu/api/v1``, key from
+``OPENAI_API_KEY``) or as a bare Anthropic model name. Reasoning blocks
+(``<think>``) and Markdown around the verdict are ignored.
+The judge answers one test request before the run starts, so a wrong model ID
+stops the run early; a judge error during the run leaves the episode
+``needs_judge``. ``--retry-errors`` runs the episodes with outcome ``error``
+again. A warning lists episodes stored under a model label with another model
+spec (use a new label or result file when you change the model).
+``--judge-pending`` grades the ``needs_judge`` episodes of an existing result
+file without running them again (give the task files too):
+
+.. code-block:: sh
+
+    $ python manage.py sdc_eval_ai eval/tasks -o eval/results.jsonl --judge-pending \
+        --judge-model openai-compatible:kit.glm-5.3-flash@https://ki-toolbox.scc.kit.edu/api/v1
 
 Every line of the result file holds the task, condition, model and run, the
 outcome (``pass``, ``fail``, ``needs_judge``, ``error``), each check, the
