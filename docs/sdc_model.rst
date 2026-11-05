@@ -904,7 +904,7 @@ field holds a JavaScript type:
    * - other types
      - unchanged, not validated
 
-Dates (0.160.1)
+Dates (0.160.0)
 ~~~~~~~~~~~~~~~
 
 Since 0.160.0 ``DateField`` and ``DateTimeField`` values are ``Date`` objects

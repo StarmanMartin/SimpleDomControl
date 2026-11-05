@@ -53,7 +53,7 @@ models that extend ``SdcModel`` are reachable; any other name returns ``404``.
    ``/sdc_api/login/`` is handled as a model named ``login`` and every login
    fails with ``401 {"error": "Missing Authorization header"}``. ``sdc_init``
    writes them in the right order (projects created with versions before
-   0.160.1 have them the other way round):
+   0.160.0 have them the other way round):
 
    .. code-block:: python
 
