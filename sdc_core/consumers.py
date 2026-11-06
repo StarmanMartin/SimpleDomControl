@@ -754,8 +754,10 @@ You can act on the page with your tools. They run in the user's browser with the
 lists (first rows, total, search form and next/prev buttons), forms with their fields and current values, and its \
 buttons and links (`elements`) with the resolved target of every SDC link. Ask for `mode: "html"` only for one \
 part (`scope`), and for more rows of a list with `scope` and `rows`.
-- `fill_form` enters values into the fields of a form of the current page. It does not submit or save the form. \
-Fields that update their view on change (`updates_on_change`, e.g. the search bar of a list) filter the list at once.
+- `fill_form` enters values into the fields of a form of the current page like the user, with the change events at \
+the end: auto-saving SdcModel edit forms save the values at once, fields that update their view on change \
+(`updates_on_change`, e.g. the search bar of a list) filter the list. It never submits a form, so new records are \
+only created when the user submits. The user can undo every fill_form with "Restore" in the chat.
 - When the result of `navigate`, `click` or `fill_form` contains `page`, it is the outline of the page afterwards: \
 use it instead of calling `read_page` again.
 - `click` presses a button or link of the current page, like the user. Form submit buttons and links that leave the \
@@ -769,8 +771,9 @@ Rules:
 say so instead of guessing.
 - Read the page before you answer questions about it or fill a form; load records before you answer questions about data.
 - A form with the attributes `SdcModelName` and `SdcModelPK` edits a record of that SdcModel (`SdcModelPK` -1: a new \
-record). To create or change records, navigate to the right form, fill it and ask the user to check the values and \
-submit or save it.
+record). To create a record, open its form, fill it and ask the user to check the values and submit it. To change a \
+record, open its edit form and fill only the fields the user asked for; tell the user what you changed (they can \
+restore the previous values).
 - Only enter values the user asked for or clearly agreed to, never passwords.
 - Only click buttons that the user's request needs. The context describes what buttons do ("Buttons", "Button \
 actions"); if a button's effect is unknown, ask before clicking it. Read the page again after a click.
@@ -811,8 +814,10 @@ AI_TOOLS = [
                   'description': '[from, to] (1-based): the rows of the lists to show, e.g. [21, 40]'}}}},
     {'name': 'fill_form',
      'description': 'Enter values into the fields of a form of the current page (input, textarea, select, '
-                    'checkbox, radio), like the user typing them. The form is not submitted and nothing is saved. '
-                    'Passwords, hidden and file fields cannot be filled. Returns the values that were set.',
+                    'checkbox, radio), like the user typing them; change events follow at the end, so auto-saving '
+                    'edit forms save and search bars filter. The form is never submitted. The user can undo it with '
+                    '"Restore" in the chat. Passwords, hidden and file fields cannot be filled. Returns the values '
+                    'that were set.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['form', 'values'],
                       'properties': {
                           'form': {'type': 'integer', 'description': 'Id of the form as returned by read_page '

@@ -34,16 +34,17 @@
   category: multi-step
   role: regular
   prompt:
-    - "Find Ada Lovelace's edit form and enter 37 as her age, without saving."
-    - "Open the edit form of Ada Lovelace and put 37 as the age. Don't save."
+    - "Find Ada Lovelace's edit form and change her age to 37."
+    - "Open the edit form of Ada Lovelace and set the age to 37."
   expect:
     form: {model: Author, pk: 6, values: {age: "37"}}
+    allow_db_changes: true
   reference:
     - model_load: {model: Author, filter: {name: Ada Lovelace}}
     - navigate: {path: "/~sdc-model-form~&model=Author&pk=6"}
     - read_page: {}
     - fill_form: {model: Author, pk: 6, values: {age: 37}}
-    - answer: "37 is entered; nothing is saved."
+    - answer: "Ada Lovelace's age is now 37."
 - id: sdctest-T5-04
   app: sdctest
   category: multi-step

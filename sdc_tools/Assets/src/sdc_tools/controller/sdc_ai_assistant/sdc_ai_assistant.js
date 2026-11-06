@@ -70,8 +70,9 @@ const MIN_WINDOW_HEIGHT = 240;
  *   its forms (also the search bar of `<sdc-search-view>`, which filters its list at once), click buttons and
  *   links, and read SdcModel records.
  * - The assistant never submits a form: it fills forms (SdcModel forms are marked by `SdcModelName` /
- *   `SdcModelPK`) and the user checks and submits or saves them. Before it clicks a button that may delete, save
- *   or send data or log out, the chat asks the user to allow it. Links that leave the app are not clicked. It
+ *   `SdcModelPK`) like the user, so auto-saving edit forms save the values at once; new records are only created
+ *   when the user submits. After every change the chat shows "Restore", which sets the previous values back.
+ *   Before it clicks a button that may delete, save or send data or log out, the chat asks the user to allow it. Links that leave the app are not clicked. It
  *   never reads or fills password, hidden or file fields.
  * - Depending on the project settings it requires a login, and either uses the server's API key or the user's own.
  * - "⚙" opens the settings: with the server's key they only show the model in use; otherwise the user enters their
@@ -176,8 +177,9 @@ class SdcAiAssistantController extends AbstractSDC {
                 '.ai-settings-cancel': () => this._showSettings(false),
             },
             'keydown': {
-                // Enter sends, Shift+Enter adds a line break
-                '.ai-prompt-form textarea': ($textarea, ev) => {
+                // Enter sends, Shift+Enter adds a line break. The selector must not contain a space: sdc_client
+                // stores it in the sdc_keydown attribute, whose value is split at spaces
+                '.ai-prompt-input': ($textarea, ev) => {
                     if (ev.key === 'Enter' && !ev.shiftKey) {
                         ev.preventDefault();
                         this._sendPrompt();
@@ -548,13 +550,15 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     /**
-     * fill_form as an action: a view that updates on change (a search bar) is given time to become ready (its
-     * changes are ignored right after it was rendered) and the update is awaited, so the result (and its
-     * ``page``) already shows the filtered list.
+     * fill_form as an action: a view that updates on change (a search bar, an auto-saving edit form) is given time
+     * to become ready (its changes are ignored right after it was rendered) and the update or save is awaited, so
+     * the result (and its ``page``) already shows the filtered list or the saved form.
      */
     async _fillFormAndWait(input) {
         const entry = this._pageForms().find((e) => this._ids.get(e.form || e.container) === input?.form);
-        const updates = entry && this._updatesOnChange(entry);
+        // Search bars and auto-saving edit forms (sdc-update-on-change, fields with "timer-change") ignore changes
+        // shortly after they were rendered, and update or save after a change
+        const updates = entry && entry.elements.some((el) => el.classList.contains('timer-change'));
         if (updates) {
             const controller = this._controllerInstance(entry);
             const start = Date.now();
@@ -1102,10 +1106,10 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     /**
-     * Enters values like the user typing them. The form is never submitted. In SdcModel forms only `input` events
-     * are fired: they update the form's model object, but not the `change` event that makes edit forms save
-     * themselves, so the user still checks and saves the values. Fields outside a form get `input` and `change`
-     * events like in other forms; the controller's buttons (which the assistant does not click) send them.
+     * Enters values like the user typing them: an ``input`` event per field and, when all fields are set, a
+     * ``change`` event on every changed field, so the page reacts as to the user (an edit-mode sdc-model-form saves
+     * the changes, a search bar filters its list). The form is never submitted. The previous values are kept and
+     * the chat shows a "Restore" button that sets them back (``_offerRestore``).
      */
     _fillForm({form: id, values}) {
         const entry = this._pageForms().find((e) => this._ids.get(e.form || e.container) === id);
@@ -1116,6 +1120,9 @@ class SdcAiAssistantController extends AbstractSDC {
         const {form} = entry;
         const isModelForm = !!form?.hasAttribute('SdcModelName');
         const set = {}, errors = {};
+        // Previous state of every field the assistant changes, and the fields that get a change event at the end
+        const originals = new Map();
+        const changedFields = [];
         for (const [name, value] of Object.entries(values || {})) {
             const fields = entry.elements.filter((el) => el.name === name);
             const type = fields.length ? this._fieldType(fields[0]) : null;
@@ -1127,11 +1134,12 @@ class SdcAiAssistantController extends AbstractSDC {
                 errors[name] = 'the field is disabled or read-only';
             } else {
                 try {
+                    fields.forEach((el) => originals.has(el) || originals.set(el, this._fieldState(el)));
                     const changed = this._setField(fields, type, value);
                     for (const el of changed) {
                         el.dispatchEvent(new Event('input', {bubbles: true}));
-                        if (!isModelForm) {
-                            el.dispatchEvent(new Event('change', {bubbles: true}));
+                        if (!changedFields.includes(el)) {
+                            changedFields.push(el);
                         }
                     }
                     set[name] = this._describeForm(entry).fields.find((f) => f.name === name)?.value;
@@ -1140,12 +1148,20 @@ class SdcAiAssistantController extends AbstractSDC {
                 }
             }
         }
+        // The change events come last, after all values are set, as when the user leaves the field
+        changedFields.forEach((el) => el.dispatchEvent(new Event('change', {bubbles: true})));
         if (Object.keys(set).length) {
             (form || entry.elements[0]).scrollIntoView?.({block: 'nearest', behavior: 'smooth'});
+            this._offerRestore(entry, originals, Object.keys(set));
         }
-        let note = 'The form was not submitted; the user has to submit it.';
+        let note = 'The form was not submitted; the user has to submit it. The user can undo the values with '
+            + '"Restore" in the chat.';
         if (isModelForm) {
-            note = `SdcModel form (${form.getAttribute('SdcModelName')}): nothing is saved; the user has to check the values and submit or save the form.`;
+            const model = form.getAttribute('SdcModelName');
+            note = Number(form.getAttribute('SdcModelPK')) === -1
+                ? `SdcModel form (${model}, new record): nothing is created until the user submits the form.`
+                : `SdcModel form (${model}): an auto-saving edit form saved the changed values at once; the user `
+                + 'can undo them with "Restore" in the chat. Tell the user what you changed.';
         } else if (this._updatesOnChange(entry)) {
             note = 'Nothing was submitted. This view updates by itself when a value changes (e.g. a search bar '
                 + 'filters its list); use read_page to see the result.';
@@ -1159,6 +1175,62 @@ class SdcAiAssistantController extends AbstractSDC {
             ...(this._isVisible(entry) ? {} : {warning: 'This form is not visible to the user.'}),
             note,
         };
+    }
+
+    /** The value of a field element as ``_restoreField`` sets it back. */
+    _fieldState(el) {
+        if (el.tagName === 'SELECT') {
+            return {selected: [...el.options].map((o) => o.selected)};
+        }
+        if (el.type === 'checkbox' || el.type === 'radio') {
+            return {checked: el.checked};
+        }
+        return {value: el.value};
+    }
+
+    /** Sets a field element back to ``state``; true if its value changed. */
+    _restoreField(el, state) {
+        const before = JSON.stringify(this._fieldState(el));
+        if (state.selected) {
+            [...el.options].forEach((o, i) => {
+                o.selected = !!state.selected[i];
+            });
+        } else if ('checked' in state) {
+            el.checked = state.checked;
+        } else {
+            el.value = state.value;
+        }
+        return JSON.stringify(this._fieldState(el)) !== before;
+    }
+
+    /**
+     * Security feature of fill_form: a chat message lists the changed fields with a "Restore" button that sets the
+     * previous values back, with the same input/change events (an auto-saving form saves the old values again).
+     */
+    _offerRestore(entry, originals, names) {
+        const label = entry.form?.getAttribute('SdcModelName') || this._controllerTag(entry.container);
+        const $msg = this._addMessage('action', `Changed ${names.join(', ')} in ${label}.`).addClass('ai-restore');
+        const $button = $('<button type="button" class="btn btn-sm btn-outline-secondary ai-restore-button"></button>')
+            .text('Restore');
+        $('<div class="ai-confirm-buttons"></div>').append($button).appendTo($msg);
+        $button.on('click', () => {
+            const restored = [];
+            let missing = 0;
+            for (const [el, state] of originals) {
+                if (!el.isConnected) {
+                    missing += 1;
+                } else if (this._restoreField(el, state)) {
+                    restored.push(el);
+                }
+            }
+            restored.forEach((el) => el.dispatchEvent(new Event('input', {bubbles: true})));
+            restored.forEach((el) => el.dispatchEvent(new Event('change', {bubbles: true})));
+            $button.closest('.ai-confirm-buttons').remove();
+            $msg.append(document.createTextNode(missing
+                ? ' The form is no longer on the page; open it again to undo the changes.'
+                : ' Restored the previous values.'));
+        });
+        this._scrollDown();
     }
 
     /** Sets the value of a field (all elements with its name) and returns the elements that changed. */

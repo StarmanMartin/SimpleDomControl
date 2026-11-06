@@ -270,6 +270,32 @@ describe('SdcAiAssistant', () => {
         expect($div.length).toBeGreaterThan(0);
     });
 
+    test('Enter in the prompt sends it, Shift+Enter does not', () => {
+        const sent = [];
+        if (controller._socket instanceof WebSocket) {
+            controller._socket.onmessage = null;
+            controller._socket.onclose = null;
+            controller._socket.close();
+        }
+        controller._socket = {readyState: WebSocket.OPEN, send: (msg) => sent.push(JSON.parse(msg))};
+        controller._busy = false;
+        const textarea = controller.find('.ai-prompt-form textarea')[0];
+        const key = (shiftKey) => {
+            const ev = new KeyboardEvent('keydown', {key: 'Enter', shiftKey, bubbles: true, cancelable: true});
+            textarea.dispatchEvent(ev);
+            return ev;
+        };
+        textarea.value = 'first line';
+        expect(key(true).defaultPrevented).toBe(false);
+        expect(sent).toEqual([]);
+        const ev = key(false);
+        expect(sent.map((m) => m.prompt)).toEqual(['first line']);
+        expect(ev.defaultPrevented).toBe(true);
+        expect(textarea.value).toBe('');
+        controller._setBusy(false);
+        controller._socket = null;
+    });
+
     describe('window', () => {
         const pointer = (el, type, x, y) => el.dispatchEvent(new MouseEvent(type, {bubbles: true, button: 0, clientX: x, clientY: y}));
         let $container, header;
@@ -378,7 +404,7 @@ describe('SdcAiAssistant', () => {
             }
         });
 
-        test('fill_form enters values without saving SdcModel forms', () => {
+        test('fill_form enters values like the user: input per field, change at the end', () => {
             const id = controller._readPage().forms.find((f) => f.sdc_model_name === 'Author').id;
             const result = controller._fillForm({form: id, values: {
                 name: 'Jane', active: true, city: 'Paris', password: 'x', csrfmiddlewaretoken: 'y', nope: 1,
@@ -386,8 +412,10 @@ describe('SdcAiAssistant', () => {
             expect(result.set).toEqual({name: 'Jane', active: true, city: '2'});
             expect(Object.keys(result.errors).sort()).toEqual(['csrfmiddlewaretoken', 'nope', 'password']);
             expect($page.find('[name=password]').val()).toBe('pw-123');
-            // Only input events: the change event would make edit forms save themselves
-            expect(events).toEqual(['input:name', 'input:active', 'input:city']);
+            // change after all values are set: auto-saving edit forms save, other listeners react
+            expect(events).toEqual(['input:name', 'input:active', 'input:city', 'change:name', 'change:active',
+                'change:city']);
+            expect(result.note).toContain('saved the changed values at once');
         });
 
         test('fill_form fires change in other forms', () => {
@@ -496,7 +524,7 @@ describe('SdcAiAssistant', () => {
             expect(Object.keys(result.errors)).toEqual(['secret']);
             expect(result.note).toContain('Nothing was submitted');
             expect($loose.find('[name=username]').val()).toBe('jane');
-            expect(events).toEqual(['input:username', 'change:username', 'input:kind', 'change:kind']);
+            expect(events).toEqual(['input:username', 'input:kind', 'change:username', 'change:kind']);
             // Real forms come before the loose fields; ids stay the same on the next read
             const forms = controller._readPage().forms;
             expect(forms.findIndex((f) => f.sdc_model_name === 'Author'))
@@ -573,6 +601,29 @@ describe('SdcAiAssistant', () => {
             expect(controller._pageElements().find((el) => controller._ids.get(el) === list.search.next).textContent)
                 .toBe('Next');
             $list.remove();
+        });
+
+        test('Restore in the chat sets the previous values back and fires the events again', () => {
+            const id = controller._readPage().forms.find((f) => f.sdc_model_name === 'Author').id;
+            controller._fillForm({form: id, values: {name: 'Jane', active: true, city: 'Paris'}});
+            const $msg = controller.find('.ai-restore').last();
+            expect($msg.text()).toContain('Changed name, active, city in Author.');
+            events.length = 0;
+            $msg.find('.ai-restore-button').trigger('click');
+            expect($page.find('[name=name]').val()).toBe('Jo');
+            expect($page.find('[name=active]').prop('checked')).toBe(false);
+            expect($page.find('[name=city]').val()).toBe('1');
+            expect(events).toEqual(['input:name', 'input:active', 'input:city', 'change:name', 'change:active',
+                'change:city']);
+            expect($msg.find('.ai-restore-button').length).toBe(0);
+            expect($msg.text()).toContain('Restored the previous values.');
+            // A form that is gone cannot be restored
+            controller._fillForm({form: id, values: {name: 'Again'}});
+            const $second = controller.find('.ai-restore').last();
+            $page.find('form').first().remove();
+            $second.find('.ai-restore-button').trigger('click');
+            expect($second.text()).toContain('no longer on the page');
+            controller.find('.ai-messages').empty();
         });
 
         test('fill_form warns about invisible forms', () => {

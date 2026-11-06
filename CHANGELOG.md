@@ -8,6 +8,11 @@ The server and the client are released with the same version number.
 ## Unreleased
 
 ### Changed
+- AI assistant: `fill_form` fires `change` on every changed field after all values are set (also in SdcModel
+  forms), so auto-saving edit forms save and other change listeners run; it waits until such forms accept
+  changes. As a safeguard the previous values are kept and the chat shows "Changed …" with a *Restore* button
+  that sets them back (and saves them again). New records are still only created when the user submits.
+  Eval tasks T4-03…06 and T5-03 now ask for changes and allow database changes.
 - AI assistant: elements and forms of `read_page` have stable ids (`id` instead of a position `index`) that stay
   the same while the element is in the page, also when other parts re-render. `click` and `fill_form` take these
   ids; `click` accepts the element's `text` and refuses the click if the element changed; an id of a removed
@@ -98,6 +103,8 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: Enter in the prompt did not send it (the keydown selector contained a space, which sdc_client
+  splits in the `sdc_keydown` attribute).
 - AI assistant: tool calls of the model after the round limit forced an answer are not run (no endless loop).
 - AI assistant: actions and the window-resize handler ran on the temporary instance from which sdc_client builds
   the controller (`agileAggregation`), not on the controller itself.

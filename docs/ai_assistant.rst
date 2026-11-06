@@ -281,14 +281,18 @@ The assistant acts through tools that run in the browser:
     of a removed element is reported as gone instead of hitting another
     element.
 ``fill_form``
-    Enters values into inputs, textareas, selects, checkboxes and radios, and
-    warns if the form is not visible. It never submits. In SdcModel forms it only fires ``input`` events, not the
-    ``change`` event that makes ``sdc-model-form`` edit forms save themselves.
-    The values are saved when the user saves the form (or changes another field
-    of an auto-saving edit form).
-    Fields outside a form get ``input`` and ``change`` events; a search bar
-    (``<sdc-search-view>``) filters its list at once, other views wait for
-    their button.
+    Enters values into inputs, textareas, selects, checkboxes and radios like
+    the user, and warns if the form is not visible: an ``input`` event per
+    field and, when all fields are set, a ``change`` event on every changed
+    field. So auto-saving ``sdc-model-form`` edit forms save the values at once,
+    a search bar (``<sdc-search-view>``) filters its list and other change
+    listeners run. It never submits: new records are created only when the user
+    submits the form.
+
+    As a safeguard the previous values are kept: the chat shows "Changed …"
+    with a *Restore* button that sets them back with the same events (an
+    auto-saving form saves the old values again). If the form is no longer on
+    the page, the chat says so.
 ``click``
     Clicks a button or link of the current page by its id from ``read_page``
     (optionally with its ``text``: the click is refused if the element

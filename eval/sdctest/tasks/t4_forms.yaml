@@ -32,57 +32,61 @@
   category: form
   role: regular
   prompt:
-    - "In the edit form of the author Artin, enter 25 as the age, but don't save it."
-    - "Open Artin's edit form and put 25 into the age field without saving."
+    - "Change the age of the author Artin to 25 in his edit form."
+    - "Open Artin's edit form and set his age to 25."
   expect:
     form: {model: Author, pk: 4, values: {age: "25"}}
+    allow_db_changes: true
   reference:
     - navigate: {path: "/~sdc-model-form~&model=Author&pk=4"}
     - read_page: {}
     - fill_form: {model: Author, pk: 4, values: {age: 25}}
-    - answer: "I entered 25; nothing is saved yet."
+    - answer: "I set Artin's age to 25; the edit form saved it. Use Restore to undo it."
 - id: sdctest-T4-04
   app: sdctest
   category: form
   role: regular
   prompt:
-    - "Open the edit form of the book 'Man i like,...' and enter the new title 'Man, I like it'. I'll save it."
-    - "Change the title of 'Man i like,...' to 'Man, I like it' in its edit form, without saving."
+    - "Open the edit form of the book 'Man i like,...' and change the title to 'Man, I like it'."
+    - "Change the title of 'Man i like,...' to 'Man, I like it' in its edit form."
   expect:
     form: {model: Book, pk: 6, values: {title: "Man, I like it"}}
+    allow_db_changes: true
   reference:
     - navigate: {path: "/~book-edit~&pk=6"}
     - read_page: {}
     - fill_form: {model: Book, pk: 6, values: {title: "Man, I like it"}}
-    - answer: "The new title is entered; please check and save it."
+    - answer: "The title is now 'Man, I like it'."
 - id: sdctest-T4-05
   app: sdctest
   category: form
   role: regular
   prompt:
-    - "Put 'Janet' as the first name in my profile form; I'll save it myself."
-    - "In my account form, enter Janet as my first name, but don't save."
+    - "Change the first name in my profile form to 'Janet'."
+    - "In my account form, set my first name to Janet."
   expect:
     form: {model: SdcUser, pk: 1, values: {first_name: Janet}}
+    allow_db_changes: true
   reference:
     - navigate: {path: "/~sdc-model-form~&model=SdcUser&pk=1"}
     - read_page: {}
     - fill_form: {model: SdcUser, pk: 1, values: {first_name: Janet}}
-    - answer: "I entered Janet as your first name; please save it."
+    - answer: "Your first name is now Janet."
 - id: sdctest-T4-06
   app: sdctest
   category: form
   role: regular
   prompt:
-    - "Enter jane.doe@example.org as the new e-mail address in my profile, but don't save it."
-    - "In my account form, replace my e-mail with jane.doe@example.org without saving."
+    - "Change the e-mail address in my profile to jane.doe@example.org."
+    - "In my account form, replace my e-mail with jane.doe@example.org."
   expect:
     form: {model: SdcUser, pk: 1, values: {email: jane.doe@example.org}}
+    allow_db_changes: true
   reference:
     - navigate: {path: "/~sdc-model-form~&model=SdcUser&pk=1"}
     - read_page: {}
     - fill_form: {model: SdcUser, pk: 1, values: {email: jane.doe@example.org}}
-    - answer: "The new address is entered; saving it will send a confirmation e-mail."
+    - answer: "Your e-mail address is now jane.doe@example.org; a confirmation e-mail was sent to it."
 - id: sdctest-T4-07
   app: sdctest
   category: form
