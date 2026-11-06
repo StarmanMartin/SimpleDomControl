@@ -10,6 +10,48 @@ import re
 
 FORMAT = 1
 
+# The generic views of an SDC model (see teach_models.model_views): controller tag and path; <id> is a record id
+MODEL_ROUTES = {
+    'list': ('sdc-list-view', '/~sdc-list-view~&model={model}'),
+    'detail': ('sdc-detail-view', '/~sdc-detail-view~&model={model}&pk=<id>'),
+    'create': ('sdc-model-form', '/~sdc-model-form~&model={model}'),
+    'edit': ('sdc-model-form', '/~sdc-model-form~&model={model}&pk=<id>'),
+}
+
+
+def model_routes(model, infos):
+    """``{kind: path}`` of the generic views the model supports and the project has installed."""
+    views = model.get('views') or {}
+    return {kind: path.format(model=model['name']) for kind, (tag, path) in MODEL_ROUTES.items()
+            if views.get(kind) and tag in infos}
+
+
+def route_paths(models, infos, pks):
+    """
+    The paths the crawler opens to verify the model routes: ``<id>`` is replaced by an existing record id
+    (``pks``: ``{model name: id}``); routes with ``<id>`` of models without records are left out.
+    """
+    paths = []
+    for model in models:
+        for path in model_routes(model, infos).values():
+            if '<id>' in path:
+                if model['name'] not in pks:
+                    continue
+                path = path.replace('<id>', str(pks[model['name']]))
+            paths.append(path)
+    return paths
+
+
+def _verified(path, visits):
+    """``{'ok': [labels], 'denied': [labels]}`` of the crawl visits of a route (``<id>`` matches any id)."""
+    pattern = re.compile(re.escape(path).replace(re.escape('<id>'), r'\d+') + '$')
+    ok, denied = set(), set()
+    for href, labels in visits.items():
+        if pattern.match(href):
+            for label, code in labels.items():
+                (denied if code is not None else ok).add(label)
+    return {'ok': sorted(ok), 'denied': sorted(denied - ok)}
+
 
 def url_params(url):
     """The parameters of a Django URL pattern: ``/sdc_view/x/y/<int:pk>`` -> ``['pk']``."""
@@ -70,6 +112,7 @@ def _info(tag, infos):
         'actions': dict(info.get('actions') or {}),
         'hidden': bool(info.get('hidden')),
         'summary': info.get('summary'),
+        'tasks': list(info.get('tasks') or []),
     }
 
 
@@ -85,6 +128,7 @@ def build_skill_data(tree, meta):
     """
     infos = meta.get('controller_infos') or {}
     logged_in_label = meta.get('logged_in_label', 'logged-in')
+    crawled_as = list(meta['crawled_as'])
     nodes = sorted(tree['nodes'].values(), key=lambda n: (len(n['path']), len(n['args']), n['href']))
 
     views = {}
@@ -93,7 +137,7 @@ def build_skill_data(tree, meta):
         view = views.get(tag)
         if view is None:
             view = views[tag] = {
-                'tag': tag, 'href': node['href'], 'paths': [], 'args': {}, 'seen_as': set(),
+                'tag': tag, 'href': node['href'], 'paths': [], 'args': {}, 'seen_as': set(), 'denied': set(),
                 'requires_login': False, 'errors': [], 'headings': list(node['headings'][:2]), 'embedded': set(),
                 'links': [], 'buttons': [], 'forms': [], 'external': [], 'model_calls': [],
                 'url_params': list(node.get('url_params') or []),
@@ -104,6 +148,9 @@ def build_skill_data(tree, meta):
             view['args'].setdefault(key, [])
             view['args'][key] += [v for v in values if v not in view['args'][key] and len(view['args'][key]) < 5]
         view['seen_as'] |= set(node['seen_as'])
+        view['denied'] |= set(node.get('error_seen_as') or ())
+        if node['error_code'] is not None:
+            view['denied'] |= set(node['seen_as'])
         if node.get('requires_login') or node['seen_as'] == {logged_in_label}:
             view['requires_login'] = True
         if node['error_code'] is not None:
@@ -119,9 +166,14 @@ def build_skill_data(tree, meta):
 
     view_list = []
     for view in views.values():
-        # A view that works logged in is not an error view just because the anonymous crawl got a 403
-        if view['requires_login']:
-            view['errors'] = [e for e in view['errors'] if set(e['seen_as']) != {logged_in_label}]
+        # Who may open the view: the crawls that saw it without an error view
+        view['available_to'] = sorted(view['seen_as'] - view['denied'])
+        view['denied'] = sorted(view['denied'] - set(view['available_to']))
+        if 'anonymous' in view['denied'] and view['available_to']:
+            view['requires_login'] = True
+        # The error views are explained by the roles: keep only those of views nobody could open
+        if view['available_to']:
+            view['errors'] = []
         view['seen_as'] = sorted(view['seen_as'])
         view['embedded'] = sorted(view['embedded'] - set(views))
         view_list.append(view)
@@ -139,12 +191,17 @@ def build_skill_data(tree, meta):
         'generator': 'manage.py sdc_teach',
         'project': meta['project'],
         'date': meta.get('date', datetime.date.today().isoformat()),
-        'crawled_as': list(meta['crawled_as']),
+        'crawled_as': crawled_as,
         'global': {k: list(global_items.get(k) or []) for k in ('links', 'buttons', 'forms', 'model_calls')},
         'views': view_list,
         'embedded': [{'tag': tag} | _info(tag, infos) for tag in embedded if tag in infos],
         'unreached': [{'tag': tag} | _info(tag, infos) for tag in sorted(set(infos) - seen_tags)],
-        'models': [{'name': m['name'], 'app': m.get('app'), 'doc': m.get('doc'), 'fields': m.get('fields') or []}
+        'models': [{'name': m['name'], 'app': m.get('app'), 'doc': m.get('doc'), 'fields': m.get('fields') or [],
+                    'routes': {kind: {'path': path} | _verified(path, tree.get('visits') or {})
+                               for kind, path in model_routes(m, infos).items()},
+                    'remove_in_list': bool((m.get('views') or {}).get('remove'))}
                    for m in meta.get('models') or []],
+        'tasks': [{'controller': tag} | task for tag, info in sorted(infos.items()) for task in info.get('tasks') or []
+                  if not info.get('hidden')],
         'errors': sorted({(e['error'], e['url'].split('/', 3)[-1]) for e in tree.get('errors', [])}),
     }

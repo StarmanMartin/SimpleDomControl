@@ -414,12 +414,16 @@ def test_ai_tags_of_controllers(tmp_path):
     from sdc_core.management.commands.utils.teach_controllers import (controller_ai_tags, controller_doc,
                                                                        split_ai_tags, sdc_controllers)
     assert split_ai_tags('Nav frame.\n\n@ai-hidden\n@ai-summary  Owns the URL.') == (
-        'Nav frame.', {'hidden': True, 'summary': 'Owns the URL.'})
-    assert split_ai_tags(None) == (None, {'hidden': False, 'summary': None})
+        'Nav frame.', {'hidden': True, 'summary': 'Owns the URL.', 'tasks': []})
+    assert split_ai_tags(None) == (None, {'hidden': False, 'summary': None, 'tasks': []})
+    # A recipe: the lines after @ai-task up to a blank line
+    assert split_ai_tags('Form.\n\n@ai-task Register a user\n1. Open `/~register`.\n- Fill it.\n\nMore text.') == (
+        'Form.\n\n\nMore text.', {'hidden': False, 'summary': None,
+                                   'tasks': [{'title': 'Register a user', 'steps': ['Open `/~register`.', 'Fill it.']}]})
     js = tmp_path / 'x.js'
     js.write_text('/**\n * Helper.\n *\n * @ai-hidden\n */\nclass XController extends AbstractSDC {}\n')
     assert controller_doc(str(js), 'x') == 'Helper.'
-    assert controller_ai_tags(str(js), 'x') == {'hidden': True, 'summary': None}
+    assert controller_ai_tags(str(js), 'x') == {'hidden': True, 'summary': None, 'tasks': []}
     infos = sdc_controllers()
     assert infos['sdc-navigator']['hidden'] and not infos['sdc-list-view']['hidden']
     assert infos['sdc-search-view']['summary'].startswith('Search and paging bar')
@@ -442,3 +446,59 @@ def test_assistant_profile_leaves_out_hidden_controllers():
     assert Command.skill_files('/p/SDC_SKILL.md') == [('agent', '/p/SDC_SKILL.md'),
                                                       ('assistant', '/p/SDC_SKILL.assistant.md')]
     assert Command.skill_files('/p/SDC_SKILL.md', 'assistant') == [('assistant', '/p/SDC_SKILL.assistant.md')]
+
+
+def test_merge_of_several_roles_records_who_may_open_a_view():
+    from sdc_core.management.commands.utils.teach_data import build_skill_data
+    anonymous = _tree(_node(['staff-only'], error_code=403), _node(['main-view']))
+    editor = _tree(_node(['staff-only'], seen_as='editor', error_code=403), _node(['main-view'], seen_as='editor'))
+    admin = _tree(_node(['staff-only'], seen_as='admin'), _node(['main-view'], seen_as='admin'))
+    tree = merge_crawls(merge_crawls(anonymous, editor), admin)
+    data = build_skill_data(tree, {'project': 'Demo', 'crawled_as': ['anonymous', 'editor', 'admin'],
+                                   'date': '2026-01-01', 'logged_in_label': 'admin'})
+    views = {v['tag']: v for v in data['views']}
+    assert views['staff-only']['available_to'] == ['admin']
+    assert views['staff-only']['denied'] == ['anonymous', 'editor'] and views['staff-only']['requires_login']
+    assert views['main-view']['available_to'] == ['admin', 'anonymous', 'editor'] and not views['main-view']['denied']
+    md = render_markdown_of(data)
+    assert '### `<staff-only>` — `/~staff-only` _(login required; available to admin)_' in md
+    assert '### `<main-view>` — `/~main-view`\n' in md
+
+
+def render_markdown_of(data, audience='agent'):
+    from sdc_core.management.commands.utils.teach_markdown import render_markdown
+    return render_markdown(data, audience)
+
+
+def test_model_routes_and_recipes():
+    from sdc_core.management.commands.utils.teach_data import build_skill_data, model_routes, route_paths
+    infos = {'sdc-list-view': {}, 'sdc-detail-view': {}, 'sdc-model-form': {},
+             'register': {'app': 'sdc_user', 'doc': 'Sign up.',
+                          'tasks': [{'title': 'Register', 'steps': ['Open `/~register`.', 'Fill the form.']}]}}
+    author = {'name': 'Author', 'app': 'main_test', 'doc': 'An author.',
+              'views': {'list': True, 'detail': True, 'create': True, 'edit': True, 'remove': True}}
+    content = {'name': 'Content', 'app': 'main_test', 'views': {'create': True, 'edit': True}}
+    assert model_routes(author, infos) == {'list': '/~sdc-list-view~&model=Author',
+                                           'detail': '/~sdc-detail-view~&model=Author&pk=<id>',
+                                           'create': '/~sdc-model-form~&model=Author',
+                                           'edit': '/~sdc-model-form~&model=Author&pk=<id>'}
+    assert model_routes(author, {}) == {}
+    # Routes with <id> need a record; Content has none
+    assert route_paths([author, content], infos, {'Author': 3}) == [
+        '/~sdc-list-view~&model=Author', '/~sdc-detail-view~&model=Author&pk=3', '/~sdc-model-form~&model=Author',
+        '/~sdc-model-form~&model=Author&pk=3', '/~sdc-model-form~&model=Content']
+    tree = _tree(_node(['main-view']))
+    tree['visits'] = {'/~sdc-list-view~&model=Author': {'anonymous': None, 'editor': None},
+                      '/~sdc-detail-view~&model=Author&pk=3': {'anonymous': 403}}
+    data = build_skill_data(tree, {'project': 'Demo', 'crawled_as': ['anonymous', 'editor'], 'date': '2026-01-01',
+                                   'controller_infos': infos, 'models': [author]})
+    routes = data['models'][0]['routes']
+    assert routes['list'] == {'path': '/~sdc-list-view~&model=Author', 'ok': ['anonymous', 'editor'], 'denied': []}
+    assert routes['detail']['denied'] == ['anonymous'] and routes['create']['ok'] == []
+    md = render_markdown_of(data, 'assistant')
+    assert '## Common tasks\n\n- Find a record:' in md
+    assert ('- `Author`: list `/~sdc-list-view~&model=Author` (opens for every crawled role); detail '
+            '`/~sdc-detail-view~&model=Author&pk=<id>` (error view for anonymous); create '
+            '`/~sdc-model-form~&model=Author` (not verified)') in md
+    assert 'delete: "Remove" in its list' in md
+    assert '### Register (`<register>`)\n\n1. Open `/~register`.\n2. Fill the form.\n' in md

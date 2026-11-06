@@ -7,7 +7,17 @@
       "view_class": "sdc_user.sdc_views.Register",
       "url": "/sdc_view/sdc_user/register",
       "url_params": [],
-      "actions": {}
+      "actions": {},
+      "tasks": [
+        {
+          "title": "Register a new account",
+          "steps": [
+            "Open `/~register~&model=SdcUser&next=..` (or the \"Register\" link).",
+            "Fill `username`, `password1` and `password2` (the user types the passwords) and optionally the names and `email`.",
+            "The user clicks \"Create\"; with an `email` a confirmation e-mail is sent."
+          ]
+        }
+      ]
     },
     "sdc-change-password": {
       "doc": "Form for the logged-in user to change their own password (the `password_form` of `SdcUser`).\n\n- No arguments; it always edits the current user. Requires login, otherwise it redirects to the login view.\n- Enter the current password, then the new password twice (must match and pass the password rules).\n- \"Change password\" saves the new password immediately. Other sessions of this user are logged out; the current session stays logged in.",

@@ -22,6 +22,10 @@ The server and the client are released with the same version number.
   for the page to settle. The action round limit is the setting `SDC_AI_MAX_ACTION_ROUNDS` (default 5).
 
 ### Added
+- `sdc_teach --users-file roles.yaml`: crawls once per role; every view says which roles may open it. The crawl
+  also opens the generic views of every SDC model (list, detail, create, edit; `--no-model-routes` skips them)
+  and the skill file starts with *Common tasks*: generic recipes, the model routes with the roles that opened
+  them, and the recipes of the new JSDoc tag `@ai-task`.
 - `sdc_teach --audience agent|assistant|both` (default `both`): also writes `SDC_SKILL.assistant.md` for the AI
   assistant, without developer details (ready check, socket traffic, server views) and without controllers
   tagged `@ai-hidden`; the assistant prefers it (`SDC_AI_SKILL_FILE` default `None`). JSDoc tags `@ai-hidden` and

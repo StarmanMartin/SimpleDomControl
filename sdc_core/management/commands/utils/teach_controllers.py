@@ -49,8 +49,9 @@ def _jsdoc_before(prefix):
 
 # JSDoc tags of the controller class for the AI skill files:
 # ``@ai-hidden``: not shown to the AI assistant (helpers without anything to operate, e.g. sdc-navigator);
-# ``@ai-summary <one line>``: the line in the assistant's index (default: the first sentence of the doc)
-AI_TAG_RE = re.compile(r'^@ai-(hidden|summary)\b[ \t]*(.*)$')
+# ``@ai-summary <one line>``: the line in the assistant's index (default: the first sentence of the doc);
+# ``@ai-task <title>`` followed by one step per line (until a blank line): a recipe for a common task
+AI_TAG_RE = re.compile(r'^@ai-(hidden|summary|task)\b[ \t]*(.*)$')
 
 
 def _controller_jsdoc(file, tag):
@@ -67,17 +68,31 @@ def _controller_jsdoc(file, tag):
 
 
 def split_ai_tags(doc):
-    """``(text without the @ai- lines or None, {'hidden': bool, 'summary': str|None})``."""
-    tags = {'hidden': False, 'summary': None}
+    """
+    ``(text without the @ai- lines or None, {'hidden': bool, 'summary': str|None, 'tasks': [{'title', 'steps'}]})``.
+    The steps of an ``@ai-task`` are the lines after it up to a blank line or the next tag; a leading ``1.`` or
+    ``-`` is removed.
+    """
+    tags = {'hidden': False, 'summary': None, 'tasks': []}
     text = []
+    task = None
     for line in (doc or '').splitlines():
         match = AI_TAG_RE.match(line.strip())
         if match is None:
+            if task is not None and line.strip() and not line.strip().startswith('@'):
+                task['steps'].append(re.sub(r'^(\d+[.)]|[-*])\s*', '', line.strip()))
+                continue
+            task = None
             text.append(line)
         elif match.group(1) == 'hidden':
+            task = None
             tags['hidden'] = True
-        else:
+        elif match.group(1) == 'summary':
+            task = None
             tags['summary'] = match.group(2).strip() or None
+        else:
+            task = {'title': match.group(2).strip() or 'Task', 'steps': []}
+            tags['tasks'].append(task)
     return '\n'.join(text).strip() or None, tags
 
 

@@ -87,7 +87,9 @@ required login or permissions, and which models it shows or changes. For small e
 
 End the block with `@ai-hidden` for controllers the AI assistant has nothing to do with (invisible helpers,
 frames, message areas), and optionally with `@ai-summary <one line>` when the first sentence is not a good
-one-line summary (it is used in short overviews of the app).
+one-line summary (it is used in short overviews of the app). For views that serve a common task, add a recipe:
+`@ai-task <title>` followed by one step per line (up to a blank line), e.g. how to register or to lend a book.
+Generic recipes for finding, creating, editing and deleting records are generated.
 
 ## Button action JSDoc
 
@@ -109,8 +111,9 @@ the user before it clicks buttons that delete, save or send data; the text tells
 
 1. Run `python manage.py sdc_prepare_teaching` again; the list below must be empty.
 2. Run `python manage.py sdc_teach --no-ask` to regenerate `SDC_SKILL.md` (`--no-ask`: the command would
-   otherwise ask in the terminal for missing documentation). Add `--user <name> --password <pw>` to also
-   crawl the logged-in UI.
+   otherwise ask in the terminal for missing documentation). Crawl the logged-in UI as well, ideally once per
+   role: `--users-file roles.yaml` (`{role: {username, password}}`) with a `--fixture` that creates these
+   users and some records; the skill file then says which roles may open each view.
 '''
 
 

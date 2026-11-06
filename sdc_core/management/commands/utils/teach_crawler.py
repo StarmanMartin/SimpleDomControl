@@ -247,7 +247,7 @@ def state_key(path, args):
 class Crawler:
     def __init__(self, context, base_url, start='/', max_depth=5, max_nodes=200, click=True,
                  click_all=False, deny=None, timeout=10000, log=print, label='anonymous',
-                 ask_browser=None, form_cache=None):
+                 ask_browser=None, form_cache=None, extra_paths=None):
         self.context = context
         self.base_url = base_url.rstrip('/')
         self.start = start
@@ -260,6 +260,10 @@ class Crawler:
         self.log = log
         self.label = label
         self.nodes = {}
+        # Paths opened in addition to the links (e.g. the generic views of every SDC model); every visited path is
+        # recorded in ``visits``: ``{href: {label: error code or None}}``
+        self.extra_paths = list(extra_paths or [])
+        self.visits = {}
         self.global_items = None
         self.errors = []
         self._calls = []
@@ -396,6 +400,7 @@ class Crawler:
         queue.extend((h, 0, 'form') for h in global_hrefs)
         queue.extend((l['target']['href'], 0, f'link "{l["text"]}"')
                      for l in self.global_items['links'] if l['target'])
+        queue.extend((path, 0, 'model route') for path in self.extra_paths)
         seen_hrefs = set()
         while queue and len(self.nodes) < self.max_nodes:
             href, depth, via = queue.popleft()
@@ -405,6 +410,10 @@ class Crawler:
             self._goto(href)
             snap = self._snapshot()
             model_calls = self._model_calls()
+            idx = len(snap['path']) - 1
+            codes = [c['error_code'] for c in snap['controllers']
+                     if c.get('error_code') is not None and c['nav_idx'] == idx]
+            self.visits[href] = {self.label: codes[0] if codes else None}
             key = state_key(snap['path'], snap['args'])
             if key in self.nodes:
                 self._merge_examples(self.nodes[key], snap)
@@ -429,7 +438,7 @@ class Crawler:
             node['forms'] = self._ask_forms(node['href'], node['forms'], new_hrefs)
             queue.extend((h, depth + 1, 'form') for h in new_hrefs)
         self.page.close()
-        return {'nodes': self.nodes, 'errors': self.errors, 'global': self.global_items}
+        return {'nodes': self.nodes, 'errors': self.errors, 'global': self.global_items, 'visits': self.visits}
 
     def _make_node(self, key, snap, depth, via):
         idx = len(snap['path']) - 1
@@ -602,8 +611,9 @@ class Crawler:
 
 def merge_crawls(anonymous, logged_in):
     """
-    Merges a logged-in crawl into the anonymous one. A view that shows an error
-    anonymously but works when logged in is marked ``requires_login``.
+    Merges a logged-in crawl into the anonymous one (repeatedly, for several roles). A view that shows an error
+    in the first crawl but works in the second is marked ``requires_login``; ``error_seen_as`` keeps the labels
+    of the crawls that got an error view, so the skill file can say who may open a view.
     """
     nodes = dict(anonymous['nodes'])
     for key, node in logged_in['nodes'].items():
@@ -611,19 +621,31 @@ def merge_crawls(anonymous, logged_in):
         if old is None:
             nodes[key] = node
             continue
+        denied = set(old.get('error_seen_as') or ())
+        if old['error_code'] is not None:
+            # A role without the error view would have replaced the node: all of its roles got the error
+            denied |= set(old['seen_as'])
+        if node['error_code'] is not None:
+            denied |= set(node['seen_as'])
         node['seen_as'] |= old['seen_as']
         for k, values in old['args'].items():
             node['args'].setdefault(k, [])
             node['args'][k] += [v for v in values if v not in node['args'][k]]
         if old['error_code'] is not None and node['error_code'] is None:
             node['requires_login'] = True
+            node['error_seen_as'] = denied
             nodes[key] = node
         else:
             old['seen_as'] = node['seen_as']
             old['args'] = node['args']
+            old['error_seen_as'] = denied
     global_items = anonymous['global']
     for name in ('links', 'buttons', 'model_calls'):
         known = {json.dumps(i, sort_keys=True, default=str) for i in global_items.setdefault(name, [])}
         global_items[name] += [i for i in logged_in['global'].get(name, [])
                                if json.dumps(i, sort_keys=True, default=str) not in known]
-    return {'nodes': nodes, 'errors': anonymous['errors'] + logged_in['errors'], 'global': global_items}
+    visits = {href: dict(labels) for href, labels in (anonymous.get('visits') or {}).items()}
+    for href, labels in (logged_in.get('visits') or {}).items():
+        visits.setdefault(href, {}).update(labels)
+    return {'nodes': nodes, 'errors': anonymous['errors'] + logged_in['errors'], 'global': global_items,
+            'visits': visits}

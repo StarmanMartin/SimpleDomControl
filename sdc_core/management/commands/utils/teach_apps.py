@@ -24,7 +24,8 @@ def app_skill_data(app, controllers, models):
                               'url_params': url_params(c.get('url')),
                               'actions': dict(sorted((c.get('actions') or {}).items())),
                               **({'hidden': True} if c.get('hidden') else {}),
-                              **({'summary': c['summary']} if c.get('summary') else {})}
+                              **({'summary': c['summary']} if c.get('summary') else {}),
+                              **({'tasks': c['tasks']} if c.get('tasks') else {})}
                         for tag, c in sorted(controllers.items())},
         'models': {m['name']: {'doc': m.get('doc'), 'fields': m.get('fields') or []}
                    for m in sorted(models, key=lambda m: m['name'])},
@@ -78,7 +79,7 @@ def apply_app_skills(models, controllers, skills, prefer_json=True):
         # AI tags and button actions (sdc_click handlers) documented in the JSON
         entry = (skills.get(c['app']) or {}).get('controllers', {}).get(tag)
         if isinstance(entry, dict):
-            for key in ('hidden', 'summary'):
+            for key in ('hidden', 'summary', 'tasks'):
                 if entry.get(key) and (prefer_json or not c.get(key)):
                     c[key] = entry[key]
         json_actions = entry.get('actions') if isinstance(entry, dict) else None

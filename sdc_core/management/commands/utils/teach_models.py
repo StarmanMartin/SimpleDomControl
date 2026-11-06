@@ -48,8 +48,33 @@ def model_fields(model):
             for name, f in fields.items()]
 
 
+def model_views(model):
+    """
+    Which generic views the model supports (``SdcMeta``): ``list`` (``<sdc-list-view>``, html_list_template),
+    ``detail`` (``<sdc-detail-view>``, html_detail_template), ``create`` / ``edit`` (``<sdc-model-form>``,
+    create_form / edit_form) and ``remove`` (its list template has a ``removeInstance`` button).
+    """
+    meta = getattr(model, 'SdcMeta', None)
+    views = {'list': bool(getattr(meta, 'html_list_template', None)),
+             'detail': bool(getattr(meta, 'html_detail_template', None)),
+             'create': bool(getattr(meta, 'create_form', None)),
+             'edit': bool(getattr(meta, 'edit_form', None)),
+             'remove': False}
+    if views['list']:
+        try:
+            from django.template.loader import get_template
+            source = get_template(meta.html_list_template).template.source
+            views['remove'] = 'removeInstance' in source
+        except Exception:  # noqa: BLE001 - a missing template: no list view after all
+            views['list'] = False
+    return views
+
+
 def sdc_models():
-    """``[{'model', 'name', 'app', 'file', 'doc', 'fields'}]`` for every SDC model, sorted by app and name."""
+    """
+    ``[{'model', 'name', 'app', 'file', 'doc', 'fields', 'views'}]`` for every SDC model, sorted by app and name;
+    ``views`` see ``model_views``.
+    """
     result = []
     for model in apps.get_models():
         if not hasattr(model, '__is_sdc_model__'):
@@ -59,7 +84,7 @@ def sdc_models():
         except TypeError:
             file = None
         result.append({'model': model, 'name': model.__name__, 'app': model._meta.app_label, 'file': file,
-                       'doc': model_doc(model), 'fields': model_fields(model)})
+                       'doc': model_doc(model), 'fields': model_fields(model), 'views': model_views(model)})
     return sorted(result, key=lambda m: (m['app'], m['name']))
 
 

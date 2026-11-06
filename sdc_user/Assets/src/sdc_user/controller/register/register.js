@@ -9,6 +9,11 @@ import {AbstractSDC, app} from 'sdc_client';
  * - "Create" creates the account; anyone may register, no login is needed. The new user is not logged in automatically.
  * - If an `email` was given, a confirmation e-mail with a link to `<sdc-confirm-email>` (valid 3 days) is sent to it.
  * - If the project requires confirmed e-mail addresses, the new user can only log in after following that link.
+ *
+ * @ai-task Register a new account
+ * 1. Open `/~register~&model=SdcUser&next=..` (or the "Register" link).
+ * 2. Fill `username`, `password1` and `password2` (the user types the passwords) and optionally the names and `email`.
+ * 3. The user clicks "Create"; with an `email` a confirmation e-mail is sent.
  */
 class RegisterController extends AbstractSDC {
 

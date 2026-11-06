@@ -191,10 +191,54 @@ def _render_actions(actions, lines):
     lines.append('')
 
 
-def _render_view(view, actions, lines, agent):
+# General recipes, shown when the project has models with generic views
+GENERAL_TASKS = [
+    'Find a record: open the model\'s list (below) and fill its search bar, or read records with `model_load` and a '
+    'filter; the record\'s id opens its detail or edit view.',
+    'Create a record: open the model\'s create form, fill it; the user checks and submits it.',
+    'Edit a record: open its edit form (`pk` = id) and fill it; the user checks and saves it.',
+    'Delete a record: in the model\'s list, "Remove" in its row opens a dialog whose "Remove …" button deletes it; '
+    'ask the user first, this cannot be undone.',
+]
+
+
+def _roles(verified, crawled_as=()):
+    if verified.get('ok') and len(crawled_as) > 1 and set(verified['ok']) == set(crawled_as):
+        return ' (opens for every crawled role)'
+    if verified.get('ok'):
+        return f' (opened as {", ".join(verified["ok"])})'
+    if verified.get('denied'):
+        return f' (error view for {", ".join(verified["denied"])})'
+    return ' (not verified)'
+
+
+def _render_tasks(data, lines):
+    routes = [m for m in data['models'] if m.get('routes')]
+    if not routes and not data.get('tasks'):
+        return
+    lines += ['## Common tasks', '']
+    if routes:
+        lines += [f'- {t}' for t in GENERAL_TASKS]
+        lines += ['', 'Generic views per model (`<id>`: the record\'s id). A view that opens does not mean the role '
+                      'may see or change the records: that depends on the model\'s permissions (see Data models).']
+        for m in routes:
+            parts = [f'{kind} {_code(r["path"])}{_roles(r, data["crawled_as"])}' for kind, r in m['routes'].items()]
+            if m.get('remove_in_list') and 'list' in m['routes']:
+                parts.append('delete: "Remove" in its list')
+            lines.append(f'- {_code(m["name"])}: ' + '; '.join(parts))
+        lines.append('')
+    for task in data.get('tasks') or []:
+        lines += [f'### {task["title"]} (`<{task["controller"]}>`)', '']
+        lines += [f'{i}. {step}' for i, step in enumerate(task['steps'], 1)] + ['']
+
+
+def _render_view(view, actions, lines, agent, crawled_as=()):
     flags = []
     if view['requires_login']:
         flags.append('login required')
+    available = view.get('available_to') or []
+    if available and len(crawled_as) > 1 and set(available) != set(crawled_as):
+        flags.append(f'available to {", ".join(available)}')
     for error in view['errors']:
         flags.append(f'shows sdc-error {error["code"]} for {", ".join(error["seen_as"])}')
     title = ' / '.join(view['headings'])
@@ -292,6 +336,7 @@ def render_markdown(data, audience='agent'):
     ]
     lines += [f'- {rule}' for rule in RULES + (AGENT_RULES if agent else [])]
     lines.append('')
+    _render_tasks(data, lines)
 
     g = data['global']
     if any(g.get(k) for k in ('links', 'buttons', 'forms')) or (agent and g.get('model_calls')):
@@ -307,7 +352,7 @@ def render_markdown(data, audience='agent'):
     if data['views']:
         lines += ['## Views', '']
         for view in data['views']:
-            _render_view(view, actions, lines, agent)
+            _render_view(view, actions, lines, agent, data['crawled_as'])
     _render_controllers(data['embedded'], lines, '## Embedded controllers',
                         'Controllers shown inside the views above (or globally).', agent)
     # Views without a link (detail and edit pages, views of other roles) are not reached by the crawl; their

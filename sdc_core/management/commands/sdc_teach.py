@@ -17,9 +17,22 @@ from sdc_core.management.commands.utils.teach_controllers import add_controller_
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
 from sdc_core.management.commands.utils.teach_apps import app_skill_data, apply_app_skills, load_app_skills, \
     write_app_skill
-from sdc_core.management.commands.utils.teach_data import build_skill_data
+from sdc_core.management.commands.utils.teach_data import build_skill_data, route_paths
 from sdc_core.management.commands.utils.teach_markdown import render_markdown
 from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
+
+# Prints the id of one record per SDC model of the crawl database (to open the detail and edit views)
+MODEL_PKS_SCRIPT = """
+import json
+from django.apps import apps
+pks = {}
+for model in apps.get_models():
+    if hasattr(model, '__is_sdc_model__'):
+        obj = model._base_manager.order_by('pk').first()
+        if obj is not None:
+            pks[model.__name__] = obj.pk
+print('SDC_TEACH_PKS ' + json.dumps(pks))
+"""
 
 SESSION_SCRIPT = """
 import json, os
@@ -60,6 +73,11 @@ class Command(BaseCommand):
         parser.add_argument('--max-nodes', type=int, default=200, help='Maximum number of views')
         parser.add_argument('--user', type=str, default=None, help='Additionally crawl logged in as this user')
         parser.add_argument('--password', type=str, default=None, help='Password of --user')
+        parser.add_argument('--users-file', type=str, default=None,
+                            help='YAML/JSON {role: {username, password}} (as for sdc_eval_ai): additionally crawl '
+                                 'logged in as each role; the skill file says which roles may open each view')
+        parser.add_argument('--no-model-routes', action='store_true',
+                            help='Do not open the generic views (list, detail, create, edit) of every SDC model')
         parser.add_argument('--no-click', action='store_true', help='Only follow links, do not click buttons')
         parser.add_argument('--click-all', action='store_true',
                             help='Also click buttons matching the denylist (delete, logout, submit, ...)')
@@ -114,7 +132,8 @@ class Command(BaseCommand):
         try:
             self._wait_for_server(server, server_log, base_url)
             self.stdout.write(self.style.SUCCESS(f'Crawl server running on {base_url} (DB: {ops["database"]})'))
-            cookie = self._login_cookie(env, ops) if ops['user'] else None
+            logins = self._logins(env, ops)
+            extra_paths = [] if ops['no_model_routes'] else route_paths(models, controllers, self._model_pks(env))
             with sync_playwright() as p:
                 browser = self._launch(p, ops, headless=not ops['headed'])
                 headed = []
@@ -130,7 +149,7 @@ class Command(BaseCommand):
                     return headed[0]
 
                 try:
-                    tree, crawled_as = self._crawl(browser, base_url, cookie, ops,
+                    tree, crawled_as = self._crawl(browser, base_url, logins, extra_paths, ops,
                                                    ask_browser if self._can_ask(ops) else None)
                 finally:
                     browser.close()
@@ -147,7 +166,7 @@ class Command(BaseCommand):
         data = build_skill_data(tree, {
             'project': project,
             'crawled_as': crawled_as,
-            'logged_in_label': f'user {ops["user"]}',
+            'logged_in_label': logins[0][0] if len(logins) == 1 else None,
             'controller_infos': controllers,
             'models': models,
         })
@@ -181,26 +200,47 @@ class Command(BaseCommand):
         return (len(text) + 3) // 4
 
     # --------------------------------------------------------------- crawl
-    def _crawl(self, browser, base_url, cookie, ops, ask_browser):
+    def _crawl(self, browser, base_url, logins, extra_paths, ops, ask_browser):
+        """Crawls anonymously, then once per ``(label, session cookie)`` of ``logins``; returns the merged tree."""
         kwargs = dict(start=ops['start'], max_depth=ops['max_depth'], max_nodes=ops['max_nodes'],
                       click=not ops['no_click'], click_all=ops['click_all'], deny=ops['deny'],
                       timeout=ops['timeout'], log=self.stdout.write,
-                      ask_browser=ask_browser, form_cache={})
+                      ask_browser=ask_browser, form_cache={}, extra_paths=extra_paths)
 
         context = browser.new_context()
         anonymous = Crawler(context, base_url, label='anonymous', **kwargs)
         tree = anonymous.crawl()
         context.close()
         crawled_as = ['anonymous']
-        if cookie:
+        for label, cookie in logins:
             context = browser.new_context()
             context.add_cookies([{'name': cookie['name'], 'value': cookie['value'], 'url': base_url}])
-            logged_in = Crawler(context, base_url, label=f'user {ops["user"]}', **kwargs)
-            logged_in_tree = logged_in.crawl()
+            logged_in_tree = Crawler(context, base_url, label=label, **kwargs).crawl()
             context.close()
             tree = merge_crawls(tree, logged_in_tree)
-            crawled_as.append(f'user {ops["user"]}')
+            crawled_as.append(label)
         return tree, crawled_as
+
+    def _logins(self, env, ops):
+        """``[(label, session cookie)]``: ``user <name>`` of --user, then one per role of --users-file."""
+        from sdc_core.management.commands.utils.eval_ai import EvalConfigError, parse_users
+        logins = []
+        if ops['user']:
+            logins.append((f'user {ops["user"]}', self._login_cookie(env, ops['user'], ops['password'], ops)))
+        if ops['users_file']:
+            try:
+                roles = parse_users([], ops['users_file'])
+            except (EvalConfigError, OSError) as e:
+                raise CommandError(f'--users-file: {e}')
+            for role, user in roles.items():
+                logins.append((role, self._login_cookie(env, user['username'], user['password'], ops)))
+        return logins
+
+    def _model_pks(self, env):
+        """``{model name: id}`` of one record per SDC model in the crawl database."""
+        out = self._manage(env, 'shell', '-c', MODEL_PKS_SCRIPT)
+        line = next((l for l in reversed(out.splitlines()) if l.startswith('SDC_TEACH_PKS ')), None)
+        return json.loads(line[len('SDC_TEACH_PKS '):]) if line else {}
 
     @staticmethod
     def _can_ask(ops):
@@ -252,12 +292,12 @@ class Command(BaseCommand):
                 time.sleep(0.3)
         raise CommandError(f'Crawl server did not start within {timeout}s')
 
-    def _login_cookie(self, env, ops):
-        out = self._manage(env | {'SDC_TEACH_USER': ops['user'], 'SDC_TEACH_PASSWORD': ops['password']},
+    def _login_cookie(self, env, username, password, ops):
+        out = self._manage(env | {'SDC_TEACH_USER': username, 'SDC_TEACH_PASSWORD': password},
                            'shell', '-c', SESSION_SCRIPT)
         cookie = json.loads(out.strip().splitlines()[-1])
         if 'error' in cookie:
-            raise CommandError(f'Login as {ops["user"]} failed: {cookie["error"]} (DB: {ops["database"]})')
+            raise CommandError(f'Login as {username} failed: {cookie["error"]} (DB: {ops["database"]})')
         return cookie
 
     # ------------------------------------------------------------- per app

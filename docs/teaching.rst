@@ -47,6 +47,11 @@ Then run, in the directory of *manage.py*:
 
     $ python manage.py sdc_teach
     $ python manage.py sdc_teach --user admin --password secret
+    $ python manage.py sdc_teach --users-file roles.yaml --fixture demo.json
+
+``roles.yaml`` names one user per role, as for ``sdc_eval_ai``
+(``editor: {username: eddie, password: ...}``); the users must exist in the
+crawl database (e.g. from the fixture).
 
 The command
 
@@ -57,9 +62,13 @@ The command
 3. crawls the app anonymously: it follows every ``.navigation-links`` element
    of the ``sdc-navigator`` and clicks every button, except those that look
    destructive (delete, logout, save, submit, ...). The ``<sdc-ai-assistant>``
-   panel is hidden during the crawl and is not part of the skill file;
-4. with ``--user``/``--password``, crawls a second time as that user and marks
-   views that need a login;
+   panel is hidden during the crawl and is not part of the skill file. It also
+   opens the generic views of every SDC model (list, create and, with the
+   first record of the crawl database, detail and edit), so these routes are
+   verified;
+4. with ``--user``/``--password`` and for every role of ``--users-file``,
+   crawls again as that user; every view then says which roles may open it
+   (*available to*) and whether it needs a login;
 5. writes ``SDC_SKILL.md`` (or the file given with ``-o``).
 
 Forms are never submitted automatically. When the command runs in a terminal
@@ -80,6 +89,11 @@ Options:
     Fixture loaded with ``loaddata`` before crawling.
 ``--user``, ``--password``
     Additionally crawl as this user.
+``--users-file``
+    YAML/JSON ``{role: {username, password}}``: additionally crawl as every
+    role.
+``--no-model-routes``
+    Do not open the generic views of the SDC models.
 ``--max-depth``, ``--max-nodes``
     Limits of the crawl (default 5 and 200).
 ``--no-click``
@@ -125,6 +139,10 @@ The skill file contains:
   reached by the crawl* (views no link opens, such as detail or edit pages that
   need arguments, or views of other roles), with the same information but
   without observed behaviour;
+- *Common tasks*: recipes for finding, creating, editing and deleting
+  records, the generic views of every model (list, detail, create, edit, delete
+  via the list) with the roles that opened them, and the recipes written as
+  ``@ai-task`` in controller docs;
 - every SDC model with its documentation and the fields clients can read;
 - errors observed while crawling.
 
@@ -185,8 +203,21 @@ Controllers
     ``@ai-hidden`` leaves a controller out of the assistant's knowledge (helpers
     with nothing to operate, such as ``sdc-navigator`` or ``sdc-user``; the
     bundled apps tag theirs) and ``@ai-summary <one line>`` is its line in short
-    overviews (default: the first sentence). The tags are not part of the
-    documentation text.
+    overviews (default: the first sentence). ``@ai-task <title>`` followed by
+    one step per line (up to a blank line) adds a recipe to *Common tasks*:
+
+    .. code-block:: js
+
+        /**
+         * Registration form for a new `SdcUser`.
+         *
+         * @ai-task Register a new user
+         * 1. Open `/~register~&model=SdcUser`.
+         * 2. Fill `username`, the password twice and optionally `email`.
+         * 3. The user clicks "Create".
+         */
+
+    The tags are not part of the documentation text.
 
 Button actions
     The JSDoc block directly above the controller method that a button calls
