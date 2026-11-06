@@ -110,21 +110,29 @@ The skill file contains:
   this section also without a skill file;
 - how to operate an SDC app (``sdc_click`` handlers, when a view is ready);
 - the global navigation (always visible links, buttons and forms);
-- the navigation tree: every view with its path, arguments and example values,
-  required URL parameters, embedded controllers, links, buttons (with handler,
-  its documented action and the observed effect: navigation, opened
-  controllers, server calls, alerts),
-  forms (fields and the result of your submit) and the SdcModel WebSocket
-  messages each controller sends;
-- every controller reached, with its documentation, app, server view and
-  Django URL, and its *Button actions*: every ``sdc_click`` handler of its
-  template and code with the handler's JSDoc;
+- *Views*: one entry per view (the deepest controller of a path), with its
+  documentation, the paths it was seen at (*Also at*), its own arguments with
+  example values (without the depth prefix), required URL parameters, embedded
+  controllers, links, buttons (with handler, its documented action and the
+  observed effect: navigation, opened controllers, server calls, alerts),
+  forms (fields and the result of your submit), the SdcModel WebSocket
+  messages it sends, its app, server view and Django URL, and its *Button
+  actions*: every ``sdc_click`` handler of its template and code with the
+  handler's JSDoc;
+- *Embedded controllers*: the documentation of controllers shown inside the
+  views (search bars, widgets);
 - every other controller of the installed apps in the section *Controllers not
   reached by the crawl* (views no link opens, such as detail or edit pages that
   need arguments, or views of other roles), with the same information but
   without observed behaviour;
 - every SDC model with its documentation and the fields clients can read;
 - errors observed while crawling.
+
+Next to the skill file ``sdc_teach`` writes ``SDC_SKILL.data.json``: the same
+knowledge as data (format version ``1``), for tools that do not want to parse
+the Markdown. The command prints the size of the skill file as an estimated
+token count (about four characters per token): keep it small, small models
+follow a short file much better.
 
 Before the crawl, ``sdc_teach`` lists the undocumented SDC models and
 controllers of your project and asks you for a description of each one in the

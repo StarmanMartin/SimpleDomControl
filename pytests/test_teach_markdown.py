@@ -43,16 +43,31 @@ def _render(tree):
                                'date': '2026-01-01'})
 
 
-def test_tree_nesting_and_args():
+def test_views_and_args():
     md = _render(_tree(
-        _node(['main-view']),
-        _node(['main-view', 'book-edit'], {'2.pk': 3, '2.edit': True}),
+        _node(['main-view'], {'1.tab': 'books'}),
+        _node(['main-view', 'book-edit'], {'1.tab': 'books', '2.pk': 3, '2.edit': True}),
     ))
     assert md.startswith('---\nname: demo-ui\n')
-    assert '- **main-view** — `/~main-view`' in md
-    assert '  - **book-edit** — `/~main-view~book-edit`' in md
-    assert '`2.pk` (number), e.g. `3`' in md
-    assert '`2.edit` (bool), e.g. `True`' in md
+    assert '### `<main-view>` — `/~main-view`' in md
+    assert '### `<book-edit>` — `/~main-view~book-edit`' in md
+    # Arguments of the view itself, without the depth prefix; the parent's tab stays with the parent
+    assert '- Arguments: `edit` (bool, e.g. `True`); `pk` (number, e.g. `3`)' in md
+    assert '- Arguments: `tab` (string, e.g. `books`)' in md
+
+
+def test_one_entry_per_view():
+    login = dict(links=[{'text': 'Register', 'target': {'href': '/~register'}, 'only_logged_in': False,
+                          'only_logged_out': False}])
+    md = _render(_tree(
+        _node(['sdc-login'], **login),
+        _node(['editor', 'sdc-login'], {'2.next': '~editor'}, **login),
+        _node(['other', 'sdc-login'], {'2.next': '~other'}, **login),
+    ))
+    assert md.count('### `<sdc-login>`') == 1
+    assert '- Also at: `/~editor~sdc-login`, `/~other~sdc-login`' in md
+    assert '- Arguments: `next` (string, e.g. `~editor`, `~other`)' in md
+    assert md.count('"Register" → `/~register`') == 1
 
 
 def test_buttons_and_forms():
@@ -80,8 +95,8 @@ def test_merge_marks_login_required():
     logged_in = _tree(_node(['admin-only'], seen_as='user admin'), _node(['secret'], seen_as='user admin'))
     tree = merge_crawls(anonymous, logged_in)
     md = _render(tree)
-    assert '- **admin-only** — `/~admin-only` _(login required)_' in md
-    assert '- **secret** — `/~secret` _(login required)_' in md
+    assert '### `<admin-only>` — `/~admin-only` _(login required)_' in md
+    assert '### `<secret>` — `/~secret` _(login required)_' in md
 
 
 def test_models_section():
@@ -142,10 +157,15 @@ def test_model_socket_calls():
                                       'function': 'load', 'query': [], 'args': []}]
     md = _render(tree)
     assert '"Model socket (on load)"' in md
-    assert ('  - Model socket (on load):\n    - `book-list`: `Book.connect()` filter `author`; '
+    assert ('- Model socket (on load):\n  - `book-list`: `Book.connect()` filter `author`; '
             '`Book.load()` filter `author`') in md
     assert 'model-socket `Book.save(data)` from `book-list`' in md
     assert '## Global navigation (always visible)\n\n- Model socket (on load):\n  - `nav-bar`: `SdcUser.load()`' in md
+    # The assistant profile leaves the socket traffic out
+    from sdc_core.management.commands.utils.teach_markdown import render_skill as render
+    assistant = render(tree, {'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01'},
+                       audience='assistant')
+    assert 'Model socket' not in assistant and 'Book.save' not in assistant
 
 
 def test_merge_keeps_global_model_calls():
@@ -163,9 +183,11 @@ def test_controller_docs_section():
         'controller_infos': {'main-view': {'app': 'main_test', 'view_class': 'main_test.sdc_views.MainView',
                                            'url': '/sdc_view/main_test/main_view', 'doc': 'Start page.\n\nLists books.'},
                              'book-edit': {'app': 'main_test', 'doc': None}}})
-    assert ('### `<main-view>`\n\nStart page.\n\nLists books.\n\n_app `main_test`, server view '
+    assert ('### `<main-view>` — `/~main-view`\n\nStart page.\n\nLists books.\n\n_app `main_test`, server view '
             '`main_test.sdc_views.MainView`, Django URL `/sdc_view/main_test/main_view`_\n') in md
-    assert '### `<book-edit>`\n\n_No documentation._\n' in md
+    assert '### `<book-edit>` — `/~main-view~book-edit`\n\n_No documentation._\n' in md
+    # The documentation is part of the view's entry: no separate controller section for views
+    assert '## Controllers\n' not in md
 
 
 def test_controller_jsdoc(tmp_path):
@@ -350,3 +372,39 @@ def test_apply_app_skills_actions():
     assert controllers['book-edit']['actions'] == {'add_x': 'code', 'other': None}
     apply_app_skills([], controllers, skills, prefer_json=True)
     assert controllers['book-edit']['actions'] == {'add_x': 'json', 'other': None}
+
+
+def test_skill_data_is_json_and_lists_embedded_controllers():
+    import json
+    from sdc_core.management.commands.utils.teach_data import FORMAT, build_skill_data
+    from sdc_core.management.commands.utils.teach_markdown import render_markdown
+    node = _node(['main-view'], seen_as='user admin',
+                 controllers=[{'tag': 'main-view', 'url_params': [], 'parent': None, 'nav_idx': 0},
+                              {'tag': 'sdc-search-view', 'url_params': [], 'parent': 'main-view', 'nav_idx': 0}])
+    infos = {'main-view': {'app': 'main_test', 'doc': 'Start page.', 'actions': {'go': 'Goes.'}},
+             'sdc-search-view': {'app': 'sdc_tools', 'doc': 'Search bar.'},
+             'book-edit': {'app': 'main_test', 'doc': 'Edits a book.'}}
+    data = build_skill_data(_tree(node), {'project': 'Demo', 'crawled_as': ['user admin'], 'date': '2026-01-01',
+                                          'logged_in_label': 'user admin', 'controller_infos': infos})
+    assert json.loads(json.dumps(data))['format'] == FORMAT
+    assert [v['tag'] for v in data['views']] == ['main-view']
+    assert data['views'][0]['embedded'] == ['sdc-search-view'] and data['views'][0]['requires_login']
+    assert [c['tag'] for c in data['embedded']] == ['sdc-search-view']
+    assert [c['tag'] for c in data['unreached']] == ['book-edit']
+    md = render_markdown(data)
+    assert '## Embedded controllers\n\nControllers shown inside the views above (or globally).\n\n' \
+           '### `<sdc-search-view>`\n\nSearch bar.' in md
+    assert 'Button actions (`sdc_click` handlers):\n- `go()`: Goes.' in md
+
+
+def test_skill_file_of_the_test_project_stays_small():
+    """Size budget (about 4 characters per token): the documentation of the test project's apps alone."""
+    from sdc_core.management.commands.sdc_teach import Command
+    from sdc_core.management.commands.utils.teach_controllers import sdc_controllers
+    from sdc_core.management.commands.utils.teach_models import sdc_models
+    meta = {'project': 'SdcTest', 'crawled_as': ['anonymous'], 'controller_infos': sdc_controllers(),
+            'models': sdc_models(), 'date': '2026-01-01'}
+    tree = {'nodes': {}, 'errors': [], 'global': {}}
+    assert Command.tokens(render_skill(tree, meta)) < 8000
+    assert Command.tokens(render_skill(tree, meta, audience='assistant')) < 7000
+    assert Command.data_file('/x/SDC_SKILL.md') == '/x/SDC_SKILL.data.json'

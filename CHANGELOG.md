@@ -22,6 +22,9 @@ The server and the client are released with the same version number.
   for the page to settle. The action round limit is the setting `SDC_AI_MAX_ACTION_ROUNDS` (default 5).
 
 ### Added
+- `sdc_teach`: one entry per view (seen at several paths: *Also at*) with its documentation, own arguments without
+  the depth prefix, links, buttons and forms; embedded controllers get their own section. The same knowledge is
+  written as `SDC_SKILL.data.json`; the command prints the estimated token count of the skill file.
 - `sdc_eval_ai --confirm deny|allow`, the task check `confirm`, size metrics (`tool_result_chars`, system prompt
   size, action rounds) and the task sets `eval/sdctest/tasks_ui` and `tasks_large` (with `fixture_large.json`).
 - AI assistant: new tool `click` presses buttons and links of the current page (index from `read_page`, which now

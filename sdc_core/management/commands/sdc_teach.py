@@ -17,7 +17,8 @@ from sdc_core.management.commands.utils.teach_controllers import add_controller_
 from sdc_core.management.commands.utils.teach_crawler import Crawler, merge_crawls
 from sdc_core.management.commands.utils.teach_apps import app_skill_data, apply_app_skills, load_app_skills, \
     write_app_skill
-from sdc_core.management.commands.utils.teach_markdown import render_skill
+from sdc_core.management.commands.utils.teach_data import build_skill_data
+from sdc_core.management.commands.utils.teach_markdown import render_markdown
 from sdc_core.management.commands.utils.teach_models import add_class_docstring, is_editable, sdc_models
 
 SESSION_SCRIPT = """
@@ -139,17 +140,34 @@ class Command(BaseCommand):
                 server.kill()
             server_log.close()
 
-        markdown = render_skill(tree, {
+        data = build_skill_data(tree, {
             'project': project,
             'crawled_as': crawled_as,
             'logged_in_label': f'user {ops["user"]}',
             'controller_infos': controllers,
             'models': models,
         })
+        markdown = render_markdown(data)
         with open(output, 'w') as f:
             f.write(markdown)
+        data_file = self.data_file(output)
+        with open(data_file, 'w') as f:
+            json.dump(data, f, indent=1, ensure_ascii=False, default=str)
+            f.write('\n')
         self.stdout.write(self.style.SUCCESS(
-            f'Wrote {output}: {len(tree["nodes"])} views, {len(tree["errors"])} errors observed'))
+            f'Wrote {output}: {len(data["views"])} views, {len(tree["errors"])} errors observed, '
+            f'about {self.tokens(markdown)} tokens'))
+        self.stdout.write(f'Wrote {data_file} (the same knowledge as data)')
+
+    @staticmethod
+    def data_file(markdown_file):
+        """``SDC_SKILL.md`` -> ``SDC_SKILL.data.json``: the skill data next to the skill file."""
+        return os.path.splitext(markdown_file)[0] + '.data.json'
+
+    @staticmethod
+    def tokens(text):
+        """A rough token count (4 characters per token) to keep the skill file small enough for small models."""
+        return (len(text) + 3) // 4
 
     # --------------------------------------------------------------- crawl
     def _crawl(self, browser, base_url, cookie, ops, ask_browser):
