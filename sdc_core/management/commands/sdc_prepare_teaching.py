@@ -85,6 +85,10 @@ mean), what the important actions do (especially delete/save/submit/logout, whic
 required login or permissions, and which models it shows or changes. For small embedded helper controllers
 (buttons, widgets) one or two sentences are enough.
 
+End the block with `@ai-hidden` for controllers the AI assistant has nothing to do with (invisible helpers,
+frames, message areas), and optionally with `@ai-summary <one line>` when the first sentence is not a good
+one-line summary (it is used in short overviews of the app).
+
 ## Button action JSDoc
 
 Where: a `/** ... */` block directly above the method that a button calls (`sdc_click="removeInstance"` →

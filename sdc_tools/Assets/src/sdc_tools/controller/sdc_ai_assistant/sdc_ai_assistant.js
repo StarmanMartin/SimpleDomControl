@@ -82,6 +82,8 @@ const MIN_WINDOW_HEIGHT = 240;
  *   again. It opens by itself when the settings need the user's API key.
  * - Dragging the header moves the panel and dragging its edges or corners resizes it (kept in the browser);
  *   a double-click on the header docks it at the right edge again.
+ *
+ * @ai-hidden
  */
 class SdcAiAssistantController extends AbstractSDC {
 

@@ -408,3 +408,37 @@ def test_skill_file_of_the_test_project_stays_small():
     assert Command.tokens(render_skill(tree, meta)) < 8000
     assert Command.tokens(render_skill(tree, meta, audience='assistant')) < 7000
     assert Command.data_file('/x/SDC_SKILL.md') == '/x/SDC_SKILL.data.json'
+
+
+def test_ai_tags_of_controllers(tmp_path):
+    from sdc_core.management.commands.utils.teach_controllers import (controller_ai_tags, controller_doc,
+                                                                       split_ai_tags, sdc_controllers)
+    assert split_ai_tags('Nav frame.\n\n@ai-hidden\n@ai-summary  Owns the URL.') == (
+        'Nav frame.', {'hidden': True, 'summary': 'Owns the URL.'})
+    assert split_ai_tags(None) == (None, {'hidden': False, 'summary': None})
+    js = tmp_path / 'x.js'
+    js.write_text('/**\n * Helper.\n *\n * @ai-hidden\n */\nclass XController extends AbstractSDC {}\n')
+    assert controller_doc(str(js), 'x') == 'Helper.'
+    assert controller_ai_tags(str(js), 'x') == {'hidden': True, 'summary': None}
+    infos = sdc_controllers()
+    assert infos['sdc-navigator']['hidden'] and not infos['sdc-list-view']['hidden']
+    assert infos['sdc-search-view']['summary'].startswith('Search and paging bar')
+    assert '@ai-' not in infos['sdc-navigator']['doc']
+
+
+def test_assistant_profile_leaves_out_hidden_controllers():
+    from sdc_core.management.commands.sdc_teach import Command
+    infos = {'main-view': {'app': 'main_test', 'doc': 'Start.'},
+             'sdc-navigator': {'app': 'sdc_tools', 'doc': 'Nav.', 'hidden': True},
+             'sdc-user': {'app': 'sdc_user', 'doc': 'User.', 'hidden': True}}
+    meta = {'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01', 'controller_infos': infos}
+    node = _node(['main-view'], controllers=[{'tag': 'main-view', 'url_params': [], 'parent': None, 'nav_idx': 0},
+                                             {'tag': 'sdc-navigator', 'url_params': [], 'parent': None,
+                                              'nav_idx': None}])
+    agent, assistant = render_skill(_tree(node), meta), render_skill(_tree(node), meta, audience='assistant')
+    assert '<sdc-navigator>' in agent and '<sdc-user>' in agent
+    assert '<sdc-navigator>' not in assistant and '<sdc-user>' not in assistant and '<main-view>' in assistant
+    assert 'A view is ready when' in agent and 'A view is ready when' not in assistant
+    assert Command.skill_files('/p/SDC_SKILL.md') == [('agent', '/p/SDC_SKILL.md'),
+                                                      ('assistant', '/p/SDC_SKILL.assistant.md')]
+    assert Command.skill_files('/p/SDC_SKILL.md', 'assistant') == [('assistant', '/p/SDC_SKILL.assistant.md')]

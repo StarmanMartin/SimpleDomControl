@@ -183,8 +183,10 @@ same name.
        file; an error if it is missing), ``'apps'`` (only the apps'
        ``SDC_SKILL.json``) or ``'none'``. Meant for evaluations, see below.
    * - ``SDC_AI_SKILL_FILE``
-     - ``'SDC_SKILL.md'``
-     - Path of the skill file (relative to ``BASE_DIR``).
+     - ``None``
+     - Path of the skill file (relative to ``BASE_DIR``); ``None``:
+       ``SDC_SKILL.assistant.md`` (written by ``sdc_teach`` for the assistant)
+       if it exists, else ``SDC_SKILL.md``.
    * - ``SDC_AI_NO_SKILL_NOTE``
      - see ``sdc_core.consumers.AI_NO_SKILL_NOTE``
      - Used instead of the knowledge if there is none (it tells the model to
@@ -211,9 +213,10 @@ The system prompt of every conversation consists of:
 1. the instructions (``AI_DEFAULT_SYSTEM_PROMPT``): how to use the tools, to
    answer briefly, to use only views, models and fields from the context, and a
    link to this documentation;
-2. the skill file ``SDC_SKILL.md`` next to *manage.py* (``BASE_DIR``), written
-   by ``sdc_teach``; if it does not exist, the ``SDC_SKILL.json`` files of the
-   installed apps (``SDC_AI_SKILL_SOURCE`` and ``SDC_AI_SKILL_FILE`` change
+2. the skill file ``SDC_SKILL.assistant.md`` (or ``SDC_SKILL.md``) next to
+   *manage.py* (``BASE_DIR``), written by ``sdc_teach``; if it does not exist,
+   the ``SDC_SKILL.json`` files of the installed apps without the controllers
+   tagged ``@ai-hidden`` (``SDC_AI_SKILL_SOURCE`` and ``SDC_AI_SKILL_FILE`` change
    this). Without any knowledge, a short note (``SDC_AI_NO_SKILL_NOTE``) tells
    the model to explore the page with ``read_page``;
 3. the files of ``SDC_AI_ADDITIONAL_SKILL_FILE``, e.g. a hand-written

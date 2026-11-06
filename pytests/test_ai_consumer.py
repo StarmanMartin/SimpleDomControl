@@ -690,6 +690,16 @@ def test_skill_source_selects_the_knowledge(tmp_path):
         assert '# Crawled skill' not in prompt and '"controllers"' in prompt
         # Without the skill file the prompt explains the SDC URLs itself
         assert prompt.count('## How to read SDC URLs') == 1
+    # sdc_teach also writes SDC_SKILL.assistant.md: the assistant prefers it unless SDC_AI_SKILL_FILE is set
+    (tmp_path / 'SDC_SKILL.assistant.md').write_text('# Assistant skill')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE=None, SDC_AI_SKILL_FILE=None):
+        assert SDCAiConsumer._system_prompt().endswith('# Assistant skill')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE=None, SDC_AI_SKILL_FILE='SDC_SKILL.md'):
+        assert SDCAiConsumer._system_prompt().endswith('# Crawled skill')
+    (tmp_path / 'SDC_SKILL.assistant.md').unlink()
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='apps'):
+        # @ai-hidden controllers of the apps' SDC_SKILL.json are left out
+        assert '"sdc-navigator"' not in SDCAiConsumer._system_prompt()
     (tmp_path / 'with_guide.md').write_text('## How to read SDC URLs\n\nFrom sdc_teach.')
     with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='full', SDC_AI_SKILL_FILE='with_guide.md'):
         assert SDCAiConsumer._system_prompt().count('## How to read SDC URLs') == 1

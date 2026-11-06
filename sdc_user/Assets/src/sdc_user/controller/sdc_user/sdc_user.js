@@ -3,6 +3,8 @@ import {AbstractSDC, app, on} from 'sdc_client';
 
 /**
  * Invisible global helper that loads the `SdcUser` record of the logged-in user (nothing for anonymous visitors) and provides it to other controllers on request; it shows no content and has no actions.
+ *
+ * @ai-hidden
  */
 class SdcUserController extends AbstractSDC {
 

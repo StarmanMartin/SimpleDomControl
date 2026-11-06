@@ -3,6 +3,8 @@ import {AbstractSDC, app} from 'sdc_client';
 
 /**
  * Placeholder/test view that shows the text of its `text` argument (e.g. `/~sdc-dummy~&text=Hello`) followed by any content placed inside the tag. Has no actions.
+ *
+ * @ai-hidden
  */
 class SdcDummyController extends AbstractSDC {
 

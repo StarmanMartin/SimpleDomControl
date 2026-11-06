@@ -7,14 +7,16 @@
       "view_class": "sdc_tools.sdc_views.SdcAiAssistant",
       "url": "/sdc_view/sdc_tools/sdc_ai_assistant",
       "url_params": [],
-      "actions": {}
+      "actions": {},
+      "hidden": true
     },
     "sdc-alert-messenger": {
       "doc": "Global toast area for status messages; usually placed once in the page next to `<sdc-navigator>`.\n\nMessages pushed by other controllers (e.g. success or validation errors after a form submit) appear here with a header and time and disappear automatically after about 2 seconds; error messages are highlighted. Nothing to operate.",
       "view_class": "sdc_tools.sdc_views.SdcAlertMessenger",
       "url": "/sdc_view/sdc_tools/sdc_alert_messenger",
       "url_params": [],
-      "actions": {}
+      "actions": {},
+      "hidden": true
     },
     "sdc-detail-view": {
       "doc": "Generic read-only view of one record of an SDC model, rendered with the model's detail template.\n\n- Arguments: `model` (required) is the SDC model name and `pk` (or `id`) the record id, e.g. `/~sdc-detail-view~&model=Author&pk=3`.\n- The view refreshes automatically when the record changes on the server.\n- Usually reached via the \"Detail\" link of a `<sdc-list-view>` row; access depends on the model's server-side permissions.",
@@ -28,7 +30,8 @@
       "view_class": "sdc_tools.sdc_views.SdcDummy",
       "url": "/sdc_view/sdc_tools/sdc_dummy",
       "url_params": [],
-      "actions": {}
+      "actions": {},
+      "hidden": true
     },
     "sdc-error": {
       "doc": "Error page that shows \"We have an error: <code>\" for the HTTP status in its `code` argument.\n\n- `<sdc-navigator>` shows `sdc-error 404` when a path segment names an unknown controller.\n- `sdc-error 403` (or similar) means the server refused the view: log in, or use a user with the required permissions.\n- It has no actions; navigate elsewhere (link, breadcrumb, browser back) to leave it.",
@@ -60,7 +63,8 @@
       "view_class": "sdc_tools.sdc_views.SdcNavigator",
       "url": "/sdc_view/sdc_tools/sdc_navigator",
       "url_params": [],
-      "actions": {}
+      "actions": {},
+      "hidden": true
     },
     "sdc-search-select": {
       "doc": "Searchable dropdown that replaces a normal select field inside forms (rendered by the `SearchableSelect` form widget); the selected value(s) are submitted under the field's name.\n\nClick it to open the option list, type to filter (space or comma separated terms, all must match), click an option to select it. With multiple selection each selected value has a \"×\" button to remove it; the same applies to single selection when the field is not required. Each change fires a change event, so inside an edit-mode `<sdc-model-form>` it is saved immediately.",
@@ -71,14 +75,16 @@
         "onActivate": "Opens the option list with its filter field.",
         "onDeactivate": "Closes the option list when the user clicks beside it; the selection stays unchanged.",
         "remove_selection": "Removes the clicked value (\"×\") from the selection and fires a change event; inside an edit-mode\n`<sdc-model-form>` the record is saved at once."
-      }
+      },
+      "summary": "Searchable dropdown that replaces a select field in forms."
     },
     "sdc-search-view": {
       "doc": "Search and paging bar embedded at the top of a model list (inside `<sdc-list-view>`); its fields come from the model's server-side search form.\n\nChanging a search field filters the surrounding list immediately (no submit button needed). \"Prev\"/\"Next\" page through the results and the bar shows the current range and total count; the paging controls are hidden when everything fits on one page. It changes no data.",
       "view_class": "sdc_tools.sdc_views.SdcSearchView",
       "url": "/sdc_view/sdc_tools/sdc_search_view",
       "url_params": [],
-      "actions": {}
+      "actions": {},
+      "summary": "Search and paging bar of a model list; changing a field filters the list at once."
     }
   },
   "models": {}

@@ -268,6 +268,9 @@ def render_markdown(data, audience='agent'):
                      of forms and server views)
     """
     agent = audience == 'agent'
+    if not agent:
+        # @ai-hidden controllers have nothing to operate for the assistant
+        data = data | {k: [i for i in data[k] if not i.get('hidden')] for k in ('views', 'embedded', 'unreached')}
     project = data['project']
     actions = _actions_of(data)
     lines = [

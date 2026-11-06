@@ -1532,8 +1532,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         if source == 'none':
             return ''
         if source in ('auto', 'full'):
-            path = os.path.join(str(getattr(settings, 'BASE_DIR', '')),
-                                os.fspath(getattr(settings, 'SDC_AI_SKILL_FILE', None) or 'SDC_SKILL.md'))
+            path = SDCAiConsumer._skill_file()
             if os.path.isfile(path):
                 with open(path, encoding='utf-8') as f:
                     return f.read()
@@ -1542,4 +1541,23 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                                            f'(run manage.py sdc_teach)')
         from sdc_core.management.commands.utils.teach_apps import load_app_skills
         skills = load_app_skills()
+        # @ai-hidden controllers have nothing to operate for the assistant
+        for skill in skills.values():
+            controllers = skill.get('controllers')
+            if isinstance(controllers, dict):
+                skill['controllers'] = {t: c for t, c in controllers.items()
+                                        if not (isinstance(c, dict) and c.get('hidden'))}
         return json.dumps(skills, indent=1, ensure_ascii=False) if skills else ''
+
+    @staticmethod
+    def _skill_file():
+        """
+        ``SDC_AI_SKILL_FILE`` relative to ``BASE_DIR``; by default ``SDC_SKILL.assistant.md`` (written by
+        ``sdc_teach`` for the assistant) if it exists, else ``SDC_SKILL.md``.
+        """
+        base = str(getattr(settings, 'BASE_DIR', ''))
+        configured = getattr(settings, 'SDC_AI_SKILL_FILE', None)
+        if configured:
+            return os.path.join(base, os.fspath(configured))
+        assistant = os.path.join(base, 'SDC_SKILL.assistant.md')
+        return assistant if os.path.isfile(assistant) else os.path.join(base, 'SDC_SKILL.md')

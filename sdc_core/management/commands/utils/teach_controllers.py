@@ -47,8 +47,13 @@ def _jsdoc_before(prefix):
     return prefix[start + 3:-2]
 
 
-def controller_doc(file, tag):
-    """The text of the JSDoc block directly above the controller class, without the ``*`` gutter."""
+# JSDoc tags of the controller class for the AI skill files:
+# ``@ai-hidden``: not shown to the AI assistant (helpers without anything to operate, e.g. sdc-navigator);
+# ``@ai-summary <one line>``: the line in the assistant's index (default: the first sentence of the doc)
+AI_TAG_RE = re.compile(r'^@ai-(hidden|summary)\b[ \t]*(.*)$')
+
+
+def _controller_jsdoc(file, tag):
     if not file:
         return None
     with open(file) as f:
@@ -58,7 +63,32 @@ def controller_doc(file, tag):
     if doc is None:
         return None
     lines = [re.sub(r'^\s*\* ?', '', l) for l in doc.splitlines()]
-    return textwrap.dedent('\n'.join(lines)).strip() or None
+    return textwrap.dedent('\n'.join(lines))
+
+
+def split_ai_tags(doc):
+    """``(text without the @ai- lines or None, {'hidden': bool, 'summary': str|None})``."""
+    tags = {'hidden': False, 'summary': None}
+    text = []
+    for line in (doc or '').splitlines():
+        match = AI_TAG_RE.match(line.strip())
+        if match is None:
+            text.append(line)
+        elif match.group(1) == 'hidden':
+            tags['hidden'] = True
+        else:
+            tags['summary'] = match.group(2).strip() or None
+    return '\n'.join(text).strip() or None, tags
+
+
+def controller_doc(file, tag):
+    """The text of the JSDoc block directly above the controller class, without the ``*`` gutter and AI tags."""
+    return split_ai_tags(_controller_jsdoc(file, tag))[0]
+
+
+def controller_ai_tags(file, tag):
+    """The ``@ai-hidden`` / ``@ai-summary`` tags of the controller class (see ``split_ai_tags``)."""
+    return split_ai_tags(_controller_jsdoc(file, tag))[1]
 
 
 def add_controller_doc(file, tag, doc):
@@ -178,9 +208,10 @@ def controller_line(file, tag):
 
 def sdc_controllers():
     """
-    ``{tag: {'app', 'view_class', 'url', 'file', 'doc', 'actions'}}`` for every SDC controller registered in the
-    URL conf; ``file`` is the client controller JS file, ``doc`` its JSDoc text, ``actions`` the documentation of
-    its button handlers (see ``controller_actions``).
+    ``{tag: {'app', 'view_class', 'url', 'file', 'doc', 'hidden', 'summary', 'actions'}}`` for every SDC controller
+    registered in the URL conf; ``file`` is the client controller JS file, ``doc`` its JSDoc text, ``hidden`` /
+    ``summary`` its AI tags (see ``split_ai_tags``), ``actions`` the documentation of its button handlers (see
+    ``controller_actions``).
     """
     infos = {}
 
@@ -203,4 +234,5 @@ def sdc_controllers():
     for tag, info in infos.items():
         info['file'] = controller_js_file(info['app'], tag, info['url'])
         info['doc'] = controller_doc(info['file'], tag)
+        info.update(controller_ai_tags(info['file'], tag))
     return controller_actions(infos)

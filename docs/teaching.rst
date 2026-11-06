@@ -128,7 +128,14 @@ The skill file contains:
 - every SDC model with its documentation and the fields clients can read;
 - errors observed while crawling.
 
-Next to the skill file ``sdc_teach`` writes ``SDC_SKILL.data.json``: the same
+``sdc_teach`` writes two skill files (``--audience both``, the default):
+``SDC_SKILL.md`` for coding agents that drive a browser themselves (everything,
+including the ready check, the SdcModel socket traffic and the server views)
+and ``SDC_SKILL.assistant.md`` for the AI assistant (without these developer
+details and without ``@ai-hidden`` controllers); the assistant uses the second
+one when it exists. ``--audience agent`` or ``assistant`` writes only one.
+
+Next to the skill files ``sdc_teach`` writes ``SDC_SKILL.data.json``: the same
 knowledge as data (format version ``1``), for tools that do not want to parse
 the Markdown. The command prints the size of the skill file as an estimated
 token count (about four characters per token): keep it small, small models
@@ -173,6 +180,13 @@ Controllers
          * - Requires a logged-in staff user, otherwise `sdc-error 403` is shown.
          */
         class BookEditController extends AbstractSDC {
+
+    Two tags at the end of the block control what the AI assistant sees:
+    ``@ai-hidden`` leaves a controller out of the assistant's knowledge (helpers
+    with nothing to operate, such as ``sdc-navigator`` or ``sdc-user``; the
+    bundled apps tag theirs) and ``@ai-summary <one line>`` is its line in short
+    overviews (default: the first sentence). The tags are not part of the
+    documentation text.
 
 Button actions
     The JSDoc block directly above the controller method that a button calls

@@ -68,6 +68,10 @@ class Command(BaseCommand):
         parser.add_argument('--browser-path', type=str, default=None, help='Chromium/Chrome executable')
         parser.add_argument('--headed', action='store_true', help='Show the browser window')
         parser.add_argument('--timeout', type=int, default=10000, help='Timeout per page action in ms')
+        parser.add_argument('--audience', choices=('both', 'agent', 'assistant'), default='both',
+                            help='agent: SDC_SKILL.md for coding agents that drive a browser (everything); '
+                                 'assistant: <output>.assistant.md for the in-app AI assistant (without developer '
+                                 'details and @ai-hidden controllers; the assistant prefers it); both (default)')
         parser.add_argument('--no-ask', action='store_true',
                             help='Do not ask for input: no browser window to fill in forms '
                                  '(default: ask when running in a terminal with a display) and no prompt '
@@ -147,22 +151,29 @@ class Command(BaseCommand):
             'controller_infos': controllers,
             'models': models,
         })
-        markdown = render_markdown(data)
-        with open(output, 'w') as f:
-            f.write(markdown)
         data_file = self.data_file(output)
         with open(data_file, 'w') as f:
             json.dump(data, f, indent=1, ensure_ascii=False, default=str)
             f.write('\n')
         self.stdout.write(self.style.SUCCESS(
-            f'Wrote {output}: {len(data["views"])} views, {len(tree["errors"])} errors observed, '
-            f'about {self.tokens(markdown)} tokens'))
-        self.stdout.write(f'Wrote {data_file} (the same knowledge as data)')
+            f'{len(data["views"])} views, {len(tree["errors"])} errors observed; wrote {data_file} (the knowledge '
+            f'as data)'))
+        for audience, file in self.skill_files(output, ops['audience']):
+            markdown = render_markdown(data, audience)
+            with open(file, 'w') as f:
+                f.write(markdown)
+            self.stdout.write(self.style.SUCCESS(f'Wrote {file} ({audience}): about {self.tokens(markdown)} tokens'))
 
     @staticmethod
     def data_file(markdown_file):
         """``SDC_SKILL.md`` -> ``SDC_SKILL.data.json``: the skill data next to the skill file."""
         return os.path.splitext(markdown_file)[0] + '.data.json'
+
+    @staticmethod
+    def skill_files(markdown_file, audience='both'):
+        """``[(audience, file)]``: ``SDC_SKILL.md`` for agents, ``SDC_SKILL.assistant.md`` for the assistant."""
+        assistant = os.path.splitext(markdown_file)[0] + '.assistant.md'
+        return [(a, f) for a, f in (('agent', markdown_file), ('assistant', assistant)) if audience in (a, 'both')]
 
     @staticmethod
     def tokens(text):

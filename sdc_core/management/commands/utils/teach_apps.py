@@ -22,7 +22,9 @@ def app_skill_data(app, controllers, models):
         'generator': 'manage.py sdc_teach --per-app',
         'controllers': {tag: {'doc': c.get('doc'), 'view_class': c.get('view_class'), 'url': c.get('url'),
                               'url_params': url_params(c.get('url')),
-                              'actions': dict(sorted((c.get('actions') or {}).items()))}
+                              'actions': dict(sorted((c.get('actions') or {}).items())),
+                              **({'hidden': True} if c.get('hidden') else {}),
+                              **({'summary': c['summary']} if c.get('summary') else {})}
                         for tag, c in sorted(controllers.items())},
         'models': {m['name']: {'doc': m.get('doc'), 'fields': m.get('fields') or []}
                    for m in sorted(models, key=lambda m: m['name'])},
@@ -73,8 +75,12 @@ def apply_app_skills(models, controllers, skills, prefer_json=True):
         doc = doc_of(c['app'], 'controllers', tag)
         if doc and (prefer_json or not c.get('doc')):
             c['doc'] = doc
-        # Button actions (sdc_click handlers) documented in the JSON
+        # AI tags and button actions (sdc_click handlers) documented in the JSON
         entry = (skills.get(c['app']) or {}).get('controllers', {}).get(tag)
+        if isinstance(entry, dict):
+            for key in ('hidden', 'summary'):
+                if entry.get(key) and (prefer_json or not c.get(key)):
+                    c[key] = entry[key]
         json_actions = entry.get('actions') if isinstance(entry, dict) else None
         if isinstance(json_actions, dict):
             actions = c.setdefault('actions', {})

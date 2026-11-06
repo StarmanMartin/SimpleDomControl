@@ -12,6 +12,8 @@ const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
  * - Links with the class `navigation-links` are handled client-side without page reload; `window.sdcNav.goTo('<path>', {args})` (or triggering the `goTo` event) navigates programmatically. Browser back/forward works.
  * - An unknown tag in the path shows `sdc-error 404` instead of the view. Some containers open their view in a modal; closing the modal navigates back one level.
  * - Links marked as login-only/logout-only are shown or hidden depending on whether a user is logged in; the `login`/`logout` events reload the whole page.
+ *
+ * @ai-hidden
  */
 export class SdcNavigatorController extends AbstractSDC {
 

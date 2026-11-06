@@ -68,6 +68,8 @@ def _info(tag, infos):
         'url': info.get('url'),
         'url_params': url_params(info.get('url')),
         'actions': dict(info.get('actions') or {}),
+        'hidden': bool(info.get('hidden')),
+        'summary': info.get('summary'),
     }
 
 
