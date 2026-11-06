@@ -240,10 +240,14 @@ The assistant acts through tools that run in the browser:
     ``updates_on_change`` marks fields that update their view by themselves,
     such as the search bar.
     ``elements`` lists the visible buttons and links (``data-ai-element`` in
-    the HTML) with index, text, controller, ``sdc_click`` handlers and, for SDC
+    the HTML) with id, text, controller, ``sdc_click`` handlers and, for SDC
     links, the target resolved by the ``sdc-navigator`` (``_prepareUrl`` /
     ``_handleUrl``). Elements the assistant may not click carry
     ``clickable: false`` and the reason; risky ones ``needs_confirmation``.
+    Elements and forms have stable ids: an element keeps its id while it is in
+    the page, also when other parts re-render (e.g. a filtered list), and an id
+    of a removed element is reported as gone instead of hitting another
+    element.
 ``fill_form``
     Enters values into inputs, textareas, selects, checkboxes and radios, and
     warns if the form is not visible. It never submits. In SdcModel forms it only fires ``input`` events, not the
@@ -254,8 +258,9 @@ The assistant acts through tools that run in the browser:
     (``<sdc-search-view>``) filters its list at once, other views wait for
     their button.
 ``click``
-    Clicks a button or link of the current page by its index from
-    ``read_page``: SDC links open with ``sdcNav.goTo``, buttons run their
+    Clicks a button or link of the current page by its id from ``read_page``
+    (optionally with its ``text``: the click is refused if the element
+    changed): SDC links open with ``sdcNav.goTo``, buttons run their
     handlers (e.g. "Next"/"Prev" of a search bar, opening a modal). Never
     clicked: submit buttons of forms (the user submits), links that leave the
     app (target, other origin or non-SDC page), hidden and disabled elements.

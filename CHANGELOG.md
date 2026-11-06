@@ -7,7 +7,15 @@ The server and the client are released with the same version number.
 
 ## Unreleased
 
+### Changed
+- AI assistant: elements and forms of `read_page` have stable ids (`id` instead of a position `index`) that stay
+  the same while the element is in the page, also when other parts re-render. `click` and `fill_form` take these
+  ids; `click` accepts the element's `text` and refuses the click if the element changed; an id of a removed
+  element is reported as gone. Protocol change: release server and client together.
+
 ### Added
+- `sdc_eval_ai --confirm deny|allow`, the task check `confirm`, size metrics (`tool_result_chars`, system prompt
+  size, action rounds) and the task sets `eval/sdctest/tasks_ui` and `tasks_large` (with `fixture_large.json`).
 - AI assistant: new tool `click` presses buttons and links of the current page (index from `read_page`, which now
   lists the visible buttons and links as `elements`, marked `data-ai-element` in its HTML). SDC links are resolved and
   opened with the `sdc-navigator` (`_prepareUrl` / `_handleUrl` / `goTo`); `navigate` uses `sdcNav.goTo` too. Form

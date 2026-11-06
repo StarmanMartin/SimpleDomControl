@@ -777,12 +777,13 @@ AI_TOOLS = [
                                               'relative to the current path (".", "..", "..~view")'}}}},
     {'name': 'read_page',
      'description': 'Read the current page: URL, title, a simplified HTML of the visible content and all forms '
-                    '(index, SdcModelName/SdcModelPK if it is an SdcModel form, fields with name, type, label, '
+                    '(id, SdcModelName/SdcModelPK if it is an SdcModel form, fields with name, type, label, '
                     'current value and options). Fields outside a <form> element are listed as an extra form per '
                     'view (form_element false, controller tag; updates_on_change for search bars). Also lists '
-                    'the visible buttons and links (elements: index, kind, text, controller, href of links resolved '
+                    'the visible buttons and links (elements: id, kind, text, controller, href of links resolved '
                     'by the sdc-navigator, sdc_click handlers, needs_confirmation, clickable false with a reason); '
-                    'the HTML marks them with data-ai-element="<index>". Password values are never returned.',
+                    'the HTML marks them with data-ai-element="<id>". The ids of elements and forms stay the same while '
+                    'they are on the page. Password values are never returned.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'properties': {}}},
     {'name': 'fill_form',
      'description': 'Enter values into the fields of a form of the current page (input, textarea, select, '
@@ -790,7 +791,8 @@ AI_TOOLS = [
                     'Passwords, hidden and file fields cannot be filled. Returns the values that were set.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['form', 'values'],
                       'properties': {
-                          'form': {'type': 'integer', 'description': 'Index of the form as returned by read_page'},
+                          'form': {'type': 'integer', 'description': 'Id of the form as returned by read_page '
+                                                                     '(forms[].id)'},
                           'values': {'type': 'object', 'description': 'Field name -> value; true/false for '
                                      'checkboxes, the option value or text for selects and radios, a list for '
                                      'multiple selects'}}}},
@@ -801,8 +803,11 @@ AI_TOOLS = [
                     'clicked if the user allows it in the chat. Returns the URL afterwards; use read_page to see '
                     'the result.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['element'],
-                      'properties': {'element': {'type': 'integer', 'description': 'Index of the element as '
-                                                 'returned by read_page (elements[].index)'}}}},
+                      'properties': {
+                          'element': {'type': 'integer', 'description': 'Id of the element as returned by read_page '
+                                                                        '(elements[].id)'},
+                          'text': {'type': 'string', 'description': 'Optional: the text of the element as read; the '
+                                                                    'click is refused if the element changed'}}}},
     {'name': 'model_get',
      'description': 'Read one record of an SdcModel by its id, if the user is allowed to see it.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id'],

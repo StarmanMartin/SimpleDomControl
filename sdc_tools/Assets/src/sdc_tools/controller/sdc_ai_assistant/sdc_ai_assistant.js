@@ -20,7 +20,7 @@ const MAX_FIELD_OPTIONS = 50;
 const PAGE_ATTRIBUTES = ['id', 'name', 'type', 'href', 'value', 'placeholder', 'for', 'role', 'aria-label', 'title',
     'sdc_click', 'sdcmodelname', 'sdcmodelpk', 'checked', 'selected', 'disabled', 'required', 'multiple',
     'data-ai-element'];
-// read_page / click: elements the assistant can click (index = position in document order, see _pageElements)
+// read_page / click: elements the assistant can click (see _pageElements); they and the forms carry stable ids
 const CLICKABLE = 'a[href], button, [sdc_click], [role=button], input[type=button], input[type=submit], '
     + 'input[type=reset]';
 const MAX_PAGE_ELEMENTS = 200;
@@ -85,6 +85,11 @@ class SdcAiAssistantController extends AbstractSDC {
         // {left, top, width, height} once the user moved or resized the window; null = docked at the right edge
         this._geometry = null;
         this._onWindowResize = () => this._applyGeometry();
+        // Stable ids of the elements and forms shown to the model: the same DOM node keeps its id across read_page
+        // calls, so a re-render of other parts of the page does not change what an id refers to (see _idOf)
+        this._ids = new WeakMap();
+        this._nodesById = new Map();
+        this._nextId = 1;
 
         // Actions the assistant may run (tool names of SDCAiConsumer, see sdc_core/consumers.py)
         // SdcModels are read-only: there are no actions to create, change or delete records
@@ -426,7 +431,7 @@ class SdcAiAssistantController extends AbstractSDC {
             case 'fill_form':
                 return `→ fill in ${Object.keys(input.values || {}).join(', ')}`;
             case 'click': {
-                const el = this._pageElements()[input.element];
+                const el = this._nodesById.get(input.element)?.deref();
                 return `→ click ${el ? `"${this._elementText(el) || el.tagName.toLowerCase()}"` : `element ${input.element}`}`;
             }
             case 'model_get':
@@ -569,8 +574,8 @@ class SdcAiAssistantController extends AbstractSDC {
      * Forms of the page without the assistant's own and without those of inactive views: the navigator keeps
      * previous views (e.g. after opening the current view again) hidden in the page, and their forms are exact
      * copies of the visible ones. Fields outside any form (e.g. `<sdc-password-forgotten>`, the search bar of
-     * `<sdc-search-view>`) follow as one entry per controller element. read_page and fill_form use the same
-     * indexes.
+     * `<sdc-search-view>`) follow as one entry per controller element. A form is identified by the stable id
+     * (``_idOf``) of its form element, a group of loose fields by the id of its controller element.
      *
      * @return {{form: HTMLFormElement|null, container: Element, elements: Element[]}[]}
      */
@@ -631,8 +636,8 @@ class SdcAiAssistantController extends AbstractSDC {
             title: document.title,
             html: html.slice(0, MAX_PAGE_HTML),
             html_truncated: html.length > MAX_PAGE_HTML,
-            forms: this._pageForms().map((form, index) => this._describeForm(form, index)),
-            elements: elements.slice(0, MAX_PAGE_ELEMENTS).map((el, index) => this._describeElement(el, index))
+            forms: this._pageForms().map((form) => this._describeForm(form)),
+            elements: elements.slice(0, MAX_PAGE_ELEMENTS).map((el) => this._describeElement(el))
                 .filter((el) => el.visible),
             elements_truncated: elements.length > MAX_PAGE_ELEMENTS,
         };
@@ -640,14 +645,14 @@ class SdcAiAssistantController extends AbstractSDC {
 
     /**
      * The visible body without scripts, styles, the assistant itself and most attributes. Clickable elements carry
-     * ``data-ai-element`` with their index for ``click``.
+     * ``data-ai-element`` with their id for ``click``.
      */
     _simplifiedHtml(elements = []) {
         // Hidden elements are marked in the live page (only there their visibility is known) and removed in a copy
         const hidden = [...document.body.querySelectorAll('*')].filter((el) => !el.getClientRects().length
             && !['OPTION', 'BR'].includes(el.tagName));
         hidden.forEach((el) => el.setAttribute('data-ai-hidden', ''));
-        elements.forEach((el, index) => el.setAttribute('data-ai-element', String(index)));
+        elements.forEach((el) => el.setAttribute('data-ai-element', String(this._idOf(el))));
         const copy = document.body.cloneNode(true);
         hidden.forEach((el) => el.removeAttribute('data-ai-hidden'));
         elements.forEach((el) => el.removeAttribute('data-ai-element'));
@@ -672,7 +677,12 @@ class SdcAiAssistantController extends AbstractSDC {
         return copy.innerHTML.replace(/\s+/g, ' ').replace(/> </g, '><').trim();
     }
 
-    _describeForm(entry, index) {
+    /** The stable id of a form entry of ``_pageForms``: of its form element or of its controller element. */
+    _formId(entry) {
+        return this._idOf(entry.form || entry.container);
+    }
+
+    _describeForm(entry) {
         const fields = {};
         for (const el of entry.elements) {
             const type = this._fieldType(el);
@@ -707,7 +717,7 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         const pk = entry.form?.getAttribute('SdcModelPK') ?? null;
         return {
-            index,
+            id: this._formId(entry),
             sdc_model_name: entry.form?.getAttribute('SdcModelName') ?? null,
             sdc_model_pk: pk === null ? null : Number(pk),
             ...(entry.form ? {} : {form_element: false, controller: this._controllerTag(entry.container)}),
@@ -744,10 +754,11 @@ class SdcAiAssistantController extends AbstractSDC {
      * themselves, so the user still checks and saves the values. Fields outside a form get `input` and `change`
      * events like in other forms; the controller's buttons (which the assistant does not click) send them.
      */
-    _fillForm({form: index, values}) {
-        const entry = this._pageForms()[index];
+    _fillForm({form: id, values}) {
+        const entry = this._pageForms().find((e) => this._ids.get(e.form || e.container) === id);
         if (!entry) {
-            throw new Error(`There is no form ${index} on the page; use read_page to get the form indexes`);
+            throw new Error(`There is no form ${id} on the page (the page may have changed); use read_page to get `
+                + 'the form ids');
         }
         const {form} = entry;
         const isModelForm = !!form?.hasAttribute('SdcModelName');
@@ -770,7 +781,7 @@ class SdcAiAssistantController extends AbstractSDC {
                             el.dispatchEvent(new Event('change', {bubbles: true}));
                         }
                     }
-                    set[name] = this._describeForm(entry, index).fields.find((f) => f.name === name)?.value;
+                    set[name] = this._describeForm(entry).fields.find((f) => f.name === name)?.value;
                 } catch (e) {
                     errors[name] = e.message;
                 }
@@ -846,14 +857,46 @@ class SdcAiAssistantController extends AbstractSDC {
     //-------------------------------------------------//
 
     /**
-     * Buttons and links of the active views (``CLICKABLE``) in document order, without the assistant's own. The
-     * index in this list is the ``element`` of ``click``; read_page lists the visible ones.
+     * Buttons and links of the active views (``CLICKABLE``) in document order, without the assistant's own.
+     * read_page lists the visible ones with their stable id, the ``element`` of ``click``.
      *
      * @return {Element[]}
      */
     _pageElements() {
         return [...document.body.querySelectorAll(CLICKABLE)]
             .filter((el) => !el.closest('sdc-ai-assistant') && this._inActiveView(el));
+    }
+
+    /** The stable id of ``node``; a node seen for the first time gets the next number. */
+    _idOf(node) {
+        let id = this._ids.get(node);
+        if (id === undefined) {
+            id = this._nextId++;
+            this._ids.set(node, id);
+            // Weak: removed elements are freed; the id then reports that the element is gone
+            this._nodesById.set(id, new WeakRef(node));
+        }
+        return id;
+    }
+
+    /**
+     * The clickable element with the stable ``id``, or throws: unknown ids, elements that were removed or are in
+     * a hidden view, and (with ``text``) elements whose text changed are refused, so a click never hits another
+     * element than the one the model read.
+     */
+    _elementById(id, text) {
+        const node = this._nodesById.get(id)?.deref();
+        if (!node) {
+            throw new Error(`There is no element ${id} on the page; use read_page to get the element ids`);
+        }
+        if (!node.isConnected || !this._pageElements().includes(node)) {
+            throw new Error(`Element ${id} is no longer on the page (the page changed); read the page again`);
+        }
+        const current = this._elementText(node);
+        if (text !== undefined && text !== null && current.toLowerCase() !== String(text).trim().toLowerCase()) {
+            throw new Error(`Element ${id} is now "${current}", not "${text}" (the page changed); read the page again`);
+        }
+        return node;
     }
 
     _elementText(el) {
@@ -938,12 +981,12 @@ class SdcAiAssistantController extends AbstractSDC {
         return CONFIRM_CLICK.test(text) ? {confirm: true} : {};
     }
 
-    _describeElement(el, index) {
+    _describeElement(el) {
         const link = this._linkTarget(el);
         const policy = this._clickPolicy(el);
         const handlers = this._elementHandlers(el);
         return {
-            index,
+            id: this._idOf(el),
             kind: el.tagName === 'A' ? 'link' : 'button',
             text: this._elementText(el),
             controller: this._controllerTag(this._controllerOf(el)),
@@ -962,8 +1005,13 @@ class SdcAiAssistantController extends AbstractSDC {
         if (name !== 'click') {
             return null;
         }
-        const el = this._pageElements()[input?.element];
-        if (!el || !this._clickPolicy(el).confirm) {
+        let el;
+        try {
+            el = this._elementById(input?.element, input?.text);
+        } catch (e) {
+            return null;  // the click itself reports the error
+        }
+        if (!this._clickPolicy(el).confirm) {
             return null;
         }
         return `The assistant wants to click "${this._elementText(el) || el.tagName.toLowerCase()}". Allow it?`;
@@ -1001,16 +1049,14 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     /**
-     * Clicks a button or link of the current page (``element``: index from read_page) like the user. SDC links
+     * Clicks a button or link of the current page (``element``: id from read_page, optional ``text`` to check that
+     * it is still the same element) like the user. SDC links
      * open with the navigator's ``goTo``; buttons run their controller's handlers (``sdc_click``). Form submit
      * buttons and links leaving the app are never clicked; the user is asked before risky clicks (see
      * ``_runActions``).
      */
-    async _click({element}) {
-        const el = this._pageElements()[element];
-        if (!el) {
-            throw new Error(`There is no element ${element} on the page; use read_page to get the element indexes`);
-        }
+    async _click({element, text: expected}) {
+        const el = this._elementById(element, expected);
         const text = this._elementText(el) || el.tagName.toLowerCase();
         const policy = this._clickPolicy(el);
         if (policy.blocked) {

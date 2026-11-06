@@ -379,8 +379,8 @@ describe('SdcAiAssistant', () => {
         });
 
         test('fill_form enters values without saving SdcModel forms', () => {
-            const index = controller._readPage().forms.findIndex((f) => f.sdc_model_name === 'Author');
-            const result = controller._fillForm({form: index, values: {
+            const id = controller._readPage().forms.find((f) => f.sdc_model_name === 'Author').id;
+            const result = controller._fillForm({form: id, values: {
                 name: 'Jane', active: true, city: 'Paris', password: 'x', csrfmiddlewaretoken: 'y', nope: 1,
             }});
             expect(result.set).toEqual({name: 'Jane', active: true, city: '2'});
@@ -391,10 +391,10 @@ describe('SdcAiAssistant', () => {
         });
 
         test('fill_form fires change in other forms', () => {
-            const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'q'));
-            controller._fillForm({form: index, values: {q: 'books'}});
+            const id = controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'q')).id;
+            controller._fillForm({form: id, values: {q: 'books'}});
             expect(events).toEqual(['input:q', 'change:q']);
-            expect(() => controller._fillForm({form: 99, values: {}})).toThrow('There is no form 99');
+            expect(() => controller._fillForm({form: 99999, values: {}})).toThrow('There is no form 99999');
         });
 
         test('forms of inactive views are left out', () => {
@@ -407,7 +407,7 @@ describe('SdcAiAssistant', () => {
             </div>`).appendTo($page);
             const books = controller._readPage().forms.filter((f) => f.sdc_model_name === 'Book');
             expect(books.length).toBe(1);
-            controller._fillForm({form: books[0].index, values: {title: 'New'}});
+            controller._fillForm({form: books[0].id, values: {title: 'New'}});
             expect($views.find('.active [name=title]').val()).toBe('New');
             expect($views.find(':not(.active) > form [name=title]').val()).toBe('old');
         });
@@ -491,15 +491,16 @@ describe('SdcAiAssistant', () => {
             expect(loose[0]).toMatchObject({sdc_model_name: null, sdc_model_pk: null, visible: true});
             expect(loose[0].fields[0].label).toBe('User');
 
-            const result = controller._fillForm({form: loose[0].index, values: {username: 'jane', kind: 'B', secret: 'x'}});
+            const result = controller._fillForm({form: loose[0].id, values: {username: 'jane', kind: 'B', secret: 'x'}});
             expect(result.set).toEqual({username: 'jane', kind: 'b'});
             expect(Object.keys(result.errors)).toEqual(['secret']);
             expect(result.note).toContain('Nothing was submitted');
             expect($loose.find('[name=username]').val()).toBe('jane');
             expect(events).toEqual(['input:username', 'change:username', 'input:kind', 'change:kind']);
-            // Real forms keep their indexes before the loose fields
-            expect(controller._readPage().forms.findIndex((f) => f.sdc_model_name === 'Author'))
-                .toBeLessThan(loose[0].index);
+            // Real forms come before the loose fields; ids stay the same on the next read
+            const forms = controller._readPage().forms;
+            expect(forms.findIndex((f) => f.sdc_model_name === 'Author'))
+                .toBeLessThan(forms.findIndex((f) => f.id === loose[0].id));
             $loose.remove();
         });
 
@@ -522,8 +523,8 @@ describe('SdcAiAssistant', () => {
 
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
-            const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));
-            expect(controller._fillForm({form: index, values: {z: '1'}}).warning).toContain('not visible');
+            const id = controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'z')).id;
+            expect(controller._fillForm({form: id, values: {z: '1'}}).warning).toContain('not visible');
             $hidden.remove();
         });
 
@@ -591,29 +592,29 @@ describe('SdcAiAssistant', () => {
                 expect(page.elements.some((e) => e.text === 'Hidden')).toBe(false);
                 // Resolving a link does not change the navigator
                 expect(nav._non_controller_path_prefix).toBe('/');
-                expect(page.html).toContain(`data-ai-element="${element('Next').index}"`);
+                expect(page.html).toContain(`data-ai-element="${element('Next').id}"`);
                 expect(document.querySelector('[data-ai-element]')).toBeNull();
                 // A search bar updates its view on change
                 const search = page.forms.find((f) => f.fields.some((x) => x.name === 'search'));
                 expect(search.updates_on_change).toBe(true);
-                expect(controller._fillForm({form: search.index, values: {search: 'jane'}}).note)
+                expect(controller._fillForm({form: search.id, values: {search: 'jane'}}).note)
                     .toContain('updates by itself');
             });
 
             test('click runs a button\'s handler and opens SDC links with the navigator', async () => {
-                const result = await controller._click({element: element('Next').index});
+                const result = await controller._click({element: element('Next').id});
                 expect(clicks).toEqual(['Next']);
                 expect(result).toMatchObject({clicked: 'Next', navigated: false});
-                await controller._click({element: element('Books').index});
+                await controller._click({element: element('Books').id});
                 expect(nav.opened).toEqual(['..~book-list']);
-                await expect(controller._click({element: element('Find').index})).rejects.toThrow('submits a form');
-                await expect(controller._click({element: element('Help').index})).rejects.toThrow('leaves the app');
-                await expect(controller._click({element: 999})).rejects.toThrow('There is no element 999');
+                await expect(controller._click({element: element('Find').id})).rejects.toThrow('submits a form');
+                await expect(controller._click({element: element('Help').id})).rejects.toThrow('leaves the app');
+                await expect(controller._click({element: 99999})).rejects.toThrow('There is no element 99999');
                 expect(clicks).toEqual(['Next']);
             });
 
             test('a risky click waits for the user\'s permission', async () => {
-                const action = {tool_use_id: 'c', name: 'click', input: {element: element('Remove Jane').index}};
+                const action = {tool_use_id: 'c', name: 'click', input: {element: element('Remove Jane').id}};
                 let running = controller._runActions([action], controller._requestId);
                 await new Promise((resolve) => setTimeout(resolve, 10));
                 expect(controller.find('.ai-confirm').text()).toContain('wants to click "Remove Jane"');
@@ -631,8 +632,26 @@ describe('SdcAiAssistant', () => {
                 expect(clicks).toEqual(['Remove Jane']);
             });
 
+            test('ids stay with their element; a changed or removed element is refused', async () => {
+                const next = element('Next').id;
+                // A new element before "Next" does not change its id (an index would have moved)
+                $buttons.prepend('<button type="button" class="ai-new">New</button>');
+                expect(element('Next').id).toBe(next);
+                expect(element('New').id).not.toBe(next);
+                await expect(controller._click({element: next, text: 'next'})).resolves.toMatchObject({clicked: 'Next'});
+                $buttons.find('.ai-next').text('Back');
+                await expect(controller._click({element: next, text: 'Next'})).rejects.toThrow('is now "Back"');
+                $buttons.find('.ai-next').remove();
+                await expect(controller._click({element: next})).rejects.toThrow('no longer on the page');
+                // Forms keep their ids too
+                const search = controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'search'));
+                $buttons.find('form').before('<form><input name="other"></form>');
+                expect(controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'search')).id)
+                    .toBe(search.id);
+            });
+
             test('an unanswered question ends with its request', async () => {
-                const action = {tool_use_id: 'c', name: 'click', input: {element: element('Remove Jane').index}};
+                const action = {tool_use_id: 'c', name: 'click', input: {element: element('Remove Jane').id}};
                 const running = controller._runActions([action], controller._requestId);
                 await new Promise((resolve) => setTimeout(resolve, 10));
                 controller._requestId += 1;
