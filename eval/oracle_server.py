@@ -64,7 +64,12 @@ def resolve_click(args, messages):
     if 'element' in args:
         return {'element': args['element']}
     page = last_page(messages) or {}
-    matches = [e for e in page.get('elements') or []
+    # Buttons and links of list rows are listed with their row (read_page outline)
+    elements = list(page.get('elements') or [])
+    for lst in page.get('lists') or []:
+        for row in lst.get('rows') or []:
+            elements += row.get('elements') or []
+    matches = [e for e in elements
                if ('text' not in args or e.get('text') == args['text'])
                and ('href_contains' not in args or args['href_contains'] in (e.get('href') or ''))
                and ('controller' not in args or e.get('controller') == args['controller'])]

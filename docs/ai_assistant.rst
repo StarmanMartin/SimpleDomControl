@@ -227,9 +227,20 @@ The assistant acts through tools that run in the browser:
     SDC URLs are read (from the skill file, or the same section added by the
     consumer when there is none; not with ``SDC_AI_SKILL_SOURCE = 'none'``).
 ``read_page``
-    Returns the URL, the title, a simplified HTML of the visible page (without
-    scripts, styles, hidden elements, most attributes and the assistant itself)
-    and the forms with their fields, labels, current values and options. Forms
+    Returns the URL, the title, an outline of the visible page and the forms
+    with their fields, labels, current values and options. The outline is the
+    visible text with one line per block, ``## `` before headings and
+    ``[#<id> label]`` for buttons and links; scripts, styles, hidden elements,
+    form fields and the assistant itself are left out. Long lists (tables,
+    list items, at least 10 repeated rows) and lists with a search bar are
+    summarised under ``lists``: ``rows_in_page``, the first 20 rows (text and
+    their buttons/links) and, with ``<sdc-search-view>``, ``search`` with the id
+    of the search form, the shown range, the total count and the ids of the
+    Next/Prev buttons. Arguments: ``mode: "html"`` adds the simplified HTML
+    (without most attributes), ``scope`` (an element, form or list id, or a
+    controller tag) limits the result to that part, ``rows: [from, to]`` shows
+    other rows of the lists. A small model thus reads a page of 300 rows in a
+    few kilobytes. Forms
     of inactive navigator views (hidden copies of a view opened before) are
     left out. A form
     with the attributes ``SdcModelName`` and ``SdcModelPK`` edits a record of
@@ -239,8 +250,8 @@ The assistant acts through tools that run in the browser:
     per controller element, with ``form_element: false`` and the controller tag;
     ``updates_on_change`` marks fields that update their view by themselves,
     such as the search bar.
-    ``elements`` lists the visible buttons and links (``data-ai-element`` in
-    the HTML) with id, text, controller, ``sdc_click`` handlers and, for SDC
+    ``elements`` lists the visible buttons and links outside list rows
+    (``data-ai-element`` in the HTML) with id, text, controller, ``sdc_click`` handlers and, for SDC
     links, the target resolved by the ``sdc-navigator`` (``_prepareUrl`` /
     ``_handleUrl``). Elements the assistant may not click carry
     ``clickable: false`` and the reason; risky ones ``needs_confirmation``.

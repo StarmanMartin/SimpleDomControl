@@ -360,7 +360,7 @@ describe('SdcAiAssistant', () => {
         });
 
         test('read_page describes the page without secrets', () => {
-            const page = controller._readPage();
+            const page = controller._readPage({mode: 'html'});
             const forms = page.forms.filter((f) => f.fields.some((x) => ['name', 'q'].includes(x.name)));
             expect(forms.map((f) => f.sdc_model_name)).toEqual(['Author', null]);
             const author = forms[0];
@@ -521,6 +521,60 @@ describe('SdcAiAssistant', () => {
             controller._socket = null;
         });
 
+        test('the outline shows text with element markers, no HTML, and no secrets', () => {
+            const page = controller._readPage();
+            expect(page.html).toBeUndefined();
+            expect(page.text).toContain('## Edit author');
+            const save = page.elements.find((e) => e.text === 'Save');
+            expect(page.text).toContain(`[#${save.id} Save]`);
+            for (const hidden of ['secret note', 'var x', 'pw-123', 'tok-456', 'Jo']) {
+                expect(page.text).not.toContain(hidden);
+            }
+            // A scope limits the outline; an unknown scope is an error
+            const author = page.forms.find((f) => f.sdc_model_name === 'Author');
+            const scoped = controller._readPage({scope: author.id});
+            expect(scoped.forms.map((f) => f.id)).toEqual([author.id]);
+            expect(scoped.text).not.toContain('Edit author');
+            expect(controller._readPage({scope: author.id, mode: 'html'}).html).toMatch(/^<form /);
+            expect(() => controller._readPage({scope: 99999})).toThrow('no element, form or list 99999');
+            expect(() => controller._readPage({mode: 'xml'})).toThrow('mode must be');
+        });
+
+        test('long lists and paged lists are summarised with their search bar', () => {
+            const rows = Array.from({length: 30}, (_, i) =>
+                `<tr><td>Writer ${i + 1}</td><td><a class="navigation-links" href="/~sdc-detail-view~&pk=${i + 1}">Detail</a></td></tr>`).join('');
+            const $list = $(`<div class="_sdc_controller_"><sdc-search-view>
+                    <div class="inner-form search-form"><input name="search" class="timer-change"></div>
+                    <div class="page-number-control"><button class="page-number-control-btn page-number-control-btn-prev">Prev</button>
+                    <span class="range-span">1 - 30</span><span class="total-amount-span"> / 306</span>
+                    <button class="page-number-control-btn page-number-control-btn-next">Next</button></div>
+                </sdc-search-view><table><tbody>${rows}</tbody></table>
+                <ul><li>a</li><li>b</li></ul></div>`).appendTo($page);
+            const page = controller._readPage();
+            const [list] = page.lists;
+            expect(page.lists.length).toBe(1);  // the short <ul> stays text
+            expect(list).toMatchObject({kind: 'table', rows_in_page: 30, rows_shown: [1, 20]});
+            expect(list.rows[0].text).toBe('Writer 1 | Detail');
+            expect(list.rows[0].elements[0]).toMatchObject({text: 'Detail'});
+            expect(list.more_rows).toContain(`scope: ${list.id}`);
+            expect(list.search).toMatchObject({range: '1 - 30', total: 306, next_disabled: false});
+            const search = page.forms.find((f) => f.fields.some((x) => x.name === 'search'));
+            expect(list.search.form).toBe(search.id);
+            // Row elements are not repeated in elements; the text only references the list
+            expect(page.elements.some((e) => e.text === 'Detail')).toBe(false);
+            expect(page.text).toContain(`[list #${list.id}: 30 rows, see lists]`);
+            expect(page.text).not.toContain('Writer 7');
+            expect(page.text).toContain('- b'.slice(2));
+            // More rows of the list
+            const more = controller._readPage({scope: list.id, rows: [21, 30]});
+            expect(more.lists[0].rows.map((r) => r.n)).toEqual([21, 22, 23, 24, 25, 26, 27, 28, 29, 30]);
+            expect(more.lists[0].rows[0].text).toBe('Writer 21 | Detail');
+            // Next is a stable element id
+            expect(controller._pageElements().find((el) => controller._ids.get(el) === list.search.next).textContent)
+                .toBe('Next');
+            $list.remove();
+        });
+
         test('fill_form warns about invisible forms', () => {
             const $hidden = $('<div class="invisible"><form><input name="z"></form></div>').appendTo($page);
             const id = controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'z')).id;
@@ -592,7 +646,8 @@ describe('SdcAiAssistant', () => {
                 expect(page.elements.some((e) => e.text === 'Hidden')).toBe(false);
                 // Resolving a link does not change the navigator
                 expect(nav._non_controller_path_prefix).toBe('/');
-                expect(page.html).toContain(`data-ai-element="${element('Next').id}"`);
+                expect(controller._readPage({mode: 'html'}).html).toContain(`data-ai-element="${element('Next').id}"`);
+                expect(page.text).toContain(`[#${element('Next').id} Next]`);
                 expect(document.querySelector('[data-ai-element]')).toBeNull();
                 // A search bar updates its view on change
                 const search = page.forms.find((f) => f.fields.some((x) => x.name === 'search'));

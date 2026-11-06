@@ -296,6 +296,12 @@ def test_valid_input_of_every_tool_is_accepted():
         assert _ai_tool_input_error(name, tool_input) is None, name
     assert _ai_tool_input_error('read_page', {'x': 1}).startswith('INVALID_JSON')
     assert _ai_tool_input_error('click', {'element': '3'}).startswith('INVALID_JSON')
+    assert _ai_tool_input_error('click', {'element': 3, 'text': 'Next'}) is None
+    # read_page: scope is an id or a controller tag, rows a list
+    for page_input in ({'mode': 'html', 'scope': 12}, {'scope': 'sdc-list-view'}, {'scope': 7, 'rows': [21, 40]}):
+        assert _ai_tool_input_error('read_page', page_input) is None, page_input
+    for page_input in ({'scope': True}, {'rows': '21-40'}, {'mode': 1}):
+        assert _ai_tool_input_error('read_page', page_input).startswith('INVALID_JSON'), page_input
 
 
 def test_read_page_action_is_sent_to_the_client(monkeypatch):

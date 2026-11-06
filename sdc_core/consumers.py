@@ -739,9 +739,10 @@ and its data models (SdcModels).
 
 You can act on the page with your tools. They run in the user's browser with the user's own permissions:
 - `navigate` opens a view, using the `/~view~child~&key=value` paths ("How to read SDC URLs" in the context).
-- `read_page` returns the current page: a simplified HTML of what the user sees, its forms with their fields and \
-current values, and its buttons and links (`elements`, marked `data-ai-element` in the HTML) with the resolved \
-target of every SDC link.
+- `read_page` returns an outline of the current page: its text with `[#id label]` for buttons and links, its \
+lists (first rows, total, search form and next/prev buttons), forms with their fields and current values, and its \
+buttons and links (`elements`) with the resolved target of every SDC link. Ask for `mode: "html"` only for one \
+part (`scope`), and for more rows of a list with `scope` and `rows`.
 - `fill_form` enters values into the fields of a form of the current page. It does not submit or save the form. \
 Fields that update their view on change (`updates_on_change`, e.g. the search bar of a list) filter the list at once.
 - `click` presses a button or link of the current page, like the user. Form submit buttons and links that leave the \
@@ -776,15 +777,25 @@ AI_TOOLS = [
                       'properties': {'path': {'type': 'string', 'description': 'SDC path, starting with "/~", or '
                                               'relative to the current path (".", "..", "..~view")'}}}},
     {'name': 'read_page',
-     'description': 'Read the current page: URL, title, a simplified HTML of the visible content and all forms '
-                    '(id, SdcModelName/SdcModelPK if it is an SdcModel form, fields with name, type, label, '
-                    'current value and options). Fields outside a <form> element are listed as an extra form per '
-                    'view (form_element false, controller tag; updates_on_change for search bars). Also lists '
-                    'the visible buttons and links (elements: id, kind, text, controller, href of links resolved '
-                    'by the sdc-navigator, sdc_click handlers, needs_confirmation, clickable false with a reason); '
-                    'the HTML marks them with data-ai-element="<id>". The ids of elements and forms stay the same while '
-                    'they are on the page. Password values are never returned.',
-     'input_schema': {'type': 'object', 'additionalProperties': False, 'properties': {}}},
+     'description': 'Read the current page. Default: an outline - URL, title, the visible text with one line per '
+                    'block ("## " before headings, "[#<id> label]" for buttons and links), lists, forms and '
+                    'elements. Lists (tables and repeated rows) are summarised: rows_in_page, the first 20 rows '
+                    '(text and their buttons/links) and, for lists with a search bar, search {form, range, total, '
+                    'next, prev}. Forms: id, SdcModelName/SdcModelPK of SdcModel forms, fields with name, type, '
+                    'label, current value and options; fields outside a <form> are one extra form per view '
+                    '(form_element false, controller tag; updates_on_change for search bars). Elements: id, kind, '
+                    'text, controller, href of links resolved by the sdc-navigator, sdc_click handlers, '
+                    'needs_confirmation, clickable false with a reason. Ids stay the same while the element is on '
+                    'the page. Password values are never returned.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'properties': {
+         'mode': {'type': 'string', 'enum': ['outline', 'html'],
+                  'description': '"outline" (default) or "html": also the simplified HTML (large; use it with a '
+                                 'scope)'},
+         'scope': {'type': ['integer', 'string'],
+                   'description': 'Only this part of the page: the id of an element, form or list, or a controller '
+                                  'tag'},
+         'rows': {'type': 'array', 'items': {'type': 'integer'}, 'minItems': 2, 'maxItems': 2,
+                  'description': '[from, to] (1-based): the rows of the lists to show, e.g. [21, 40]'}}}},
     {'name': 'fill_form',
      'description': 'Enter values into the fields of a form of the current page (input, textarea, select, '
                     'checkbox, radio), like the user typing them. The form is not submitted and nothing is saved. '
@@ -819,7 +830,13 @@ AI_TOOLS = [
                                      'filter': {'type': 'object', 'description': 'Django field lookups, '
                                                 'e.g. {"author__name": "Jane"}; omit to load all records'}}}},
 ]
-_AI_JSON_TYPES = {'string': str, 'integer': int, 'object': dict}
+_AI_JSON_TYPES = {'string': str, 'integer': int, 'object': dict, 'array': list}
+
+
+def _ai_type_ok(value, json_type):
+    """``value`` matches the JSON schema ``type`` (a name or a list of names); booleans are no integers."""
+    types = json_type if isinstance(json_type, list) else [json_type]
+    return not isinstance(value, bool) and any(isinstance(value, _AI_JSON_TYPES[t]) for t in types)
 
 
 def _ai_tool_input_error(name, tool_input):
@@ -833,8 +850,8 @@ def _ai_tool_input_error(name, tool_input):
     # Tools without arguments (read_page) have no 'required' list
     missing = [k for k in schema.get('required', []) if k not in tool_input]
     unknown = [k for k in tool_input if k not in schema['properties']]
-    wrong = [k for k, v in tool_input.items() if k in schema['properties'] and not (
-        isinstance(v, _AI_JSON_TYPES[schema['properties'][k]['type']]) and not isinstance(v, bool))]
+    wrong = [k for k, v in tool_input.items()
+             if k in schema['properties'] and not _ai_type_ok(v, schema['properties'][k]['type'])]
     if missing or unknown or wrong:
         return f'INVALID_JSON: missing {missing}, unknown {unknown}, wrong type {wrong}'
     return None

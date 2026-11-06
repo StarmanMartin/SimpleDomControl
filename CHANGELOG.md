@@ -12,6 +12,10 @@ The server and the client are released with the same version number.
   the same while the element is in the page, also when other parts re-render. `click` and `fill_form` take these
   ids; `click` accepts the element's `text` and refuses the click if the element changed; an id of a removed
   element is reported as gone. Protocol change: release server and client together.
+- AI assistant: `read_page` returns an outline by default (visible text with `[#id label]` markers, no HTML) and
+  summarises long lists and lists with a search bar (first 20 rows, total, search form, Next/Prev ids). New
+  arguments `mode` (`outline`/`html`), `scope` (element, form or list id, or controller tag) and `rows`
+  (`[from, to]`).
 
 ### Added
 - `sdc_eval_ai --confirm deny|allow`, the task check `confirm`, size metrics (`tool_result_chars`, system prompt

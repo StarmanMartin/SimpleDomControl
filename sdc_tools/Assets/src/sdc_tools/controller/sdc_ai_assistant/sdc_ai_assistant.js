@@ -14,6 +14,17 @@ const ERROR_HINTS = {
 };
 // read_page: size limits of what is sent to the model
 const MAX_PAGE_HTML = 30000;
+// read_page outline (default mode): condensed text of the page; lists are summarised (see _findLists)
+const MAX_OUTLINE_TEXT = 4000;
+const MAX_ROW_TEXT = 200;
+// Rows of a list shown at once (read_page {scope: <list id>, rows: [from, to]} shows others)
+const LIST_ROWS = 20;
+// Repeated rows are summarised as a list above this number, or always when the list has a search/paging bar
+const LIST_INLINE_MAX = 10;
+// Block elements: the condensed text starts a new line before and after them
+const TEXT_BLOCKS = new Set(['ADDRESS', 'ARTICLE', 'ASIDE', 'BLOCKQUOTE', 'BR', 'DD', 'DIV', 'DL', 'DT', 'FIELDSET',
+    'FIGCAPTION', 'FIGURE', 'FOOTER', 'FORM', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HEADER', 'HR', 'LEGEND', 'LI',
+    'MAIN', 'NAV', 'OL', 'P', 'PRE', 'SECTION', 'TABLE', 'TBODY', 'TD', 'TH', 'THEAD', 'TR', 'UL']);
 const MAX_FIELD_VALUE = 500;
 const MAX_FIELD_OPTIONS = 50;
 // read_page: attributes kept in the simplified HTML (all others are removed)
@@ -28,6 +39,8 @@ const MAX_PAGE_ELEMENTS = 200;
 const CONFIRM_CLICK = /log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|send|abmelden|löschen|entfernen|speichern|senden/i;
 // How long a click waits before it checks whether the page is still loading
 const CLICK_SETTLE_MS = 300;
+// sdc-update-on-change ignores changes shortly after a view is rendered (_isNotReady); wait at most this long
+const READY_MAX_MS = 1500;
 // Elements of the page the model never sees
 const PAGE_SKIPPED = 'script, style, noscript, template, iframe, svg, canvas, sdc-ai-assistant';
 // Field types the assistant must not read or fill
@@ -95,7 +108,7 @@ class SdcAiAssistantController extends AbstractSDC {
         // SdcModels are read-only: there are no actions to create, change or delete records
         this._actions = {
             navigate: (input) => this._navigate(input),
-            read_page: () => this._readPage(),
+            read_page: (input) => this._readPage(input),
             fill_form: (input) => this._fillForm(input),
             click: (input) => this._click(input),
             model_get: (input) => this._modelGet(input),
@@ -628,32 +641,262 @@ class SdcAiAssistantController extends AbstractSDC {
         return true;
     }
 
-    _readPage() {
-        const elements = this._pageElements();
-        const html = this._simplifiedHtml(elements);
-        return {
+    /**
+     * read_page. ``mode`` ``outline`` (default): condensed text with ``[#id label]`` markers for clickable
+     * elements, summarised lists (``_findLists``), forms and elements; ``html``: the simplified HTML as well.
+     * ``scope``: an element, form or list id, or a controller tag, limits the result to that part of the page;
+     * ``rows`` ``[from, to]`` (1-based) chooses the rows shown of the lists.
+     */
+    _readPage({mode = 'outline', scope = null, rows = null} = {}) {
+        if (!['outline', 'html'].includes(mode)) {
+            throw new Error('mode must be "outline" or "html"');
+        }
+        const root = this._scopeRoot(scope);
+        const inRoot = (el) => root === document.body || root.contains(el);
+        const elements = this._pageElements().filter(inRoot);
+        const lists = this._findLists(root);
+        const inRow = (el) => lists.some((l) => l.rows.some((r) => r.contains(el)));
+        const result = {
             url: window.location.pathname,
             title: document.title,
-            html: html.slice(0, MAX_PAGE_HTML),
-            html_truncated: html.length > MAX_PAGE_HTML,
-            forms: this._pageForms().map((form) => this._describeForm(form)),
-            elements: elements.slice(0, MAX_PAGE_ELEMENTS).map((el) => this._describeElement(el))
-                .filter((el) => el.visible),
-            elements_truncated: elements.length > MAX_PAGE_ELEMENTS,
+            ...(scope !== null && scope !== undefined ? {scope} : {}),
         };
+        if (mode === 'html') {
+            const html = this._simplifiedHtml(elements, root);
+            result.html = html.slice(0, MAX_PAGE_HTML);
+            result.html_truncated = html.length > MAX_PAGE_HTML;
+        } else {
+            const text = this._condensedText(root, elements, lists);
+            result.text = text.slice(0, MAX_OUTLINE_TEXT);
+            if (text.length > MAX_OUTLINE_TEXT) {
+                result.text_truncated = true;
+            }
+        }
+        result.lists = lists.map((l) => this._describeList(l, rows));
+        result.forms = this._pageForms().filter((f) => inRoot(f.container)).map((form) => this._describeForm(form));
+        // Elements of list rows are listed with their row
+        const shown = elements.filter((el) => mode === 'html' || !inRow(el));
+        result.elements = shown.slice(0, MAX_PAGE_ELEMENTS).map((el) => this._describeElement(el))
+            .filter((el) => el.visible);
+        result.elements_truncated = shown.length > MAX_PAGE_ELEMENTS;
+        if (document.querySelector('.modal.show')) {
+            result.modal_open = true;
+        }
+        return result;
     }
 
     /**
-     * The visible body without scripts, styles, the assistant itself and most attributes. Clickable elements carry
-     * ``data-ai-element`` with their id for ``click``.
+     * The part of the page a read_page ``scope`` names: an id of an element, form or list, or a controller tag
+     * (the navigator's suffixed view tags match too); none: the whole body.
      */
-    _simplifiedHtml(elements = []) {
+    _scopeRoot(scope) {
+        if (scope === null || scope === undefined || scope === '') {
+            return document.body;
+        }
+        if (typeof scope === 'number' || /^\d+$/.test(String(scope))) {
+            const node = this._nodesById.get(Number(scope))?.deref();
+            if (!node || !node.isConnected) {
+                throw new Error(`There is no element, form or list ${scope} on the page; read the page again`);
+            }
+            return node;
+        }
+        const tag = String(scope).toLowerCase();
+        const node = [...document.body.querySelectorAll('*')].find((el) => !el.closest('sdc-ai-assistant')
+            && this._inActiveView(el) && (el.tagName.toLowerCase() === tag || this._controllerTag(el) === tag
+                || el.tagName.toLowerCase().startsWith(`${tag}_`)));
+        if (!node) {
+            throw new Error(`There is no controller <${tag}> in the visible page`);
+        }
+        return node;
+    }
+
+    _visible(el) {
+        return !!el.getClientRects().length;
+    }
+
+    /**
+     * Repeated rows of the page: table rows, list items and runs of at least ``LIST_INLINE_MAX`` siblings with
+     * the same tag and class (e.g. cards or ``<p>`` per record). Lists nested in a row of another list are part
+     * of that row. A list counts only above ``LIST_INLINE_MAX`` visible rows, or with any row when its
+     * controller has a search/paging bar (``<sdc-search-view>``).
+     *
+     * @return {{container: Element, rows: Element[], search: Element|null}[]}
+     */
+    _findLists(root) {
+        const candidates = [];
+        const usable = (el) => !el.closest(PAGE_SKIPPED) && this._inActiveView(el) && this._visible(el);
+        // The scope itself may be a list
+        const all = (selector) => [...(root.matches(selector) ? [root] : []), ...root.querySelectorAll(selector)];
+        for (const table of all('table')) {
+            candidates.push([table, [...table.querySelectorAll('tr')].filter((tr) => tr.closest('table') === table
+                && !tr.closest('thead') && tr.querySelector('td'))]);
+        }
+        for (const list of all('ul, ol')) {
+            candidates.push([list, [...list.children].filter((c) => c.tagName === 'LI')]);
+        }
+        for (const parent of all('*')) {
+            if (parent.children.length < LIST_INLINE_MAX || ['TABLE', 'TBODY', 'UL', 'OL', 'SELECT'].includes(parent.tagName)) {
+                continue;
+            }
+            const groups = new Map();
+            for (const child of parent.children) {
+                const key = `${child.tagName}.${typeof child.className === 'string' ? child.className : ''}`;
+                groups.set(key, [...(groups.get(key) || []), child]);
+            }
+            for (const group of groups.values()) {
+                if (group.length >= LIST_INLINE_MAX && group.length >= parent.children.length * 0.8) {
+                    candidates.push([parent, group]);
+                }
+            }
+        }
+        const lists = [];
+        for (const [container, all] of candidates) {
+            const rows = all.filter(usable);
+            if (!rows.length || !usable(container)) {
+                continue;
+            }
+            const search = this._searchViewOf(container);
+            if (rows.length > LIST_INLINE_MAX || search) {
+                lists.push({container, rows, search});
+            }
+        }
+        // A search bar belongs to the longest list of its controller; short lists beside it stay text
+        const longest = new Map();
+        for (const l of lists) {
+            if (l.search && (longest.get(l.search)?.rows.length ?? -1) < l.rows.length) {
+                longest.set(l.search, l);
+            }
+        }
+        const kept = lists.filter((l) => !l.search || longest.get(l.search) === l || l.rows.length > LIST_INLINE_MAX);
+        // The outermost list wins
+        return kept.filter((l) => !kept.some((o) => o !== l && o.rows.some((r) => r.contains(l.container))));
+    }
+
+    /** The ``<sdc-search-view>`` of the controller that shows ``container`` (search and paging of the list). */
+    _searchViewOf(container) {
+        for (let node = container.parentElement; node && node !== document.body; node = node.parentElement) {
+            const view = node.querySelector('sdc-search-view');
+            if (view && this._inActiveView(view)) {
+                return view;
+            }
+            if (node.classList.contains('_sdc_controller_')) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** Short description of an element for list rows: id, text and what the model needs to choose it. */
+    _compactElement(el) {
+        const d = this._describeElement(el);
+        return {id: d.id, text: d.text, ...(d.href ? {href: d.href} : {}),
+            ...(d.needs_confirmation ? {needs_confirmation: true} : {}),
+            ...(d.clickable === false ? {clickable: false} : {})};
+    }
+
+    _describeList({container, rows, search}, range) {
+        let [from, to] = Array.isArray(range) && range.length === 2 ? range.map(Number) : [1, LIST_ROWS];
+        from = Math.max(1, from || 1);
+        to = Math.min(rows.length, Math.max(from, to || from + LIST_ROWS - 1), from + 2 * LIST_ROWS - 1);
+        const shown = rows.slice(from - 1, to).map((row, i) => {
+            const elements = this._pageElements().filter((el) => row.contains(el) && this._visible(el));
+            return {
+                n: from + i,
+                text: this._condensedText(row, [], [], false).replace(/\n+/g, ' | ').slice(0, MAX_ROW_TEXT),
+                ...(elements.length ? {elements: elements.map((el) => this._compactElement(el))} : {}),
+            };
+        });
+        const list = {
+            id: this._idOf(container),
+            kind: container.tagName === 'TABLE' ? 'table' : 'list',
+            controller: this._controllerTag(this._controllerOf(container)),
+            rows_in_page: rows.length,
+            rows_shown: shown.length ? [shown[0].n, shown.at(-1).n] : [],
+            rows: shown,
+        };
+        if (shown.length < rows.length) {
+            list.more_rows = `read_page {scope: ${list.id}, rows: [from, to]} shows other rows of this page`;
+        }
+        if (search) {
+            const entry = this._pageForms().find((e) => e.container === search || (e.form && search.contains(e.form)));
+            const next = search.querySelector('.page-number-control-btn-next');
+            const prev = search.querySelector('.page-number-control-btn-prev');
+            const range = (search.querySelector('.range-span')?.textContent || '').trim();
+            const total = Number((search.querySelector('.total-amount-span')?.textContent || '').replace(/[^\d]/g, ''));
+            list.search = {
+                ...(entry ? {form: this._formId(entry)} : {}),
+                ...(range ? {range} : {}),
+                ...(total ? {total} : {}),
+                ...(next && this._visible(next) ? {next: this._idOf(next), next_disabled: this._isDisabled(next)} : {}),
+                ...(prev && this._visible(prev) ? {prev: this._idOf(prev), prev_disabled: this._isDisabled(prev)} : {}),
+                hint: 'Filter with fill_form on the search form (the list updates by itself); page with click on '
+                    + 'next/prev; model_load reads records directly.',
+            };
+        }
+        return list;
+    }
+
+    /**
+     * The visible text of ``root`` with one line per block element, ``## `` before headings and
+     * ``[#id label]`` for clickable ``elements``; ``lists`` are replaced by a one-line reference, form fields
+     * are left out (they are in ``forms``).
+     */
+    _condensedText(root, elements = [], lists = [], marks = true) {
+        const clickable = new Set(elements);
+        const listOf = new Map(lists.map((l) => [l.container, l]));
+        const parts = [];
+        const walk = (node) => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                parts.push(node.nodeValue);
+                return;
+            }
+            if (node.nodeType !== Node.ELEMENT_NODE) {
+                return;
+            }
+            const el = node;
+            if (el.matches(PAGE_SKIPPED) || ['INPUT', 'SELECT', 'TEXTAREA', 'OPTION'].includes(el.tagName)
+                || (el.classList.contains('sdc_sub_detail_container') && !el.classList.contains('active'))
+                || (!this._visible(el) && el.tagName !== 'BR')) {
+                return;
+            }
+            const list = listOf.get(el);
+            if (list) {
+                parts.push(`\n[list #${this._idOf(el)}: ${list.rows.length} rows, see lists]\n`);
+                return;
+            }
+            if (marks && clickable.has(el)) {
+                parts.push(` [#${this._idOf(el)} ${this._elementText(el) || el.tagName.toLowerCase()}] `);
+                return;
+            }
+            const block = TEXT_BLOCKS.has(el.tagName);
+            if (block) {
+                parts.push('\n');
+            }
+            if (/^H[1-4]$/.test(el.tagName)) {
+                parts.push('## ');
+            }
+            for (const child of el.childNodes) {
+                walk(child);
+            }
+            if (block) {
+                parts.push('\n');
+            }
+        };
+        walk(root);
+        return parts.join('').replace(/[ \t\u00a0]+/g, ' ').replace(/ *\n[ \n]*/g, '\n').trim();
+    }
+
+    /**
+     * The visible body (or ``root``) without scripts, styles, the assistant itself and most attributes.
+     * Clickable elements carry ``data-ai-element`` with their id for ``click``.
+     */
+    _simplifiedHtml(elements = [], root = document.body) {
         // Hidden elements are marked in the live page (only there their visibility is known) and removed in a copy
         const hidden = [...document.body.querySelectorAll('*')].filter((el) => !el.getClientRects().length
             && !['OPTION', 'BR'].includes(el.tagName));
         hidden.forEach((el) => el.setAttribute('data-ai-hidden', ''));
         elements.forEach((el) => el.setAttribute('data-ai-element', String(this._idOf(el))));
-        const copy = document.body.cloneNode(true);
+        const copy = root.cloneNode(true);
         hidden.forEach((el) => el.removeAttribute('data-ai-hidden'));
         elements.forEach((el) => el.removeAttribute('data-ai-element'));
 
@@ -674,7 +917,8 @@ class SdcAiAssistantController extends AbstractSDC {
                 el.removeAttribute('value');
             }
         });
-        return copy.innerHTML.replace(/\s+/g, ' ').replace(/> </g, '><').trim();
+        const html = root === document.body ? copy.innerHTML : copy.outerHTML;
+        return html.replace(/\s+/g, ' ').replace(/> </g, '><').trim();
     }
 
     /** The stable id of a form entry of ``_pageForms``: of its form element or of its controller element. */
