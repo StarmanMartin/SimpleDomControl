@@ -449,9 +449,9 @@ Properties
 ``autoRedirect``
    Set by the runtime when the request for the controller HTML is answered
    with a 301 redirect (``send_redirect()`` in ``get_content()``): the value is
-   the redirect link (``url-link``). It is not set if ``contentReload`` is
-   true, and other loading errors reset it to ``null``. ``sdc-navigator``
-   reads it to follow the redirect.
+   the redirect link (``url-link``), including when ``contentReload`` is true.
+   ``sdc-navigator`` consumes it to follow the redirect; successful loads and
+   other loading errors reset it to ``null``.
 
 ``$container``
    jQuery object of the controller element. After reconciliation it can point

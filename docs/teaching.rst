@@ -102,16 +102,23 @@ Options:
 
 The skill file contains:
 
-- how to operate an SDC app (paths, arguments, ``window.sdcNav.goTo``,
-  ``sdc_click`` handlers, when a view is ready);
+- how to read SDC URLs (section *How to read SDC URLs*: the ``~`` segments,
+  arguments and their view depth ``N.key``, which arguments are kept, relative
+  paths ``.``/``..``/``*``, the default controller, error views). These are the
+  rules of the ``sdc-navigator`` (``_prepareUrl``/``_handleUrl``); the links in
+  the skill file are resolved with the same functions. The AI assistant gets
+  this section also without a skill file;
+- how to operate an SDC app (``sdc_click`` handlers, when a view is ready);
 - the global navigation (always visible links, buttons and forms);
 - the navigation tree: every view with its path, arguments and example values,
-  required URL parameters, embedded controllers, links, buttons (with handler
-  and observed effect: navigation, opened controllers, server calls, alerts),
+  required URL parameters, embedded controllers, links, buttons (with handler,
+  its documented action and the observed effect: navigation, opened
+  controllers, server calls, alerts),
   forms (fields and the result of your submit) and the SdcModel WebSocket
   messages each controller sends;
 - every controller reached, with its documentation, app, server view and
-  Django URL;
+  Django URL, and its *Button actions*: every ``sdc_click`` handler of its
+  template and code with the handler's JSDoc;
 - every other controller of the installed apps in the section *Controllers not
   reached by the crawl* (views no link opens, such as detail or edit pages that
   need arguments, or views of other roles), with the same information but
@@ -128,7 +135,7 @@ run. Models and controllers of installed packages are never changed.
 Documenting models and controllers
 ----------------------------------
 
-The skill file uses two kinds of documentation:
+The skill file uses three kinds of documentation:
 
 SDC models
     The docstring of the model class:
@@ -159,6 +166,24 @@ Controllers
          */
         class BookEditController extends AbstractSDC {
 
+Button actions
+    The JSDoc block directly above the controller method that a button calls
+    (``sdc_click="removeInstance"``). ``@param``/``@return`` lines are left out.
+    Handlers used in other templates (e.g. ``removeInstance`` in the model list
+    templates shown by ``<sdc-list-view>``) belong to the controller whose JS
+    file defines the method:
+
+    .. code-block:: js
+
+        /**
+         * Deletes the book of the clicked row; this cannot be undone.
+         */
+        removeInstance($btn) {
+
+    The text appears next to every button that calls the handler, also next to
+    buttons the crawler skipped, so the AI assistant knows what a click does
+    before it asks the user to allow it.
+
 Write for an agent that operates the UI: purpose, meaning, preconditions and
 effects, in plain Markdown without headings. Do not repeat what the crawler
 records anyway (lists of links, buttons and fields, URLs). Describe what the
@@ -166,7 +191,8 @@ crawler cannot find out: what records mean, who may do what, and what delete,
 save, submit and logout do, because these buttons are not clicked.
 
 ``sdc_prepare_teaching`` prints these rules as a prompt for an AI agent,
-followed by the undocumented models and controllers with ``file:line``:
+followed by the undocumented models, controllers and button actions with
+``file:line``:
 
 .. code-block:: sh
 
@@ -197,7 +223,9 @@ apps:
       "generator": "manage.py sdc_teach --per-app",
       "controllers": {
         "sdc-error": {"doc": "...", "view_class": "sdc_tools.sdc_views.SdcError",
-                      "url": "/sdc_view/sdc_tools/sdc_error/<int:code>", "url_params": ["code"]}
+                      "url": "/sdc_view/sdc_tools/sdc_error/<int:code>", "url_params": ["code"],
+                      "actions": {}},
+        "sdc-list-view": {"doc": "...", "actions": {"removeInstance": "Deletes the record ..."}}
       },
       "models": {
         "SdcUser": {"doc": "...", "fields": [{"name": "groups", "type": "ManyToManyField", "related": "Group"}]}

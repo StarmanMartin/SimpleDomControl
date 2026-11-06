@@ -6,55 +6,68 @@
       "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- Only logged-in superusers may open it; staff status or group membership is not enough.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- The Jest tests also use it as an empty host controller for `SdcModel` tests; it changes no data itself.",
       "view_class": "main_test.sdc_views.AdminOnly",
       "url": "/sdc_view/main_test/admin_only",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     },
     "book-edit": {
       "doc": "Demo form for one `Book`, used by the framework's tests; it reuses the `<sdc-model-form>` behaviour.\n\n- Arguments: `pk` (or `id`) is the id of the book to edit; without it the form creates a new `Book`.\n- In edit mode every field change is saved immediately via the model socket; there is no separate save button.\n- \"Add X to name\" appends ` X` to the title and sets `author` to the author with id `1`, in the form's model object only (not saved by this button itself).\n- Open to everyone, no login required.",
       "view_class": "main_test.sdc_views.BookEdit",
       "url": "/sdc_view/main_test/book_edit",
-      "url_params": []
+      "url_params": [],
+      "actions": {
+        "add_x": "Appends \" X\" to the book title in the form and sets the author to the record with id 1; nothing is saved\nuntil the form is saved."
+      }
     },
     "editor-and-staff": {
       "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- May be opened by logged-in users in group `Editor`, staff users and superusers.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- Shows and changes no data.",
       "view_class": "main_test.sdc_views.EditorAndStaff",
       "url": "/sdc_view/main_test/editor_and_staff",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     },
     "editor-no-staff": {
       "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- May be opened by logged-in users in group `Editor` and superusers; staff status alone is not enough.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- Shows and changes no data.",
       "view_class": "main_test.sdc_views.EditorNoStaff",
       "url": "/sdc_view/main_test/editor_no_staff",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     },
     "error404": {
       "doc": "Test fixture of the framework's test project; it shows only the static test heading \"Error404\".\n\nDespite its name it is not an error handler: it is open to everyone and shows and changes no data.",
       "view_class": "main_test.sdc_views.Error404",
       "url": "/sdc_view/main_test/error_404",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     },
     "logged-in": {
       "doc": "Test fixture of the framework's test project; it shows only the static test heading \"LoggedIn\".\n\n- Open to everyone; despite its name it does not require a login.\n- Target of the `test_echo_call` server call of `<main-view>`, which redirects the browser to `/logged-in`.\n- Shows and changes no data.",
       "view_class": "main_test.sdc_views.LoggedIn",
       "url": "/sdc_view/main_test/logged_in",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     },
     "main-view": {
       "doc": "Demo page of the framework's test project, used by the Jest tests to exercise controller features; it has no real business purpose.\n\n- Requires a logged-in user; anonymous users get a permission-denied (403) error instead of a login redirect.\n- Shows a list of `<test-item>` children (initially 5) and a test header.\n- \"BB\" removes one `<test-item>` from the list and sets the header to \"Button Pressed!!\"; the two unlabeled buttons only change the header text.\n- Server calls `call_echo` and `call_async_echo` return their arguments and each create a new `Author` named `XX FF` (age `2`).\n- Server call `test_echo_call` redirects the browser to `<logged-in>`; `call_no_response` does nothing.",
       "view_class": "main_test.sdc_views.MainView",
       "url": "/sdc_view/main_test/main_view",
-      "url_params": []
+      "url_params": [],
+      "actions": {
+        "attr_sdc_click": "Test button: sets the header text to \"attr click\". Changes no data."
+      }
     },
     "staff-and-admin": {
       "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- May be opened by logged-in staff users and superusers; no group grants access.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- Shows and changes no data.",
       "view_class": "main_test.sdc_views.StaffAndAdmin",
       "url": "/sdc_view/main_test/staff_and_admin",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     },
     "test-item": {
       "doc": "Small demo list item inside `<main-view>`: a single text input named `i_<idx>`.\n\nArgument `idx` is the item's position in the list; changing the input shows a browser alert with that `idx`. It saves no data and is open to everyone.",
       "view_class": "main_test.sdc_views.TestItem",
       "url": "/sdc_view/main_test/test_item",
-      "url_params": []
+      "url_params": [],
+      "actions": {}
     }
   },
   "models": {

@@ -161,12 +161,18 @@ class SdcSearchSelectController extends AbstractSDC {
     }
   }
 
+  /**
+   * Opens the option list with its filter field.
+   */
   onActivate() {
     this._state = 1;
     this.refresh();
 
   }
 
+  /**
+   * Closes the option list when the user clicks beside it; the selection stays unchanged.
+   */
   onDeactivate($btn, e) {
     const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
     if ($(elementUnderMouse).hasClass('background-event')) {
@@ -212,6 +218,10 @@ class SdcSearchSelectController extends AbstractSDC {
     }
   }
 
+  /**
+   * Removes the clicked value ("×") from the selection and fires a change event; inside an edit-mode
+   * `<sdc-model-form>` the record is saved at once.
+   */
   remove_selection($btn, e) {
     e.stopPropagation();
     const idx = this.value.indexOf($btn.data('value'));

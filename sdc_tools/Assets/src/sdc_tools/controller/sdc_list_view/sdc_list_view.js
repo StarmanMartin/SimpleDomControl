@@ -100,6 +100,9 @@ export class SdcListViewController extends AbstractSDC {
     return super.onRefresh();
   }
 
+  /**
+   * Deletes the record of the "Remove" button (`data-instance-pk`) of the list's model. This cannot be undone.
+   */
   removeInstance($btn) {
     this.model.delete({id: $btn.data('instance-pk')});
   }

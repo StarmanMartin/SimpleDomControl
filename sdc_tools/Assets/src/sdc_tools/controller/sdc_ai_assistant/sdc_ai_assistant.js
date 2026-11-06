@@ -18,7 +18,16 @@ const MAX_FIELD_VALUE = 500;
 const MAX_FIELD_OPTIONS = 50;
 // read_page: attributes kept in the simplified HTML (all others are removed)
 const PAGE_ATTRIBUTES = ['id', 'name', 'type', 'href', 'value', 'placeholder', 'for', 'role', 'aria-label', 'title',
-    'sdc_click', 'sdcmodelname', 'sdcmodelpk', 'checked', 'selected', 'disabled', 'required', 'multiple'];
+    'sdc_click', 'sdcmodelname', 'sdcmodelpk', 'checked', 'selected', 'disabled', 'required', 'multiple',
+    'data-ai-element'];
+// read_page / click: elements the assistant can click (index = position in document order, see _pageElements)
+const CLICKABLE = 'a[href], button, [sdc_click], [role=button], input[type=button], input[type=submit], '
+    + 'input[type=reset]';
+const MAX_PAGE_ELEMENTS = 200;
+// Buttons that may delete, save, send data or log out: clicked only after the user allowed it in the chat
+const CONFIRM_CLICK = /log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|send|abmelden|löschen|entfernen|speichern|senden/i;
+// How long a click waits before it checks whether the page is still loading
+const CLICK_SETTLE_MS = 300;
 // Elements of the page the model never sees
 const PAGE_SKIPPED = 'script, style, noscript, template, iframe, svg, canvas, sdc-ai-assistant';
 // Field types the assistant must not read or fill
@@ -37,11 +46,13 @@ const MIN_WINDOW_HEIGHT = 240;
  * Chat panel of the AI assistant, fixed at the right edge of the page; only rendered when the project sets `SDC_AI_ASSISTANT`.
  *
  * - The user types a question; the answer streams in. The assistant can also act on the page, always with the
- *   logged-in user's permissions: open views like a navigation link, read the current page and enter values into
- *   its forms, and read SdcModel records.
- * - The assistant cannot create, change or delete records and never submits a form: it fills forms (SdcModel forms
- *   are marked by `SdcModelName` / `SdcModelPK`) and the user checks and submits or saves them. It never reads or
- *   fills password, hidden or file fields.
+ *   logged-in user's permissions: open views like a navigation link, read the current page, enter values into
+ *   its forms (also the search bar of `<sdc-search-view>`, which filters its list at once), click buttons and
+ *   links, and read SdcModel records.
+ * - The assistant never submits a form: it fills forms (SdcModel forms are marked by `SdcModelName` /
+ *   `SdcModelPK`) and the user checks and submits or saves them. Before it clicks a button that may delete, save
+ *   or send data or log out, the chat asks the user to allow it. Links that leave the app are not clicked. It
+ *   never reads or fills password, hidden or file fields.
  * - Depending on the project settings it requires a login, and either uses the server's API key or the user's own.
  * - "⚙" opens the settings: with the server's key they only show the model in use; otherwise the user enters their
  *   API key and may choose the provider (Anthropic or any OpenAI-compatible API such as the KIT KI-Toolbox) and set
@@ -81,6 +92,7 @@ class SdcAiAssistantController extends AbstractSDC {
             navigate: (input) => this._navigate(input),
             read_page: () => this._readPage(),
             fill_form: (input) => this._fillForm(input),
+            click: (input) => this._click(input),
             model_get: (input) => this._modelGet(input),
             model_load: (input) => this._modelLoad(input),
         };
@@ -371,6 +383,18 @@ class SdcAiAssistantController extends AbstractSDC {
                 if (!handler) {
                     throw new Error(`Unknown action ${action.name}`);
                 }
+                // The user's answer is not limited by the action timeout
+                const question = this._confirmationFor(action);
+                if (question) {
+                    const allowed = await this._confirm(question, id);
+                    if (id !== this._requestId || !this._socket) {
+                        return null;
+                    }
+                    if (!allowed) {
+                        throw new Error('The user did not allow this click. Do not try it again unless the user '
+                            + 'asks for it.');
+                    }
+                }
                 const content = await this._withTimeout(handler(action.input), action.name);
                 results.push({tool_use_id: action.tool_use_id, content, is_error: false});
             } catch (e) {
@@ -401,6 +425,10 @@ class SdcAiAssistantController extends AbstractSDC {
                 return '→ read the page';
             case 'fill_form':
                 return `→ fill in ${Object.keys(input.values || {}).join(', ')}`;
+            case 'click': {
+                const el = this._pageElements()[input.element];
+                return `→ click ${el ? `"${this._elementText(el) || el.tagName.toLowerCase()}"` : `element ${input.element}`}`;
+            }
             case 'model_get':
                 return `→ read ${input.model} #${input.id}`;
             case 'model_load':
@@ -416,26 +444,70 @@ class SdcAiAssistantController extends AbstractSDC {
      * if it does not finish loading in time.
      */
     async _navigate({path}) {
-        trigger('goTo', path);
-        // Wait until the navigator has loaded the new view
+        this._goTo(path);
+        await this._waitForPage();
+        return `Now at ${this._checkLoadedView(path)}`;
+    }
+
+    /** Navigates with the sdc-navigator (``sdcNav.goTo``), else with the ``goTo`` event. */
+    _goTo(path) {
+        if (typeof window.sdcNav?.goTo === 'function') {
+            window.sdcNav.goTo(path);
+        } else {
+            trigger('goTo', path);
+        }
+    }
+
+    /** True while the navigator loads a view. */
+    _loading() {
+        return !!(window.sdcNav?._is_processing || document.querySelector('.sdc_sub_detail_container.loading'));
+    }
+
+    /** Waits ``minMs``, then until the navigator has loaded the view (at most ``NAVIGATION_TIMEOUT_MS``). */
+    async _waitForPage(minMs = 100) {
         const start = Date.now();
-        const loading = () => window.sdcNav?._is_processing
-            || document.querySelector('.sdc_sub_detail_container.loading');
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        while (loading() && Date.now() - start < NAVIGATION_TIMEOUT_MS) {
+        await new Promise((resolve) => setTimeout(resolve, minMs));
+        while (this._loading() && Date.now() - start < NAVIGATION_TIMEOUT_MS) {
             await new Promise((resolve) => setTimeout(resolve, 100));
         }
+    }
+
+    /** The current path; throws if the view shows an error page or is still loading. */
+    _checkLoadedView(target) {
         const at = window.location.pathname;
         const codes = this._errorViews();
         if (codes.length) {
-            throw new Error(`Navigation to ${path} failed: the view shows an error page (${codes.map((c) => ERROR_HINTS[c]
+            throw new Error(`Navigation to ${target} failed: the view shows an error page (${codes.map((c) => ERROR_HINTS[c]
                 ? `${c}: ${ERROR_HINTS[c]}` : c || 'error').join('; ')}). Now at ${at}. Use only paths and arguments `
                 + 'from the context or from links on the page.');
         }
-        if (loading()) {
+        if (this._loading()) {
             throw new Error(`The view did not finish loading within ${NAVIGATION_TIMEOUT_MS / 1000}s. Now at ${at}.`);
         }
-        return `Now at ${at}`;
+        return at;
+    }
+
+    /**
+     * Resolves an SDC link (absolute, relative such as ``..~view`` or ``.~child~&pk=3``) against the current path
+     * with the functions of the sdc-navigator (``_prepareUrl`` / ``_handleUrl``), as a click on the link would.
+     *
+     * @return {{href: string, path: string[], args: object}|null} null without navigator or for an invalid href
+     */
+    _resolveSdcHref(href) {
+        const nav = window.sdcNav;
+        if (!nav || typeof nav._handleUrl !== 'function' || !href) {
+            return null;
+        }
+        // _handleUrl remembers the page prefix of absolute paths; resolving must not change the navigator
+        const prefix = nav._non_controller_path_prefix;
+        try {
+            const state = nav._handleUrl(nav._prepareUrl(href));
+            return {href: state.href, path: [...state.path], args: {...state.args}};
+        } catch (e) {
+            return null;
+        } finally {
+            nav._non_controller_path_prefix = prefix;
+        }
     }
 
     /**
@@ -552,24 +624,33 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     _readPage() {
-        const html = this._simplifiedHtml();
+        const elements = this._pageElements();
+        const html = this._simplifiedHtml(elements);
         return {
             url: window.location.pathname,
             title: document.title,
             html: html.slice(0, MAX_PAGE_HTML),
             html_truncated: html.length > MAX_PAGE_HTML,
             forms: this._pageForms().map((form, index) => this._describeForm(form, index)),
+            elements: elements.slice(0, MAX_PAGE_ELEMENTS).map((el, index) => this._describeElement(el, index))
+                .filter((el) => el.visible),
+            elements_truncated: elements.length > MAX_PAGE_ELEMENTS,
         };
     }
 
-    /** The visible body without scripts, styles, the assistant itself and most attributes. */
-    _simplifiedHtml() {
+    /**
+     * The visible body without scripts, styles, the assistant itself and most attributes. Clickable elements carry
+     * ``data-ai-element`` with their index for ``click``.
+     */
+    _simplifiedHtml(elements = []) {
         // Hidden elements are marked in the live page (only there their visibility is known) and removed in a copy
         const hidden = [...document.body.querySelectorAll('*')].filter((el) => !el.getClientRects().length
             && !['OPTION', 'BR'].includes(el.tagName));
         hidden.forEach((el) => el.setAttribute('data-ai-hidden', ''));
+        elements.forEach((el, index) => el.setAttribute('data-ai-element', String(index)));
         const copy = document.body.cloneNode(true);
         hidden.forEach((el) => el.removeAttribute('data-ai-hidden'));
+        elements.forEach((el) => el.removeAttribute('data-ai-element'));
 
         copy.querySelectorAll(`${PAGE_SKIPPED}, [data-ai-hidden]`).forEach((el) => el.remove());
         const walker = document.createTreeWalker(copy, NodeFilter.SHOW_COMMENT);
@@ -630,9 +711,19 @@ class SdcAiAssistantController extends AbstractSDC {
             sdc_model_name: entry.form?.getAttribute('SdcModelName') ?? null,
             sdc_model_pk: pk === null ? null : Number(pk),
             ...(entry.form ? {} : {form_element: false, controller: this._controllerTag(entry.container)}),
+            ...(this._updatesOnChange(entry) ? {updates_on_change: true} : {}),
             visible: this._isVisible(entry),
             fields: Object.values(fields),
         };
+    }
+
+    /**
+     * True for fields that update their view when they change (``timer-change`` of ``sdc-update-on-change``, e.g.
+     * the search bar of ``<sdc-search-view>``). SdcModel forms use the same class to save themselves; they are
+     * never changed by the assistant.
+     */
+    _updatesOnChange(entry) {
+        return !entry.form?.hasAttribute('SdcModelName') && entry.elements.some((el) => el.classList.contains('timer-change'));
     }
 
     _fieldType(el) {
@@ -691,8 +782,12 @@ class SdcAiAssistantController extends AbstractSDC {
         let note = 'The form was not submitted; the user has to submit it.';
         if (isModelForm) {
             note = `SdcModel form (${form.getAttribute('SdcModelName')}): nothing is saved; the user has to check the values and submit or save the form.`;
+        } else if (this._updatesOnChange(entry)) {
+            note = 'Nothing was submitted. This view updates by itself when a value changes (e.g. a search bar '
+                + 'filters its list); use read_page to see the result.';
         } else if (!form) {
-            note = 'Nothing was submitted. Views that react to changes (e.g. a search bar) update by themselves; otherwise the user has to click the button of the view.';
+            note = 'Nothing was submitted. Views that react to changes (e.g. a search bar) update by themselves; '
+                + 'otherwise click the button of the view (see the elements of read_page).';
         }
         return {
             set,
@@ -744,6 +839,195 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         fields[0].value = value === null || value === undefined ? '' : String(value);
         return [fields[0]];
+    }
+
+    //-------------------------------------------------//
+    // Page: click (buttons and links)                 //
+    //-------------------------------------------------//
+
+    /**
+     * Buttons and links of the active views (``CLICKABLE``) in document order, without the assistant's own. The
+     * index in this list is the ``element`` of ``click``; read_page lists the visible ones.
+     *
+     * @return {Element[]}
+     */
+    _pageElements() {
+        return [...document.body.querySelectorAll(CLICKABLE)]
+            .filter((el) => !el.closest('sdc-ai-assistant') && this._inActiveView(el));
+    }
+
+    _elementText(el) {
+        return (el.innerText || el.textContent || el.value || el.getAttribute('aria-label') || el.title || '')
+            .replace(/\s+/g, ' ').trim().slice(0, 80);
+    }
+
+    /** The controller methods named in ``sdc_click``. */
+    _elementHandlers(el) {
+        return (el.getAttribute('sdc_click') || '').split(/\s+/).filter(Boolean);
+    }
+
+    /**
+     * Where a link leads: ``{sdc: true, target}`` for SDC views (``.navigation-links`` and same-origin paths with
+     * ``~``; ``target`` resolved by the navigator), ``{external: true, href}`` for links that leave the single page
+     * app, null for in-page links (``#…``, ``javascript:``) and for elements that are no links.
+     */
+    _linkTarget(el) {
+        if (el.tagName !== 'A' || !el.hasAttribute('href')) {
+            return null;
+        }
+        // The navigator keeps the original (relative) href of its links
+        const raw = $(el).data('_origin_href') || el.getAttribute('href');
+        if (!raw || raw.startsWith('#') || raw.toLowerCase().startsWith('javascript:')) {
+            return null;
+        }
+        if (el.classList.contains('navigation-links')) {
+            return {sdc: true, href: raw, target: this._resolveSdcHref(raw)};
+        }
+        let url;
+        try {
+            url = new URL(raw, window.location.href);
+        } catch (e) {
+            return {external: true, href: raw};
+        }
+        const newTab = (el.getAttribute('target') || '_self') !== '_self' || el.hasAttribute('download');
+        if (url.origin === window.location.origin && url.pathname.includes('~') && !newTab) {
+            const path = url.pathname + url.search;
+            return {sdc: true, href: path, target: this._resolveSdcHref(path)};
+        }
+        return {external: true, href: url.href};
+    }
+
+    _isDisabled(el) {
+        return !!(el.disabled || el.getAttribute('aria-disabled') === 'true' || el.classList.contains('disabled')
+            || el.closest('fieldset[disabled]'));
+    }
+
+    /** Submit buttons of a form (also ``<button>`` without type, which submits too). */
+    _submitsForm(el) {
+        return !!el.form && el.type === 'submit' && (el.tagName === 'BUTTON' || el.tagName === 'INPUT');
+    }
+
+    /**
+     * What a click on ``el`` may do: ``{blocked: reason}`` if the assistant must not click it,
+     * ``{confirm: true}`` if the user has to allow it first, else ``{}``.
+     */
+    _clickPolicy(el) {
+        if (!el.getClientRects().length) {
+            return {blocked: 'the element is not visible'};
+        }
+        if (this._isDisabled(el)) {
+            return {blocked: 'the element is disabled'};
+        }
+        if (this._submitsForm(el)) {
+            return {blocked: 'it submits a form; forms are submitted by the user'};
+        }
+        if (this._linkTarget(el)?.external) {
+            return {blocked: 'the link leaves the app; give the user the link instead'};
+        }
+        const text = [this._elementText(el), this._elementHandlers(el).join(' '), el.title || '',
+            el.getAttribute('aria-label') || '', typeof el.className === 'string' ? el.className : '',
+            el.type === 'reset' ? 'reset' : ''].join(' ');
+        return CONFIRM_CLICK.test(text) ? {confirm: true} : {};
+    }
+
+    _describeElement(el, index) {
+        const link = this._linkTarget(el);
+        const policy = this._clickPolicy(el);
+        const handlers = this._elementHandlers(el);
+        return {
+            index,
+            kind: el.tagName === 'A' ? 'link' : 'button',
+            text: this._elementText(el),
+            controller: this._controllerTag(this._controllerOf(el)),
+            ...(link?.sdc ? {href: link.target?.href ?? link.href} : {}),
+            ...(link?.external ? {href: link.href, external: true} : {}),
+            ...(handlers.length ? {handlers} : {}),
+            ...(el.getAttribute('data-bs-toggle') ? {toggles: el.getAttribute('data-bs-toggle')} : {}),
+            ...(policy.blocked ? {clickable: false, reason: policy.blocked} : {}),
+            ...(policy.confirm ? {needs_confirmation: true} : {}),
+            visible: !!el.getClientRects().length,
+        };
+    }
+
+    /** The question shown to the user before the action runs, or null if it may run without asking. */
+    _confirmationFor({name, input}) {
+        if (name !== 'click') {
+            return null;
+        }
+        const el = this._pageElements()[input?.element];
+        if (!el || !this._clickPolicy(el).confirm) {
+            return null;
+        }
+        return `The assistant wants to click "${this._elementText(el) || el.tagName.toLowerCase()}". Allow it?`;
+    }
+
+    /**
+     * Asks the user in the chat; resolves true (Allow) or false (Deny, or the request ended).
+     *
+     * @param {string} question
+     * @param {number} id request the question belongs to
+     * @returns {Promise<boolean>}
+     */
+    _confirm(question, id = this._requestId) {
+        this._setCollapsed(false);
+        this._setStatus('waiting for your answer…');
+        return new Promise((resolve) => {
+            const $msg = this._addMessage('action', question).addClass('ai-confirm');
+            const $buttons = $('<div class="ai-confirm-buttons"></div>').appendTo($msg);
+            let watch = null;
+            const done = (allowed) => {
+                clearInterval(watch);
+                $buttons.remove();
+                $msg.append(document.createTextNode(allowed ? ' Allowed.' : ' Not allowed.'));
+                this._setStatus(allowed ? '' : 'thinking…');
+                resolve(allowed);
+            };
+            $('<button type="button" class="btn btn-sm btn-primary ai-confirm-allow"></button>').text('Allow')
+                .on('click', () => done(true)).appendTo($buttons);
+            $('<button type="button" class="btn btn-sm btn-outline-secondary ai-confirm-deny"></button>').text('Deny')
+                .on('click', () => done(false)).appendTo($buttons);
+            // A new request or a lost connection answers "no"
+            watch = setInterval(() => (id !== this._requestId || !this._socket) && done(false), 250);
+            this._scrollDown();
+        });
+    }
+
+    /**
+     * Clicks a button or link of the current page (``element``: index from read_page) like the user. SDC links
+     * open with the navigator's ``goTo``; buttons run their controller's handlers (``sdc_click``). Form submit
+     * buttons and links leaving the app are never clicked; the user is asked before risky clicks (see
+     * ``_runActions``).
+     */
+    async _click({element}) {
+        const el = this._pageElements()[element];
+        if (!el) {
+            throw new Error(`There is no element ${element} on the page; use read_page to get the element indexes`);
+        }
+        const text = this._elementText(el) || el.tagName.toLowerCase();
+        const policy = this._clickPolicy(el);
+        if (policy.blocked) {
+            throw new Error(`"${text}" cannot be clicked: ${policy.blocked}.`);
+        }
+        const before = window.location.pathname + window.location.search;
+        const modalBefore = !!document.querySelector('.modal.show');
+        const link = this._linkTarget(el);
+        el.scrollIntoView?.({block: 'nearest', behavior: 'smooth'});
+        if (link?.sdc && !this._elementHandlers(el).length) {
+            // Same as the navigator's link handler, also for links outside .navigation-links
+            this._goTo(link.href);
+        } else {
+            el.click();
+        }
+        await this._waitForPage(CLICK_SETTLE_MS);
+        const at = this._checkLoadedView(link?.sdc ? link.target?.href ?? link.href : `"${text}"`);
+        const modal = !!document.querySelector('.modal.show');
+        return {
+            clicked: text,
+            url: at,
+            navigated: at + window.location.search !== before,
+            ...(modal && !modalBefore ? {modal_opened: true} : {}),
+            note: 'Use read_page to see the result.',
+        };
     }
 
     //-------------------------------------------------//

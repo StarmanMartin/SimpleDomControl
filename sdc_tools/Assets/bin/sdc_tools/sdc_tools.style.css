@@ -490,6 +490,17 @@
   font-size: 0.8rem;
   color: var(--bs-secondary-color, #6c757d);
 }
+[sdc-ai-assistant] .ai-message.ai-confirm {
+  font-size: 0.9rem;
+  color: inherit;
+  background: var(--bs-warning-bg-subtle, #fff3cd);
+}
+[sdc-ai-assistant] .ai-message .ai-confirm-buttons {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  white-space: normal;
+}
 [sdc-ai-assistant] .ai-message.error {
   background: var(--bs-danger-bg-subtle, #f8d7da);
 }

@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 
 from sdc_core.management.commands.init_add import options
 from sdc_core.management.commands.utils.teach_apps import apply_app_skills, load_app_skills
-from sdc_core.management.commands.utils.teach_controllers import controller_line, sdc_controllers
+from sdc_core.management.commands.utils.teach_controllers import controller_line, method_line, sdc_controllers
 from sdc_core.management.commands.utils.teach_models import is_editable, sdc_models
 
 GUIDE = '''# Prepare this SimpleDomControl project for `sdc_teach`
@@ -24,6 +24,8 @@ the documentation of SDC models and controllers, which `sdc_teach` copies **verb
 
 - SDC model → the class docstring, under `## Data models` → `### <ModelName>`.
 - Controller → the JSDoc block above the client class, under `## Controllers` → `### <tag-name>`.
+- Button action → the JSDoc block above the controller method named in `sdc_click="method"`, next to every
+  button that calls it and under "Button actions" of its controller.
 
 Your task: write this documentation for the items listed at the end of this prompt.
 
@@ -83,6 +85,22 @@ mean), what the important actions do (especially delete/save/submit/logout, whic
 required login or permissions, and which models it shows or changes. For small embedded helper controllers
 (buttons, widgets) one or two sentences are enough.
 
+## Button action JSDoc
+
+Where: a `/** ... */` block directly above the method that a button calls (`sdc_click="removeInstance"` →
+`removeInstance($btn) {`) in the controller JS file.
+
+```js
+/**
+ * Deletes the book of the clicked row after a confirm dialog; this cannot be undone.
+ */
+removeInstance($btn) {
+```
+
+Cover in one or two sentences what happens for the user: which data is read, created, changed, deleted or
+sent (e-mails, server calls), where the user ends up, and whether it can be undone. The AI assistant asks
+the user before it clicks buttons that delete, save or send data; the text tells it what the click does.
+
 ## When you are done
 
 1. Run `python manage.py sdc_prepare_teaching` again; the list below must be empty.
@@ -93,8 +111,8 @@ required login or permissions, and which models it shows or changes. For small e
 
 
 class Command(BaseCommand):
-    help = ('Prints a prompt for an AI agent explaining how to document SDC models and controllers so that '
-            'sdc_teach produces a good skill file, followed by the list of undocumented models and controllers.')
+    help = ('Prints a prompt for an AI agent explaining how to document SDC models, controllers and button actions '
+            'so that sdc_teach produces a good skill file, followed by the list of undocumented ones.')
 
     def add_arguments(self, parser):
         parser.add_argument('--all', action='store_true',
@@ -110,8 +128,6 @@ class Command(BaseCommand):
                        if is_editable(c['file'], root) and (ops['all'] or not c['doc'])}
 
         lines = [GUIDE, f'## {"All" if ops["all"] else "Undocumented"} models and controllers', '']
-        if not models and not controllers:
-            lines.append('Nothing to do: every SDC model and controller of the project is documented.')
         for m in models:
             lines.append(f'- Model `{m["name"]}` ({m["app"]}): '
                          f'{os.path.relpath(m["file"], root)}:{inspect.getsourcelines(m["model"])[1]}')
@@ -120,6 +136,16 @@ class Command(BaseCommand):
             lines.append(f'- Controller `<{tag}>` ({c["app"]}): {os.path.relpath(c["file"], root)}:'
                          f'{controller_line(c["file"], tag)}, server view `{c["view_class"]}`')
             lines += self._current(c['doc'])
+        actions = [(tag, c, handler) for tag, c in sorted(all_controllers.items()) if is_editable(c['file'], root)
+                   for handler, doc in sorted((c.get('actions') or {}).items()) if ops['all'] or not doc]
+        if actions:
+            lines += ['', f'## {"All" if ops["all"] else "Undocumented"} button actions', '']
+        for tag, c, handler in actions:
+            lines.append(f'- Button action `{handler}()` of `<{tag}>` ({c["app"]}): '
+                         f'{os.path.relpath(c["file"], root)}:{method_line(c["file"], handler) or "?"}')
+            lines += self._current(c['actions'][handler])
+        if not models and not controllers and not actions:
+            lines.append('Nothing to do: every SDC model, controller and button action of the project is documented.')
         self.stdout.write('\n'.join(lines))
 
     @staticmethod

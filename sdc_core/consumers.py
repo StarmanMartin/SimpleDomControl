@@ -738,11 +738,16 @@ Your knowledge about this website comes from the context below: its views (contr
 and its data models (SdcModels).
 
 You can act on the page with your tools. They run in the user's browser with the user's own permissions:
-- `navigate` opens a view, using the `/~view~child~&key=value` paths described in the context.
-- `read_page` returns the current page: a simplified HTML of what the user sees and a list of its forms with their \
-fields and current values.
-- `fill_form` enters values into the fields of a form of the current page. It does not submit or save the form.
-- `model_get` and `model_load` read SdcModel records. You cannot create, change or delete records yourself.
+- `navigate` opens a view, using the `/~view~child~&key=value` paths ("How to read SDC URLs" in the context).
+- `read_page` returns the current page: a simplified HTML of what the user sees, its forms with their fields and \
+current values, and its buttons and links (`elements`, marked `data-ai-element` in the HTML) with the resolved \
+target of every SDC link.
+- `fill_form` enters values into the fields of a form of the current page. It does not submit or save the form. \
+Fields that update their view on change (`updates_on_change`, e.g. the search bar of a list) filter the list at once.
+- `click` presses a button or link of the current page, like the user. Form submit buttons and links that leave the \
+app cannot be clicked. Buttons that may delete, save or send data (`needs_confirmation`) are only clicked after the \
+user allowed it in the chat.
+- `model_get` and `model_load` read SdcModel records. There are no tools to create, change or delete records.
 
 Rules:
 - Answer briefly in the user's language. Say what you did after you used a tool.
@@ -753,6 +758,10 @@ say so instead of guessing.
 record). To create or change records, navigate to the right form, fill it and ask the user to check the values and \
 submit or save it.
 - Only enter values the user asked for or clearly agreed to, never passwords.
+- Only click buttons that the user's request needs. The context describes what buttons do ("Buttons", "Button \
+actions"); if a button's effect is unknown, ask before clicking it. Read the page again after a click.
+- To search a list, fill its search bar with `fill_form` and read the page; use the list's "Next"/"Prev" buttons to \
+page through the results.
 - If a tool returns an error, explain it to the user and do not retry the same call more than once."""
 
 _AI_MODEL = {'type': 'string', 'description': 'Name of the SdcModel, as listed in the context'}
@@ -764,12 +773,16 @@ AI_TOOLS = [
      'description': 'Open a view of this website in the browser, e.g. "/~main-view~book-edit~&pk=3". Paths and '
                     'arguments follow the SDC navigation rules described in the context; ".." goes one view up.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['path'],
-                      'properties': {'path': {'type': 'string', 'description': 'SDC path, starting with "/~"'}}}},
+                      'properties': {'path': {'type': 'string', 'description': 'SDC path, starting with "/~", or '
+                                              'relative to the current path (".", "..", "..~view")'}}}},
     {'name': 'read_page',
      'description': 'Read the current page: URL, title, a simplified HTML of the visible content and all forms '
                     '(index, SdcModelName/SdcModelPK if it is an SdcModel form, fields with name, type, label, '
                     'current value and options). Fields outside a <form> element are listed as an extra form per '
-                    'view (form_element false, controller tag). Password values are never returned.',
+                    'view (form_element false, controller tag; updates_on_change for search bars). Also lists '
+                    'the visible buttons and links (elements: index, kind, text, controller, href of links resolved '
+                    'by the sdc-navigator, sdc_click handlers, needs_confirmation, clickable false with a reason); '
+                    'the HTML marks them with data-ai-element="<index>". Password values are never returned.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'properties': {}}},
     {'name': 'fill_form',
      'description': 'Enter values into the fields of a form of the current page (input, textarea, select, '
@@ -781,6 +794,15 @@ AI_TOOLS = [
                           'values': {'type': 'object', 'description': 'Field name -> value; true/false for '
                                      'checkboxes, the option value or text for selects and radios, a list for '
                                      'multiple selects'}}}},
+    {'name': 'click',
+     'description': 'Click a button or link of the current page like the user: SDC links open the view, buttons '
+                    'run their action (e.g. "Next" of a search bar, opening a modal). Submit buttons of forms and '
+                    'links leaving the app cannot be clicked; buttons that may delete, save or send data are only '
+                    'clicked if the user allows it in the chat. Returns the URL afterwards; use read_page to see '
+                    'the result.',
+     'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['element'],
+                      'properties': {'element': {'type': 'integer', 'description': 'Index of the element as '
+                                                 'returned by read_page (elements[].index)'}}}},
     {'name': 'model_get',
      'description': 'Read one record of an SdcModel by its id, if the user is allowed to see it.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id'],
@@ -1432,8 +1454,19 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         skill = SDCAiConsumer._skill_context()
         if not skill:
             skill = getattr(settings, 'SDC_AI_NO_SKILL_NOTE', AI_NO_SKILL_NOTE)
-        parts = [prompt, skill] + SDCAiConsumer._additional_skills()
+        parts = [prompt, SDCAiConsumer._url_guide(skill), skill] + SDCAiConsumer._additional_skills()
         return '\n\n'.join(p for p in parts if p)
+
+    @staticmethod
+    def _url_guide(skill):
+        """
+        How to read SDC URLs. Not added if the skill file of ``sdc_teach`` already contains it or with
+        ``SDC_AI_SKILL_SOURCE = 'none'`` (no knowledge about the website, e.g. the baseline of an evaluation).
+        """
+        from sdc_core.management.commands.utils.teach_markdown import SDC_URL_GUIDE, SDC_URL_GUIDE_HEADING
+        if SDCAiConsumer._skill_source() == 'none' or SDC_URL_GUIDE_HEADING in (skill or ''):
+            return ''
+        return SDC_URL_GUIDE
 
     @staticmethod
     def _additional_skills():

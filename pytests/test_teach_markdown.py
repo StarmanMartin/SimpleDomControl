@@ -201,13 +201,17 @@ def test_prepare_teaching():
     # Every model and controller of the test project is documented
     text = run()
     assert text.startswith('# Prepare this SimpleDomControl project for `sdc_teach`')
-    assert text.rstrip().endswith('Nothing to do: every SDC model and controller of the project is documented.')
+    assert text.rstrip().endswith(
+        'Nothing to do: every SDC model, controller and button action of the project is documented.')
     text = run('--all')
     assert '## All models and controllers' in text
     assert '- Model `Book` (main_test): main_test/models.py:' in text
     assert ('- Controller `<error404>` (main_test): '
             'main_test/Assets/src/main_test/controller/error_404/error_404.js:') in text
     assert '  Current documentation:\n  > ' in text
+    assert '## All button actions' in text
+    assert ('- Button action `add_x()` of `<book-edit>` (main_test): '
+            'main_test/Assets/src/main_test/controller/book_edit/book_edit.js:') in text
 
 
 def test_app_skill_json(tmp_path):
@@ -221,7 +225,8 @@ def test_app_skill_json(tmp_path):
          'fields': [{'name': 'author', 'type': 'ForeignKey', 'related': 'Author'}]}])
     assert list(data['controllers']) == ['admin-only', 'book-edit']
     assert data['controllers']['book-edit'] == {'doc': 'Edits a `Book`.', 'view_class': 'main_test.sdc_views.BookEdit',
-                                                'url': '/sdc_view/main_test/book_edit/<int:pk>', 'url_params': ['pk']}
+                                                'url': '/sdc_view/main_test/book_edit/<int:pk>', 'url_params': ['pk'],
+                                                'actions': {}}
     assert data['models'] == {'Book': {'doc': 'A book.',
                                        'fields': [{'name': 'author', 'type': 'ForeignKey', 'related': 'Author'}]}}
     write_app_skill(str(tmp_path), data)
@@ -278,3 +283,70 @@ def test_no_unreached_section_when_all_controllers_were_seen():
         'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01',
         'controller_infos': {'main-view': {'app': 'main_test', 'doc': 'Start page.'}}})
     assert 'not reached by the crawl' not in md
+
+
+def test_url_guide_is_part_of_the_skill_file():
+    from sdc_core.management.commands.utils.teach_markdown import SDC_URL_GUIDE
+    md = _render(_tree(_node(['main-view'])))
+    assert SDC_URL_GUIDE in md
+    assert md.index('## How to read SDC URLs') < md.index('## How to operate this app')
+    assert '`N.key` belongs to the view at depth `N`' in SDC_URL_GUIDE
+
+
+def test_button_actions_are_documented():
+    infos = {'main-view': {'app': 'main_test', 'doc': 'Start page.',
+                           'actions': {'onDelete': 'Deletes the book.\n\nCannot be undone.', 'onEcho': None}}}
+    md = render_skill(_tree(_node(['main-view'], buttons=[
+        {'text': 'Delete', 'handlers': ['onDelete'], 'controller': 'main-view', 'toggles': '',
+         'result': 'skipped (denylist / form submit)'},
+        {'text': 'Echo', 'handlers': ['onEcho'], 'controller': 'main-view', 'toggles': '', 'result': 'clicked'},
+    ])), {'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01', 'controller_infos': infos})
+    assert ('"Delete" in `main-view` → `onDelete()` — skipped (denylist / form submit) — '
+            'action: `onDelete()`: Deletes the book.') in md
+    assert '"Echo" in `main-view` → `onEcho()` — clicked\n' in md
+    assert ('Button actions (`sdc_click` handlers):\n- `onDelete()`: Deletes the book.\n'
+            '- `onEcho()`: _No documentation._\n') in md
+
+
+def test_controller_actions_from_template_and_code(tmp_path):
+    from sdc_core.management.commands.utils.teach_controllers import (click_handlers, controller_actions,
+                                                                       method_doc, method_line)
+    own = tmp_path / 'book_list.js'
+    own.write_text("class BookListController extends AbstractSDC {\n"
+                   "    /**\n     * Opens the next page.\n     * @param {jQuery} $btn\n     */\n"
+                   "    async next($btn) {}\n\n"
+                   "    render() { return '<button sdc_click=\\\"reload\\\">R</button>'; }\n"
+                   "    reload() {}\n"
+                   "    removeInstance($btn) {}\n}\n")
+    other = tmp_path / 'other.js'
+    other.write_text("class X extends AbstractSDC {\n  /** Reloads the list. */\n  reload() {}\n}\n")
+    assert click_handlers('<a sdc_click="next  this.event_x">', '<b sdc_click=\'next\'>') == ['next']
+    assert method_doc(own.read_text(), 'next') == 'Opens the next page.'
+    assert method_doc(own.read_text(), 'reload') is None
+    assert method_line(str(own), 'reload') == 9
+    infos = {'book-list': {'file': str(own), 'view_class': 'missing.View'},
+             'other': {'file': str(other), 'view_class': ''}}
+    # "next" comes from the template of the server view, here: a template handler defined by the class
+    controller_actions(infos, template_handlers=['next', 'removeInstance', 'unknown'])
+    assert infos['book-list']['actions'] == {'reload': 'Reloads the list.', 'next': 'Opens the next page.',
+                                             'removeInstance': None}
+    assert infos['other']['actions'] == {}
+
+
+def test_controller_actions_of_the_test_project():
+    from sdc_core.management.commands.utils.teach_controllers import sdc_controllers
+    infos = sdc_controllers()
+    assert infos['book-edit']['actions'] == {
+        'add_x': 'Appends " X" to the book title in the form and sets the author to the record with id 1; nothing '
+                 'is saved\nuntil the form is saved.'}
+    assert infos['sdc-list-view']['actions']['removeInstance'].startswith('Deletes the record')
+
+
+def test_apply_app_skills_actions():
+    from sdc_core.management.commands.utils.teach_apps import apply_app_skills
+    skills = {'main_test': {'controllers': {'book-edit': {'doc': None, 'actions': {'add_x': 'json', 'save': None}}}}}
+    controllers = {'book-edit': {'app': 'main_test', 'doc': 'x', 'actions': {'add_x': 'code', 'other': None}}}
+    apply_app_skills([], controllers, skills, prefer_json=False)
+    assert controllers['book-edit']['actions'] == {'add_x': 'code', 'other': None}
+    apply_app_skills([], controllers, skills, prefer_json=True)
+    assert controllers['book-edit']['actions'] == {'add_x': 'json', 'other': None}

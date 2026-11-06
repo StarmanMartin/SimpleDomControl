@@ -123,6 +123,20 @@
       color: var(--bs-secondary-color, #6c757d);
     }
 
+    // Question before a risky click (Allow / Deny)
+    &.ai-confirm {
+      font-size: .9rem;
+      color: inherit;
+      background: var(--bs-warning-bg-subtle, #fff3cd);
+    }
+
+    .ai-confirm-buttons {
+      display: flex;
+      gap: .5rem;
+      margin-top: .4rem;
+      white-space: normal;
+    }
+
     &.error {
       background: var(--bs-danger-bg-subtle, #f8d7da);
     }

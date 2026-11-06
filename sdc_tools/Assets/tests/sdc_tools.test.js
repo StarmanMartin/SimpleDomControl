@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 
-import {test_utils, trigger} from 'sdc_client';
+import {AbstractSDC, app, test_utils, trigger} from 'sdc_client';
 import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
 import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
+import {jest} from '@jest/globals';
 
 
 describe('SdcNavigator', () => {
@@ -30,6 +31,68 @@ describe('SdcNavigator', () => {
         }
 
         expect(child._text).toBe(textArg);
+    });
+
+    test('redirect takes priority over unfinished nested navigation and queued requests', async () => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        const container = () => $('<div></div>');
+        controller._history_path = ['protected'];
+        controller._origin_target = ['protected', 'unreachable'];
+        controller._process_queue = [['/~queued', true]];
+        controller._current_process = [controller._origin_target, {}];
+        controller._preparedLastViewContainer = () => ({
+            active_container: container(), active_sub_container: container(),
+            empty_container: container(), deeper_sub_container: container(),
+        });
+        const goTo = jest.spyOn(controller, 'goTo').mockImplementation(() => {});
+        const navigate = jest.spyOn(controller, 'navigateToPage');
+        const redirected = {autoRedirect: '<a href=".~login~&next=..">Redirector</a>', controller_name: () => 'Protected'};
+
+        controller.navLoaded(redirected);
+
+        expect(navigate).not.toHaveBeenCalled();
+        expect(goTo).toHaveBeenCalledTimes(1);
+        expect(goTo.mock.calls[0][0]).toContain('.~login~&next=/~protected');
+        expect(controller._process_queue).toEqual([['/~queued', true]]);
+        expect(redirected.autoRedirect).toBeNull();
+        expect(controller._is_processing).toBe(false);
+        controller._process_queue = [];
+        goTo.mockRestore();
+        navigate.mockRestore();
+    });
+
+    test('a redirect while loading a nested route opens the destination once', async () => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        class RedirectTestController extends AbstractSDC {
+            constructor() {
+                super();
+                this.contentUrl = '/redirect-test';
+                this.contentReload = true;
+            }
+        }
+        app.register(RedirectTestController);
+        if (!app.tagNames.includes('redirect-test')) app.tagNames.push('redirect-test');
+        const originalGet = $.get.bind($);
+        const get = jest.spyOn($, 'get').mockImplementation((url, args) => {
+            if (url === '/redirect-test') {
+                return Promise.reject({status: 301, responseJSON: {
+                    'url-link': '<a href=".~sdc-dummy~&text=Destination">Redirector</a>',
+                }});
+            }
+            return originalGet(url, args);
+        });
+        const navigate = jest.spyOn(controller, 'navigateToPage');
+        try {
+            trigger('goTo', '/redirect-test/unreachable');
+            await new Promise(resolve => setTimeout(resolve, 600));
+            expect(controller.find('.sdc_sub_detail_container.active').last().text().trim()).toBe('Destination');
+            expect(controller.$container.text()).not.toContain('Redirected');
+            expect(get.mock.calls.filter(([url]) => url === '/redirect-test')).toHaveLength(1);
+            expect(navigate.mock.calls.filter(([path]) => path.at(-1) === 'sdc-dummy')).toHaveLength(1);
+        } finally {
+            get.mockRestore();
+            navigate.mockRestore();
+        }
     });
 
     test('Navigate same level [A]', async () => {
@@ -462,6 +525,116 @@ describe('SdcAiAssistant', () => {
             const index = controller._readPage().forms.findIndex((f) => f.fields.some((x) => x.name === 'z'));
             expect(controller._fillForm({form: index, values: {z: '1'}}).warning).toContain('not visible');
             $hidden.remove();
+        });
+
+        describe('buttons and links', () => {
+            let $buttons, clicks, nav, savedNav;
+            const element = (text) => controller._readPage().elements.find((e) => e.text === text);
+
+            beforeEach(() => {
+                // A navigator stub: the assistant resolves and opens SDC links with its functions
+                savedNav = window.sdcNav;
+                nav = {
+                    _non_controller_path_prefix: '/', _is_processing: false, opened: [],
+                    _prepareUrl: (href) => href.replace(/^\.\.~/, '~main-view~'),
+                    _handleUrl(href) {
+                        this._non_controller_path_prefix = 'changed';
+                        return {href: `/${href}`, path: href.split('~').filter(Boolean), args: {}};
+                    },
+                    goTo(path) {
+                        this.opened.push(path);
+                    },
+                };
+                window.sdcNav = nav;
+                $buttons = $(`<ai-button-view>
+                    <button class="ai-next" type="button" sdc_click="nextPage">Next</button>
+                    <button class="ai-delete" type="button" sdc_click="removeInstance">Remove Jane</button>
+                    <button class="ai-off" type="button" disabled>Off</button>
+                    <a class="navigation-links" href="..~book-list">Books</a>
+                    <a href="https://example.com/help">Help</a>
+                    <a href="#top">Top</a>
+                    <form><input name="search" class="timer-change"><button>Find</button></form>
+                    <button class="invisible">Hidden</button>
+                </ai-button-view>`).appendTo($page);
+                clicks = [];
+                $buttons.find('button').each(function () {
+                    this.addEventListener('click', (ev) => {
+                        ev.preventDefault();
+                        clicks.push(this.textContent);
+                    });
+                });
+                controller._socket = {readyState: WebSocket.OPEN, send: () => null};
+            });
+
+            afterEach(() => {
+                window.sdcNav = savedNav;
+                controller._socket = null;
+                controller.find('.ai-messages').empty();
+                $buttons.remove();
+            });
+
+            test('read_page lists the visible buttons and links with the navigator\'s link targets', () => {
+                const page = controller._readPage();
+                expect(element('Next')).toMatchObject({kind: 'button', controller: 'ai-button-view',
+                    handlers: ['nextPage']});
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                expect(element('Remove Jane').needs_confirmation).toBe(true);
+                expect(element('Off')).toMatchObject({clickable: false, reason: 'the element is disabled'});
+                expect(element('Books')).toMatchObject({kind: 'link', href: '/~main-view~book-list'});
+                expect(element('Help')).toMatchObject({external: true, clickable: false});
+                expect(element('Find')).toMatchObject({clickable: false});
+                expect(element('Find').reason).toContain('submits a form');
+                expect(page.elements.some((e) => e.text === 'Hidden')).toBe(false);
+                // Resolving a link does not change the navigator
+                expect(nav._non_controller_path_prefix).toBe('/');
+                expect(page.html).toContain(`data-ai-element="${element('Next').index}"`);
+                expect(document.querySelector('[data-ai-element]')).toBeNull();
+                // A search bar updates its view on change
+                const search = page.forms.find((f) => f.fields.some((x) => x.name === 'search'));
+                expect(search.updates_on_change).toBe(true);
+                expect(controller._fillForm({form: search.index, values: {search: 'jane'}}).note)
+                    .toContain('updates by itself');
+            });
+
+            test('click runs a button\'s handler and opens SDC links with the navigator', async () => {
+                const result = await controller._click({element: element('Next').index});
+                expect(clicks).toEqual(['Next']);
+                expect(result).toMatchObject({clicked: 'Next', navigated: false});
+                await controller._click({element: element('Books').index});
+                expect(nav.opened).toEqual(['..~book-list']);
+                await expect(controller._click({element: element('Find').index})).rejects.toThrow('submits a form');
+                await expect(controller._click({element: element('Help').index})).rejects.toThrow('leaves the app');
+                await expect(controller._click({element: 999})).rejects.toThrow('There is no element 999');
+                expect(clicks).toEqual(['Next']);
+            });
+
+            test('a risky click waits for the user\'s permission', async () => {
+                const action = {tool_use_id: 'c', name: 'click', input: {element: element('Remove Jane').index}};
+                let running = controller._runActions([action], controller._requestId);
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                expect(controller.find('.ai-confirm').text()).toContain('wants to click "Remove Jane"');
+                controller.find('.ai-confirm-deny').trigger('click');
+                let [result] = await running;
+                expect(result.is_error).toBe(true);
+                expect(result.content).toContain('did not allow');
+                expect(clicks).toEqual([]);
+
+                running = controller._runActions([action], controller._requestId);
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                controller.find('.ai-confirm-allow').last().trigger('click');
+                [result] = await running;
+                expect(result).toMatchObject({is_error: false, content: {clicked: 'Remove Jane'}});
+                expect(clicks).toEqual(['Remove Jane']);
+            });
+
+            test('an unanswered question ends with its request', async () => {
+                const action = {tool_use_id: 'c', name: 'click', input: {element: element('Remove Jane').index}};
+                const running = controller._runActions([action], controller._requestId);
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                controller._requestId += 1;
+                expect(await running).toBeNull();
+                expect(clicks).toEqual([]);
+            });
         });
     });
 

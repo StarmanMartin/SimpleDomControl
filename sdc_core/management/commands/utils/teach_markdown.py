@@ -3,6 +3,33 @@ import datetime
 import re
 
 
+SDC_URL_GUIDE_HEADING = '## How to read SDC URLs'
+# The rules of the sdc-navigator (``_prepareUrl`` / ``_handleUrl`` in sdc_navigator.js); part of every skill file and,
+# without one, of the AI assistant's system prompt
+SDC_URL_GUIDE = SDC_URL_GUIDE_HEADING + """
+
+The app is a single page: the `sdc-navigator` shows nested views (SDC controllers) and the URL lists them.
+
+- `/~parent-view~child-view~&key=value&other=2`: one controller tag per `~` segment, outermost first; every view is \
+rendered inside the previous one. The part before the first `~` (usually `/`) is the Django page.
+- The arguments start at the first `&` (or `?`): `key=value` pairs joined by `&`. Values are URL-decoded; numbers and \
+`true`/`false` become numbers and booleans.
+- A plain key belongs to the deepest view of the path. `N.key` belongs to the view at depth `N` (1 = first view): \
+`/~book-list~book-edit~&1.page=2&pk=3` gives `page=2` to `book-list` and `pk=3` to `book-edit`. A view receives its \
+arguments as `this.params` (`data-*` attributes; `camelCase` keys become `kebab-case`). The links of the current URL \
+show the arguments with their depth (`2.pk=3`).
+- Navigating keeps the arguments of the views above the opened view; the opened view gets only the arguments given.
+- Relative paths are resolved against the current URL: `.` = the current path, `..` = one view up, `*` = keep the \
+view at this depth, `..~other-view` replaces the deepest view, `.~child-view~&pk=3` opens a view below the current \
+one. A path that does not start with `/`, `~`, `.` or `*` also opens below the current view (`book-edit` = \
+`.~book-edit`).
+- An empty path (`/`) opens the navigator's default controller; a view may open a default child view by itself.
+- An unknown tag shows `sdc-error 404`; a view the user may not open shows `sdc-error 403`.
+- `window.sdcNav.goTo(path, {key: value})`, the `goTo` event and links with the class `navigation-links` navigate \
+without reloading the page (the AI assistant's `navigate` and `click` do the same). Opening the URL directly loads \
+the whole page."""
+
+
 def _type_of(values):
     types = set()
     for v in values:
@@ -75,11 +102,23 @@ def _effects(b):
     return '; '.join(filter(None, effect))
 
 
-def _render_buttons(buttons, pad, lines):
+def _summary(doc):
+    """The first paragraph of a doc comment on one line."""
+    return ' '.join((doc or '').strip().split('\n\n')[0].split())
+
+
+def _action_docs(button, infos):
+    """The documented actions (JSDoc of the ``sdc_click`` handlers) of a button."""
+    actions = (infos.get(button.get('controller')) or {}).get('actions') or {}
+    return [f'`{h}()`: {_summary(actions[h])}' for h in button['handlers'] if actions.get(h)]
+
+
+def _render_buttons(buttons, pad, lines, infos=None):
     for b in buttons:
         handler = ', '.join(f'`{h}()`' for h in b['handlers']) or 'no sdc_click handler'
+        docs = _action_docs(b, infos or {})
         lines.append(f'{pad}- "{b["text"] or "(no label)"}" in {_code(b["controller"])} → {handler} — '
-                     f'{_effects(b)}')
+                     f'{_effects(b)}' + (f' — action: {"; ".join(docs)}' if docs else ''))
 
 
 def _render_forms(forms, pad, lines):
@@ -102,7 +141,7 @@ def _render_links(links, pad, lines):
         lines.append(f'{pad}- "{l["text"]}" → {_code(l["target"]["href"])}{flags}')
 
 
-def _render_node(node, children, nodes, lines, indent, logged_in_label):
+def _render_node(node, children, nodes, lines, indent, logged_in_label, infos=None):
     pad = '  ' * indent
     flags = []
     if node.get('requires_login') or node['seen_as'] == {logged_in_label}:
@@ -130,7 +169,7 @@ def _render_node(node, children, nodes, lines, indent, logged_in_label):
         _render_links(node['links'], pad + '  ', lines)
     if node['buttons']:
         lines.append(f'{pad}- Buttons:')
-        _render_buttons(node['buttons'], pad + '  ', lines)
+        _render_buttons(node['buttons'], pad + '  ', lines, infos)
     if node['forms']:
         lines.append(f'{pad}- Forms:')
         _render_forms(node['forms'], pad + '  ', lines)
@@ -142,7 +181,7 @@ def _render_node(node, children, nodes, lines, indent, logged_in_label):
         lines.append(f'{pad}- Non-SDC links: {", ".join(map(_code, external))}')
 
     for child in children.get(node['key'], []):
-        _render_node(nodes[child], children, nodes, lines, indent + 1, logged_in_label)
+        _render_node(nodes[child], children, nodes, lines, indent + 1, logged_in_label, infos)
 
 
 def url_params(url):
@@ -165,6 +204,17 @@ def _render_controllers(tags, infos, lines, show_app=True, heading='## Controlle
         lines += [f'### `<{tag}>`', '', info['doc'].strip() if info.get('doc') else '_No documentation._', '']
         if any(source):
             lines += ['_' + ', '.join(filter(None, source)) + '_', '']
+        _render_actions(info.get('actions'), lines)
+
+
+def _render_actions(actions, lines):
+    """What the controller's buttons do: the JSDoc of every ``sdc_click`` handler of its template and code."""
+    if not actions:
+        return
+    lines.append('Button actions (`sdc_click` handlers):')
+    for handler, doc in sorted(actions.items()):
+        lines.append(f'- `{handler}()`: ' + (_summary(doc) if doc else '_No documentation._'))
+    lines.append('')
 
 
 def _render_models(models, lines, show_app=True):
@@ -186,7 +236,8 @@ def render_skill(tree, meta):
     """
     :param tree: ``{'nodes': {key: node}, 'errors': [...], 'global': {...}}`` from ``Crawler.crawl`` / ``merge_crawls``
     :param meta: ``project``, ``crawled_as`` (list), ``logged_in_label``,
-                 ``controller_infos`` (``{tag: {'app', 'view_class', 'url', 'doc'}}``), optional ``models``
+                 ``controller_infos`` (``{tag: {'app', 'view_class', 'url', 'doc', 'actions'}}``, ``actions``:
+                 ``{handler: doc}``), optional ``models``
                  (``[{'name', 'app', 'doc'}]``, see ``teach_models.sdc_models``) and optional ``date``
     """
     nodes = tree['nodes']
@@ -216,19 +267,16 @@ def render_skill(tree, meta):
         f'Generated by `manage.py sdc_teach` on {meta.get("date", datetime.date.today().isoformat())}. '
         f'Crawled as: {", ".join(meta["crawled_as"])}. All paths are relative to the site root.',
         '',
+        SDC_URL_GUIDE,
+        '',
         '## How to operate this app',
         '',
-        '- The app is a single page. Views are SDC controllers nested by the `sdc-navigator`; '
-        'the URL path lists them separated by `~`: `/~parent-view~child-view`.',
-        '- Arguments follow after `~&` as `key=value` pairs joined by `&`: `/~main-view~&id=5`. '
-        'A key may be prefixed with the view depth (`1.id`, `2.id`) to target one view of the path; '
-        'arguments are handed to the view as `data-*` attributes / `this.params`.',
-        '- Relative paths: `..` goes one view up, `*` keeps the current view at that depth, `.` is the current path '
-        '(e.g. `..~other-view`).',
-        '- Navigate in the browser with `window.sdcNav.goTo("/~view-a~view-b", {key: value})` '
-        'or open the URL directly; links with class `navigation-links` do the same.',
+        '- Links of the navigation tree are shown resolved by the `sdc-navigator` (absolute paths with the '
+        'arguments of their view depth).',
         '- Buttons call controller methods named in their `sdc_click` attribute (`sdc_click="method"`); '
-        '`events.click[".selector"]` marks handlers registered in the controller `events` list.',
+        '`events.click[".selector"]` marks handlers registered in the controller `events` list. '
+        '"action:" and the "Button actions" of a controller describe what a handler does (its JSDoc); the '
+        'observed effect of the crawl follows the arrow.',
         '- A view is ready when `window.sdcNav && !window.sdcNav._is_processing` and no '
         '`.sdc_sub_detail_container.loading` element exists.',
         '- Server calls (`this.serverCall(...)`) execute methods of the matching `SDCView` on the server; '
@@ -249,7 +297,7 @@ def render_skill(tree, meta):
     if any(global_items.get(k) for k in ('links', 'buttons', 'forms', 'model_calls')):
         lines += ['## Global navigation (always visible)', '']
         _render_links(global_items.get('links', []), '', lines)
-        _render_buttons(global_items.get('buttons', []), '', lines)
+        _render_buttons(global_items.get('buttons', []), '', lines, meta.get('controller_infos') or {})
         _render_forms(global_items.get('forms', []), '', lines)
         if global_items.get('model_calls'):
             lines.append('- Model socket (on load):')
@@ -258,7 +306,7 @@ def render_skill(tree, meta):
 
     lines += ['## Navigation tree', '']
     for key in roots:
-        _render_node(nodes[key], children, nodes, lines, 0, logged_in_label)
+        _render_node(nodes[key], children, nodes, lines, 0, logged_in_label, meta.get('controller_infos') or {})
     lines.append('')
 
     infos = meta.get('controller_infos') or {}

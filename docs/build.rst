@@ -74,7 +74,7 @@ parameter names of ``onInit`` as ``_on_init_params`` on the class prototype.
 
 .. note::
 
-   The ``sdc_client`` 0.160.2 runtime does not read ``_on_init_params``. Tag
+   The ``sdc_client`` 0.160.3 runtime does not read ``_on_init_params``. Tag
    attributes reach the controller through ``this.params``.
 
 What ``npm run develop`` does

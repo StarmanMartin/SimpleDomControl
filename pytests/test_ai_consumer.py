@@ -117,7 +117,8 @@ def test_prompt_streams_answer_and_keeps_history(monkeypatch):
     assert first['system'][0]['text'].startswith('You are the assistant of this website')
     assert 'https://simpledomcontrol.readthedocs.io/en/latest/' in first['system'][0]['text']
     # SdcModels are read-only for the assistant
-    assert [t['name'] for t in first['tools']] == ['navigate', 'read_page', 'fill_form', 'model_get', 'model_load']
+    assert [t['name'] for t in first['tools']] == ['navigate', 'read_page', 'fill_form', 'click', 'model_get',
+                                                   'model_load']
     assert all(t['eager_input_streaming'] for t in first['tools'])
     assert 'tool_choice' not in first
     # The second request carries the first answer with all of its content blocks
@@ -289,11 +290,12 @@ def test_model_names_are_resolved_or_answered_by_the_server(monkeypatch):
 
 def test_valid_input_of_every_tool_is_accepted():
     valid = {'navigate': {'path': '/~main-view'}, 'read_page': {}, 'fill_form': {'form': 0, 'values': {'a': 'b'}},
-             'model_get': {'model': 'Author', 'id': 1}, 'model_load': {'model': 'Author'}}
+             'click': {'element': 3}, 'model_get': {'model': 'Author', 'id': 1}, 'model_load': {'model': 'Author'}}
     assert sorted(valid) == sorted(t['name'] for t in AI_TOOLS)
     for name, tool_input in valid.items():
         assert _ai_tool_input_error(name, tool_input) is None, name
     assert _ai_tool_input_error('read_page', {'x': 1}).startswith('INVALID_JSON')
+    assert _ai_tool_input_error('click', {'element': '3'}).startswith('INVALID_JSON')
 
 
 def test_read_page_action_is_sent_to_the_client(monkeypatch):
@@ -662,9 +664,15 @@ def test_skill_source_selects_the_knowledge(tmp_path):
         prompt = SDCAiConsumer._system_prompt()
         # The apps' SDC_SKILL.json (main_test and the bundled apps ship one), not the Markdown file
         assert '# Crawled skill' not in prompt and '"controllers"' in prompt
+        # Without the skill file the prompt explains the SDC URLs itself
+        assert prompt.count('## How to read SDC URLs') == 1
+    (tmp_path / 'with_guide.md').write_text('## How to read SDC URLs\n\nFrom sdc_teach.')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='full', SDC_AI_SKILL_FILE='with_guide.md'):
+        assert SDCAiConsumer._system_prompt().count('## How to read SDC URLs') == 1
     with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='none', SDC_AI_ADDITIONAL_SKILL_FILE='old.md'):
         prompt = SDCAiConsumer._system_prompt()
         assert '# Crawled skill' not in prompt and '"controllers"' not in prompt
+        assert '## How to read SDC URLs' not in prompt
         # The note replaces the missing knowledge; additional files are still added
         assert prompt.endswith(AI_NO_SKILL_NOTE + '\n\n# Old skill')
     with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_SOURCE='none', SDC_AI_NO_SKILL_NOTE=''):

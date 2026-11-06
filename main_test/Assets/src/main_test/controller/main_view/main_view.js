@@ -93,6 +93,9 @@ class MainViewController extends AbstractSDC {
         this.refresh();
     }
 
+    /**
+     * Test button: sets the header text to "attr click". Changes no data.
+     */
     attr_sdc_click() {
         this.headerText = 'attr click';
         this.refresh();

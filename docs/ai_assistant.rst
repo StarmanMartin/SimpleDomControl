@@ -222,7 +222,10 @@ What the assistant can do
 The assistant acts through tools that run in the browser:
 
 ``navigate``
-    Opens a view (``/~view~child~&key=value``), like a navigation link.
+    Opens a view (``/~view~child~&key=value``, or relative such as ``..~view``)
+    with ``sdcNav.goTo``, like a navigation link. The system prompt explains how
+    SDC URLs are read (from the skill file, or the same section added by the
+    consumer when there is none; not with ``SDC_AI_SKILL_SOURCE = 'none'``).
 ``read_page``
     Returns the URL, the title, a simplified HTML of the visible page (without
     scripts, styles, hidden elements, most attributes and the assistant itself)
@@ -233,16 +236,33 @@ The assistant acts through tools that run in the browser:
     that SdcModel (``SdcModelPK`` -1: a new record).
     Fields outside a ``<form>`` element (e.g. ``<sdc-password-forgotten>``, the
     search bar of ``<sdc-search-view>``) are listed after the forms as one form
-    per controller element, with ``form_element: false`` and the controller tag.
+    per controller element, with ``form_element: false`` and the controller tag;
+    ``updates_on_change`` marks fields that update their view by themselves,
+    such as the search bar.
+    ``elements`` lists the visible buttons and links (``data-ai-element`` in
+    the HTML) with index, text, controller, ``sdc_click`` handlers and, for SDC
+    links, the target resolved by the ``sdc-navigator`` (``_prepareUrl`` /
+    ``_handleUrl``). Elements the assistant may not click carry
+    ``clickable: false`` and the reason; risky ones ``needs_confirmation``.
 ``fill_form``
     Enters values into inputs, textareas, selects, checkboxes and radios, and
     warns if the form is not visible. It never submits. In SdcModel forms it only fires ``input`` events, not the
     ``change`` event that makes ``sdc-model-form`` edit forms save themselves.
     The values are saved when the user saves the form (or changes another field
     of an auto-saving edit form).
-    Fields outside a form get ``input`` and ``change`` events; nothing is sent
-    until the user clicks the view's button (a search bar filters on
-    ``change``, which only reads data).
+    Fields outside a form get ``input`` and ``change`` events; a search bar
+    (``<sdc-search-view>``) filters its list at once, other views wait for
+    their button.
+``click``
+    Clicks a button or link of the current page by its index from
+    ``read_page``: SDC links open with ``sdcNav.goTo``, buttons run their
+    handlers (e.g. "Next"/"Prev" of a search bar, opening a modal). Never
+    clicked: submit buttons of forms (the user submits), links that leave the
+    app (target, other origin or non-SDC page), hidden and disabled elements.
+    Buttons whose text, handler, title or classes look like delete, remove,
+    save, send, submit, reset or logout are only clicked after the user clicked
+    *Allow* in the chat; *Deny*, a new question or a lost connection cancel the
+    click. Returns the URL afterwards and whether a modal opened.
 ``model_get``, ``model_load``
     Model names are matched case-insensitively; the server answers an unknown
     name at once with the list of available models.
@@ -251,7 +271,9 @@ The assistant acts through tools that run in the browser:
     use the normal model WebSocket, so ``is_authorised`` and ``get_queryset`` of
     the model apply.
 
-Password, hidden and file fields are never read or filled. A response may use
+Password, hidden and file fields are never read or filled. Because the
+assistant can click buttons, it can change data the user may change, but only
+through the page's own buttons and, for risky ones, after the user allowed it. A response may use
 tools in up to five rounds; then the model has to answer.
 
 

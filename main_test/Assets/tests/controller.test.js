@@ -174,8 +174,8 @@ describe('Controller flow redirect [logged out]', () => {
 
     const $div = $('body').find('staff-and-admin');
     expect($div.length).toBeGreaterThan(0);
-    const $header = controller.find('p');
-    expect($header.text()).toBe("Redirected");
+    expect(controller.find('p').text()).not.toContain('Redirected');
+    expect(controller.autoRedirect).toBe('<a href=".~sdc-login~&next=..">Redirector</a>');
   });
 
 });

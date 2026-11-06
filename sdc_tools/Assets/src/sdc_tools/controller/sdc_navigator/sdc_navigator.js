@@ -242,7 +242,9 @@ export class SdcNavigatorController extends AbstractSDC {
     this._breadcrumb[idx] = controller.controller_name();
     this._activeContorller[idx] = controller;
     controller._navController = new WeakRef(this);
-    if (this._origin_target.length !== this._history_path.length) {
+    if (controller.autoRedirect || this._redirectAfterCurrentProcess) {
+      this._checkProcessQueue(controller);
+    } else if (this._origin_target.length !== this._history_path.length) {
       if (this._current_process) this.navigateToPage(this._current_process[0], this._current_process[1]);
     } else {
       this._updateBreadcrumb();
@@ -275,18 +277,19 @@ export class SdcNavigatorController extends AbstractSDC {
   }
 
   _checkProcessQueue(controller) {
-    let next = this._process_queue.shift();
     this._current_process = null;
-    if (next) {
-      this._pushState(next[0], next[1]);
-    } else if (this._redirectAfterCurrentProcess || controller.autoRedirect) {
+    if (this._redirectAfterCurrentProcess || controller.autoRedirect) {
       if(controller.autoRedirect) {
         this._RedirectOnView(controller.autoRedirect);
+        controller.autoRedirect = null;
       }
 
       const temp = this._redirectAfterCurrentProcess;
       this._redirectAfterCurrentProcess = null;
       this.goTo(temp);
+    } else {
+      let next = this._process_queue.shift();
+      if (next) this._pushState(next[0], next[1]);
     }
 
   }

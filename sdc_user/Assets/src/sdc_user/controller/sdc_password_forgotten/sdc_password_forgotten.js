@@ -58,6 +58,10 @@ class SdcPasswordForgottenController extends AbstractSDC {
         return super.onRefresh();
     }
 
+    /**
+     * Sends a password reset e-mail to the user with the entered username or e-mail address; shows an error
+     * message if the field is empty.
+     */
     send_email() {
         const mail = this.find('#id_username').val();
         if (!mail || !mail.trim()) {

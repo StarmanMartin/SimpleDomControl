@@ -59,6 +59,10 @@ class BookEditController extends AbstractSDC {
         return super.onRefresh();
     }
 
+    /**
+     * Appends " X" to the book title in the form and sets the author to the record with id 1; nothing is saved
+     * until the form is saved.
+     */
     add_x() {
       this.model.title ??= ' -> ';
       this.model.title += ' X';

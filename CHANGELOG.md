@@ -8,6 +8,18 @@ The server and the client are released with the same version number.
 ## Unreleased
 
 ### Added
+- AI assistant: new tool `click` presses buttons and links of the current page (index from `read_page`, which now
+  lists the visible buttons and links as `elements`, marked `data-ai-element` in its HTML). SDC links are resolved and
+  opened with the `sdc-navigator` (`_prepareUrl` / `_handleUrl` / `goTo`); `navigate` uses `sdcNav.goTo` too. Form
+  submit buttons and links leaving the app are never clicked; buttons that look like delete/save/send/logout are
+  clicked only after the user allows it in the chat. Search bars (`<sdc-search-view>`) are marked
+  `updates_on_change`: `fill_form` filters the list, `click` pages with "Next"/"Prev".
+- AI assistant: the system prompt explains how SDC URLs are read (from the skill file, otherwise added by the
+  consumer; not with `SDC_AI_SKILL_SOURCE = 'none'`).
+- `sdc_teach`: the skill file starts with the section "How to read SDC URLs" (`~` segments, `N.key` arguments,
+  kept arguments, relative paths). Buttons show the documented action of their `sdc_click` handler (the method's
+  JSDoc) next to the observed effect, and every controller lists its "Button actions". `SDC_SKILL.json` stores
+  them as `actions`; `sdc_prepare_teaching` lists undocumented button actions.
 - `sdc_eval_ai`: evaluates the AI assistant. Runs task files (prompt and paraphrases, user role, start page,
   checks of the final page state, the answer and safety) for every condition (knowledge in the system prompt:
   none, apps, full, an older skill file, ...) and model against a throwaway server, drives the real
