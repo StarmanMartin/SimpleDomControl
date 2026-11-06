@@ -12,7 +12,8 @@
   "scripts": {
     "build": "gulp --gulpfile=Assets/gulpfile.jsx --mode=production",
     "develop": "gulp --gulpfile=Assets/gulpfile.jsx develop --mode=development",
-    "sdc_test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "sdc_test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "update_version": "python3 scripts/update_version.py"
   },
   "jest": {
     "transform": {

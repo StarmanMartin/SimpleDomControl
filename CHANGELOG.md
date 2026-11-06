@@ -27,6 +27,9 @@ The server and the client are released with the same version number.
   for the page to settle. The action round limit is the setting `SDC_AI_MAX_ACTION_ROUNDS` (default 5).
 
 ### Added
+- `scripts/update_version.py` (`yarn update_version`): sets a new version in pyproject.toml, package.json (own
+  version and the `sdc_client` dependency), the package.json template of `sdc_init` and its test snapshot, the
+  docs and the help of `sdc`; `--client-version`, `--dry-run`, `--yes`.
 - AI assistant: `SDC_AI_SKILL_MODE = 'index'` puts an index of the skill data (`SDC_AI_SKILL_DATA_FILE`, one line
   per view, controller and model, plus the recipes) into the system prompt instead of the whole skill file; the
   new server tool `describe` returns the full documentation of one item. `sdc_eval_ai` condition `index[:file]`.
