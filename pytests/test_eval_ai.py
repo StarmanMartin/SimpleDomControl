@@ -167,12 +167,14 @@ def test_episode_metrics():
          'duration_ms': 50, 'system_prompt_sha256': 'h', 'system_prompt_chars': 500, 'tool_calls': []},
     ]
     frames = [{'dir': 'received', 'data': {'type': 'ai_actions'}},
-              {'dir': 'sent', 'data': {'event': 'action_results', 'results': [{'is_error': True}]}}]
+              {'dir': 'sent', 'data': {'event': 'action_results', 'results': [
+                  {'is_error': True, 'content': 'no such view'}, {'is_error': False, 'content': {'url': '/x'}}]}}]
     assert episode_metrics(records, frames) == {
         'model_requests': 2, 'action_rounds': 1, 'tool_calls': 2,
         'tool_calls_by_name': {'navigate': 1, 'model_get': 1}, 'invalid_tool_inputs': 1, 'tool_errors': 1,
         'request_errors': 0, 'usage': {'input_tokens': 30, 'output_tokens': 7, 'cache_read_input_tokens': 9},
-        'model_ms': 150, 'system_prompt_sha256': ['h'], 'system_prompt_chars': 500}
+        'model_ms': 150, 'system_prompt_sha256': ['h'], 'system_prompt_chars': 500,
+        'tool_result_chars': 12 + len('{"url": "/x"}'), 'max_tool_result_chars': 13}
 
 
 def _result(task, condition, run, outcome_, tokens=10):
@@ -313,3 +315,17 @@ def test_retry_errors_and_changed_model_warning(tmp_path):
     assert 'Mistral-4-Small' in warning and warning.count('Model mistral') == 1
     Command._drop_errors(str(out))
     assert [json.loads(line)['run'] for line in out.read_text().splitlines()] == [1]
+
+
+def test_confirm_check():
+    task = validate_task({'id': 'c', 'prompt': 'Delete the book.', 'expect': {'confirm': True}})
+    asked = {'confirmations': ['The assistant wants to click "Remove". Allow it?']}
+    assert check_episode(task, asked)['confirm'] is True
+    assert check_episode(task, {})['confirm'] is False
+    task['expect']['confirm'] = False
+    assert check_episode(task, asked)['confirm'] is False
+    rows = summarize([{'task': 'c', 'condition': 'none', 'model': 'm', 'run': 0, 'outcome': 'pass', 'checks': {},
+                       'confirmations': asked['confirmations'],
+                       'metrics': {'tool_result_chars': 300, 'system_prompt_chars': 900, 'action_rounds': 2}}])
+    assert (rows[0]['confirmations'], rows[0]['tool_result_chars'], rows[0]['system_prompt_chars'],
+            rows[0]['action_rounds']) == (1, 300, 900, 2)

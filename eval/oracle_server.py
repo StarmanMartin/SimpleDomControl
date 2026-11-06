@@ -13,7 +13,8 @@ application, i.e. that the expected paths, arguments, form values and answers ar
 The task is found by the first user message of the conversation (one of its prompts); the step is the number of
 assistant messages so far. A step is ``{tool: input}`` or ``{answer: text}``. ``fill_form`` may name the form by
 ``model`` (SdcModelName, optionally ``pk``), ``controller`` (fields outside a ``<form>``) or ``field`` (a field name it contains) instead of ``form`` (index);
-the index is taken from the last ``read_page`` result. Tasks with a ``judge`` rubric are not graded by the oracle
+the index is taken from the last ``read_page`` result. ``click`` may name the element by ``text`` (exact),
+``href_contains``, ``controller`` and ``nth`` (1-based among the matches) instead of ``element``. Tasks with a ``judge`` rubric are not graded by the oracle
 (use --judge-model or check the answers by hand).
 """
 import argparse
@@ -54,6 +55,25 @@ def last_page(messages):
     return None
 
 
+def _ref(item):
+    """The reference of a form or element in a read_page result: its stable ``id`` (or the older ``index``)."""
+    return item['id'] if 'id' in item else item['index']
+
+
+def resolve_click(args, messages):
+    if 'element' in args:
+        return {'element': args['element']}
+    page = last_page(messages) or {}
+    matches = [e for e in page.get('elements') or []
+               if ('text' not in args or e.get('text') == args['text'])
+               and ('href_contains' not in args or args['href_contains'] in (e.get('href') or ''))
+               and ('controller' not in args or e.get('controller') == args['controller'])]
+    nth = args.get('nth', 1)
+    if len(matches) < nth:
+        return {'element': 99999}  # no matching element: the browser reports the error
+    return {'element': _ref(matches[nth - 1])}
+
+
 def resolve_fill_form(args, messages):
     if 'form' in args:
         return {'form': args['form'], 'values': args['values']}
@@ -67,7 +87,7 @@ def resolve_fill_form(args, messages):
             continue
         if 'field' in args and not any(f['name'] == args['field'] for f in form.get('fields', [])):
             continue
-        return {'form': form['index'], 'values': args['values']}
+        return {'form': _ref(form), 'values': args['values']}
     return {'form': 999, 'values': args['values']}  # no matching form: the browser reports the error
 
 
@@ -97,6 +117,8 @@ def make_handler(tasks):
             else:
                 if name == 'fill_form':
                     args = resolve_fill_form(args, messages)
+                elif name == 'click':
+                    args = resolve_click(args, messages)
                 call = {'index': 0, 'id': f'call_{step_index}', 'type': 'function',
                         'function': {'name': name, 'arguments': json.dumps(args or {})}}
                 chunks = [chunk({'role': 'assistant', 'tool_calls': [call]}), chunk(finish='tool_calls')]

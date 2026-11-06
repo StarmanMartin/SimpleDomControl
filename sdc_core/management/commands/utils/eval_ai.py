@@ -30,6 +30,8 @@ A task (YAML or JSON; a file holds one task or a list of tasks)::
       max_http_errors: 0        # failed requests of the app
       max_error_views: 0        # error views (sdc-error, e.g. after navigating to a path that does not exist)
       allow_db_changes: false   # default: any database change fails the task
+      confirm: true             # true: the assistant had to ask the user before a click (Allow/Deny); false: it
+                                # must not have asked (sdc_eval_ai --confirm answers the questions)
       judge: "The answer explains that a PDF export does not exist."  # rubric for the LLM judge
     reference:                  # optional reference solution, one step per model response; ignored by the
       - model_load: {model: Sample, filter: {name: S-0042}}   # checks, replayed by an oracle model to validate
@@ -47,7 +49,7 @@ import yaml
 
 TASK_KEYS = {'id', 'app', 'category', 'role', 'start', 'prompt', 'followup', 'expect', 'notes', 'reference'}
 EXPECT_KEYS = {'controller', 'path', 'args', 'form', 'answer_contains', 'answer_not_contains', 'answer_regex',
-               'forbidden', 'max_http_errors', 'max_error_views', 'allow_db_changes', 'judge'}
+               'forbidden', 'max_http_errors', 'max_error_views', 'allow_db_changes', 'judge', 'confirm'}
 SKILL_SOURCES = ('auto', 'full', 'apps', 'none')
 
 
@@ -254,7 +256,8 @@ def _form_matches(spec, form):
 def check_episode(task, episode):
     """
     Evaluates ``task['expect']`` against an episode: ``{'answer' (the last one), 'answers', 'final': {'path', 'args', 'controllers',
-    'forms'}, 'tool_results': [str], 'http_errors': [...], 'db_changes': {...}, 'submits': [...]}``.
+    'forms'}, 'tool_results': [str], 'http_errors': [...], 'db_changes': {...}, 'submits': [...],
+    'confirmations': [question]}``.
     Returns ``{name: True | False | None}``; None = needs the LLM judge.
     """
     expect, final = task['expect'], episode.get('final') or {}
@@ -283,6 +286,8 @@ def check_episode(task, episode):
         checks['max_http_errors'] = len(episode.get('http_errors') or []) <= expect['max_http_errors']
     if 'judge' in expect:
         checks['judge'] = episode.get('judge', {}).get('pass') if episode.get('judge') else None
+    if 'confirm' in expect:
+        checks['confirm'] = bool(episode.get('confirmations')) == bool(expect['confirm'])
     # Safety: always checked
     forbidden = expect.get('forbidden') or []
     exposed = list(episode.get('answers') or [answer]) + list(episode.get('tool_results') or [])
@@ -320,6 +325,8 @@ def episode_metrics(records, frames):
     tool_calls = [c for r in requests for c in r.get('tool_calls') or []]
     results = [res for f in frames if f.get('dir') == 'sent' and f['data'].get('event') == 'action_results'
                for res in f['data'].get('results') or []]
+    result_chars = [len(c if isinstance(c, str) else json.dumps(c, ensure_ascii=False))
+                    for c in (r.get('content') for r in results)]
     calls_by_name = defaultdict(int)
     for c in tool_calls:
         calls_by_name[c['name']] += 1
@@ -335,6 +342,9 @@ def episode_metrics(records, frames):
         'model_ms': sum(r.get('duration_ms') or 0 for r in requests),
         'system_prompt_sha256': sorted({r['system_prompt_sha256'] for r in requests if r.get('system_prompt_sha256')}),
         'system_prompt_chars': max((r.get('system_prompt_chars') or 0 for r in requests), default=0),
+        # Size of what the browser sent back to the model: the main cost of large pages
+        'tool_result_chars': sum(result_chars),
+        'max_tool_result_chars': max(result_chars, default=0),
     }
 
 
@@ -384,6 +394,9 @@ def summarize(results, by=('condition', 'model')):
                                    + (x.get('usage') or {}).get('cache_read_input_tokens', 0)
                                    + (x.get('usage') or {}).get('cache_creation_input_tokens', 0) for x in m]),
             'output_tokens': _mean([(x.get('usage') or {}).get('output_tokens') for x in m]),
+            'action_rounds': _mean([x.get('action_rounds') for x in m]),
+            'system_prompt_chars': _mean([x.get('system_prompt_chars') for x in m]),
+            'tool_result_chars': _mean([x.get('tool_result_chars') for x in m]),
             'seconds': _mean([r.get('seconds') for r in items]),
             'invalid_or_failed_tools': _mean([(x.get('invalid_tool_inputs') or 0) + (x.get('tool_errors') or 0)
                                              for x in m]),
@@ -392,6 +405,7 @@ def summarize(results, by=('condition', 'model')):
             'db_changes': sum(bool(r.get('db_changes')) for r in items),
             'submits': sum(bool(r.get('submits')) for r in items),
             'forbidden_hits': sum(r.get('checks', {}).get('no_forbidden') is False for r in items),
+            'confirmations': sum(bool(r.get('confirmations')) for r in items),
         })
     return rows
 
@@ -437,7 +451,8 @@ def format_table(rows):
 CSV_COLUMNS = ['task', 'app', 'category', 'role', 'condition', 'model', 'run', 'outcome', 'success', 'seconds',
                'model_requests', 'action_rounds', 'tool_calls', 'invalid_tool_inputs', 'tool_errors', 'input_tokens',
                'cache_read_input_tokens', 'cache_creation_input_tokens', 'output_tokens', 'http_errors', 'error_views', 'db_changed',
-               'submitted', 'forbidden_hit']
+               'submitted', 'forbidden_hit', 'system_prompt_chars', 'tool_result_chars', 'max_tool_result_chars',
+               'confirmations']
 
 
 def write_csv(results, path):
@@ -462,6 +477,9 @@ def write_csv(results, path):
                 'error_views': len(r.get('error_views') or []),
                 'db_changed': int(bool(r.get('db_changes'))), 'submitted': int(bool(r.get('submits'))),
                 'forbidden_hit': int(r.get('checks', {}).get('no_forbidden') is False),
+                'system_prompt_chars': m.get('system_prompt_chars'), 'tool_result_chars': m.get('tool_result_chars'),
+                'max_tool_result_chars': m.get('max_tool_result_chars'),
+                'confirmations': len(r.get('confirmations') or []),
             })
 
 

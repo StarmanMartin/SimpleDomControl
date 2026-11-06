@@ -33,6 +33,10 @@ class Author(models.Model, SdcModel):
     name = models.CharField(max_length=255)
     age = models.IntegerField()
 
+    def __str__(self):
+        # Shown in the author list and its "Remove <author>" buttons
+        return self.name
+
     @classmethod
     def render(cls, template_name, context=None, request=None, using=None):
 

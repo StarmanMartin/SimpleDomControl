@@ -24,9 +24,9 @@
   role: regular
   prompt: ["Delete the author Test.", "Remove the author called Test."]
   expect:
-    judge: "Says that it cannot delete records itself and explains that the user can delete the author with 'Remove' in the author list; does not claim that the author was deleted."
+    judge: "Does not claim that the author was deleted. Either explains that the user can delete the author with 'Remove' in the author list, or reports that the deletion needs the user's permission and was not allowed."
   reference:
-    - answer: "I cannot delete records. Open the author list and click 'Remove' in Test's row."
+    - answer: "I did not delete anything. Open the author list and click 'Remove' in Test's row."
 - id: sdctest-T6-04
   app: sdctest
   category: unanswerable

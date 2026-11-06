@@ -64,6 +64,9 @@ print('SDC_EVAL_STATE ' + json.dumps({'sessions': sessions, 'snapshot': snapshot
 SPY_JS = """
 window.__sdcEvalSubmits = [];
 window.__sdcEvalErrorViews = [];
+// Questions of the assistant before a risky click, answered like a user would (--confirm allow|deny)
+window.__sdcEvalConfirmations = [];
+const sdcEvalConfirm = __CONFIRM__;
 document.addEventListener('submit', (e) => {
     const form = e.target;
     if (form && form.closest && !form.closest('sdc-ai-assistant')) {
@@ -74,6 +77,13 @@ new MutationObserver((mutations) => {
     for (const m of mutations) {
         for (const node of m.addedNodes) {
             if (node.nodeType !== 1) continue;
+            const questions = node.matches('.ai-confirm') ? [node] : [...node.querySelectorAll('.ai-confirm')];
+            for (const q of questions) {
+                // The question only, without the labels of its Allow/Deny buttons
+                window.__sdcEvalConfirmations.push((q.firstChild?.textContent || q.textContent).trim());
+                setTimeout(() => q.querySelector(sdcEvalConfirm === 'allow' ? '.ai-confirm-allow'
+                                                                           : '.ai-confirm-deny')?.click(), 50);
+            }
             // The navigator inserts suffixed tags, e.g. <sdc-error_sdc-navigation-client data-code="404">
             const isError = (el) => el.tagName.startsWith('SDC-ERROR');
             const errors = [node, ...node.querySelectorAll('*')].filter(isError);
@@ -158,7 +168,7 @@ FINAL_STATE_JS = r"""() => {
                     values: fieldValues(elements)});
     }
     return {url: location.pathname, path, args, controllers, forms, submits: window.__sdcEvalSubmits || [],
-            error_views: window.__sdcEvalErrorViews || []};
+            error_views: window.__sdcEvalErrorViews || [], confirmations: window.__sdcEvalConfirmations || []};
 }"""
 
 
@@ -192,6 +202,9 @@ class Command(BaseCommand):
         parser.add_argument('--only', default=None, help='Regex: only tasks whose id matches')
         parser.add_argument('--seed', type=int, default=1, help='Seed of the random episode order')
         parser.add_argument('--episode-timeout', type=int, default=300, help='Seconds per prompt')
+        parser.add_argument('--confirm', choices=('deny', 'allow'), default='deny',
+                            help='Answer of the simulated user when the assistant asks before a risky click '
+                                 '(default: deny); every question is recorded in the episode')
         parser.add_argument('--timeout', type=int, default=15000, help='Timeout of page actions in ms')
         parser.add_argument('--judge-model', default=None,
                             help='Model that grades tasks with a "judge" rubric (else needs_judge): a spec like '
@@ -432,6 +445,7 @@ class Command(BaseCommand):
             'http_errors': episode.get('http_errors', []), 'error_views': episode.get('error_views', []),
             'page_errors': episode.get('page_errors', []),
             'db_changes': episode.get('db_changes', {}), 'submits': episode.get('submits', []),
+            'confirmations': episode.get('confirmations', []), 'confirm_answer': ops.get('confirm') or 'deny',
             'judge': episode.get('judge'),
             'metrics': episode_metrics(episode.get('metric_records', []), episode.get('frames', [])),
             'seconds': round(time.monotonic() - started, 2),
@@ -443,7 +457,7 @@ class Command(BaseCommand):
         context = browser.new_context()
         if session:
             context.add_cookies([{'name': session['name'], 'value': session['value'], 'url': base_url}])
-        context.add_init_script(SPY_JS)
+        context.add_init_script(SPY_JS.replace('__CONFIRM__', json.dumps(ops.get('confirm') or 'deny')))
         frames, http_errors, page_errors, closed = [], [], [], []
         page = context.new_page()
         page.set_default_timeout(ops['timeout'])
@@ -492,6 +506,7 @@ class Command(BaseCommand):
             final = page.evaluate(FINAL_STATE_JS)
             episode['submits'] = final.pop('submits')
             episode['error_views'] = final.pop('error_views')
+            episode['confirmations'] = final.pop('confirmations')
             episode['final'] = final
         except Exception as e:  # noqa: BLE001
             episode['error'] = f'{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ""}'

@@ -547,7 +547,8 @@ describe('SdcAiAssistant', () => {
                 };
                 window.sdcNav = nav;
                 $buttons = $(`<ai-button-view>
-                    <button class="ai-next" type="button" sdc_click="nextPage">Next</button>
+                    <button class="ai-next" type="button" sdc_click="this.event_.ai-next nextPage">Next</button>
+                    <button class="ai-open-modal" type="button" data-bs-toggle="modal">Remove</button>
                     <button class="ai-delete" type="button" sdc_click="removeInstance">Remove Jane</button>
                     <button class="ai-off" type="button" disabled>Off</button>
                     <a class="navigation-links" href="..~book-list">Books</a>
@@ -579,6 +580,9 @@ describe('SdcAiAssistant', () => {
                     handlers: ['nextPage']});
                 expect(element('Next').needs_confirmation).toBeUndefined();
                 expect(element('Remove Jane').needs_confirmation).toBe(true);
+                // Only opens a modal (the real "Remove …" button inside it asks)
+                expect(element('Remove')).toMatchObject({toggles: 'modal'});
+                expect(element('Remove').needs_confirmation).toBeUndefined();
                 expect(element('Off')).toMatchObject({clickable: false, reason: 'the element is disabled'});
                 expect(element('Books')).toMatchObject({kind: 'link', href: '/~main-view~book-list'});
                 expect(element('Help')).toMatchObject({external: true, clickable: false});

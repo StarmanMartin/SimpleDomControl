@@ -861,9 +861,12 @@ class SdcAiAssistantController extends AbstractSDC {
             .replace(/\s+/g, ' ').trim().slice(0, 80);
     }
 
-    /** The controller methods named in ``sdc_click``. */
+    /**
+     * The controller methods named in ``sdc_click``, without the ``this.event_…`` entries that SDC adds for
+     * handlers of the controller's ``events`` list (e.g. ``this.event_.navigation-links``).
+     */
     _elementHandlers(el) {
-        return (el.getAttribute('sdc_click') || '').split(/\s+/).filter(Boolean);
+        return (el.getAttribute('sdc_click') || '').split(/\s+/).filter((h) => h && !h.startsWith('this.event_'));
     }
 
     /**
@@ -923,6 +926,11 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         if (this._linkTarget(el)?.external) {
             return {blocked: 'the link leaves the app; give the user the link instead'};
+        }
+        // Only shows or hides something (a modal, a collapsed menu): e.g. the "Remove" button of a list row opens
+        // the modal with the real "Remove …" button, which then asks
+        if (el.getAttribute('data-bs-toggle') && !this._elementHandlers(el).length && el.tagName !== 'A') {
+            return {};
         }
         const text = [this._elementText(el), this._elementHandlers(el).join(' '), el.title || '',
             el.getAttribute('aria-label') || '', typeof el.className === 'string' ? el.className : '',

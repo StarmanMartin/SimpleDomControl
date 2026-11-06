@@ -1,5 +1,6 @@
 """
-Writes eval/sdctest/fixture.json: the data of the SdcTest evaluation (manage.py sdc_eval_ai).
+Writes eval/sdctest/fixture.json (the data of the SdcTest evaluation, manage.py sdc_eval_ai) and
+eval/sdctest/fixture_large.json (the same plus long lists, for tasks_large/).
 
 Run from SimpleDomControl/:  python manage.py shell -c "exec(open('eval/sdctest/build_fixture.py').read())"
 
@@ -52,3 +53,17 @@ with open(OUT, 'w') as f:
     json.dump(data, f, indent=1)
     f.write('\n')
 print(f'Wrote {OUT}: {len(data)} objects')
+
+# Large-list variant for the tasks in tasks_large/: the same data plus 300 authors and 1000 books, so that lists
+# need searching and paging (the book list shows 20 rows per page, ordered by title: "Atlas 0000" comes first).
+# Book "Atlas NNNN" (pk 101 + NNNN) is written by "Writer MMM" with MMM = NNNN % 300 + 1 (author pk 100 + MMM).
+LARGE_OUT = os.path.join('eval', 'sdctest', 'fixture_large.json')
+large = list(data)
+large += [{'model': 'main_test.author', 'pk': 100 + i, 'fields': {'name': f'Writer {i:03d}', 'age': 20 + i % 60}}
+          for i in range(1, 301)]
+large += [{'model': 'main_test.book', 'pk': 101 + i, 'fields': {'title': f'Atlas {i:04d}', 'author': 100 + i % 300 + 1}}
+          for i in range(1000)]
+with open(LARGE_OUT, 'w') as f:
+    json.dump(large, f, indent=1)
+    f.write('\n')
+print(f'Wrote {LARGE_OUT}: {len(large)} objects')
