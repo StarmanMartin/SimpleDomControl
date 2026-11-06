@@ -187,6 +187,16 @@ same name.
      - Path of the skill file (relative to ``BASE_DIR``); ``None``:
        ``SDC_SKILL.assistant.md`` (written by ``sdc_teach`` for the assistant)
        if it exists, else ``SDC_SKILL.md``.
+   * - ``SDC_AI_SKILL_MODE``
+     - ``'full'``
+     - ``'full'``: the whole skill file in the system prompt; ``'index'``: one
+       line per view, controller and model (from ``SDC_AI_SKILL_DATA_FILE``)
+       and the server tool ``describe`` for the details, so the prompt stays
+       small however large the app is. Falls back to ``'full'`` when the data
+       file is missing or of another format.
+   * - ``SDC_AI_SKILL_DATA_FILE``
+     - ``'SDC_SKILL.data.json'``
+     - The skill data written by ``sdc_teach`` (relative to ``BASE_DIR``).
    * - ``SDC_AI_NO_SKILL_NOTE``
      - see ``sdc_core.consumers.AI_NO_SKILL_NOTE``
      - Used instead of the knowledge if there is none (it tells the model to
@@ -290,6 +300,12 @@ The assistant acts through tools that run in the browser:
     save, send, submit, reset or logout are only clicked after the user clicked
     *Allow* in the chat; *Deny*, a new question or a lost connection cancel the
     click. Returns the URL afterwards and whether a modal opened.
+``describe`` (index mode only)
+    Answered by the server from the skill data, without the browser: the full
+    documentation of one view, controller or model of the index (arguments,
+    links, buttons and their actions, forms, recipes); unknown names get the
+    closest matches. Up to five rounds of only ``describe`` per answer do not
+    count as action rounds.
 ``model_get``, ``model_load``
     Model names are matched case-insensitively; the server answers an unknown
     name at once with the list of available models.

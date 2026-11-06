@@ -22,6 +22,9 @@ The server and the client are released with the same version number.
   for the page to settle. The action round limit is the setting `SDC_AI_MAX_ACTION_ROUNDS` (default 5).
 
 ### Added
+- AI assistant: `SDC_AI_SKILL_MODE = 'index'` puts an index of the skill data (`SDC_AI_SKILL_DATA_FILE`, one line
+  per view, controller and model, plus the recipes) into the system prompt instead of the whole skill file; the
+  new server tool `describe` returns the full documentation of one item. `sdc_eval_ai` condition `index[:file]`.
 - `sdc_teach --users-file roles.yaml`: crawls once per role; every view says which roles may open it. The crawl
   also opens the generic views of every SDC model (list, detail, create, edit; `--no-model-routes` skips them)
   and the skill file starts with *Common tasks*: generic recipes, the model routes with the roles that opened
@@ -95,6 +98,7 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: tool calls of the model after the round limit forced an answer are not run (no endless loop).
 - AI assistant: actions and the window-resize handler ran on the temporary instance from which sdc_client builds
   the controller (`agileAggregation`), not on the controller itself.
 - AI assistant: `model_load` / `model_get` with a model name that is not an SdcModel (`User`, `AuthUser`) or not

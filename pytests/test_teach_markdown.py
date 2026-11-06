@@ -502,3 +502,21 @@ def test_model_routes_and_recipes():
             '`/~sdc-model-form~&model=Author` (not verified)') in md
     assert 'delete: "Remove" in its list' in md
     assert '### Register (`<register>`)\n\n1. Open `/~register`.\n2. Fill the form.\n' in md
+
+
+def test_index_and_describe_of_models_and_controllers():
+    from sdc_core.management.commands.utils.teach_data import build_skill_data
+    from sdc_core.management.commands.utils.teach_markdown import describe, render_index
+    infos = {'sdc-list-view': {'app': 'sdc_tools', 'doc': 'Generic list. Shows records.'},
+             'sdc-model-form': {'app': 'sdc_tools', 'doc': 'Form.', 'summary': 'Create/edit form of a record.'}}
+    author = {'name': 'Author', 'app': 'main_test', 'doc': 'An author.\n\nMore.', 'views': {'list': True},
+              'fields': [{'name': 'name', 'type': 'CharField', 'related': None}]}
+    data = build_skill_data(_tree(), {'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01',
+                                      'controller_infos': infos, 'models': [author]})
+    index = render_index(data)
+    assert '- `sdc-list-view` — Generic list.' in index
+    assert '- `sdc-model-form` — Create/edit form of a record.' in index
+    assert '- `Author` — An author. Fields: name.' in index
+    text = describe(data, 'author')
+    assert text.startswith('### `Author` (main_test)') and 'Views: list `/~sdc-list-view~&model=Author`' in text
+    assert describe(data, '<sdc-list-view>').startswith('_No crawled link opened this view')

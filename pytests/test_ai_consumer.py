@@ -779,3 +779,79 @@ def test_openai_usage_is_recorded(monkeypatch, tmp_path):
     record = json.loads(metrics.read_text())
     assert record['usage'] == {'input_tokens': 50, 'output_tokens': 7, 'cache_read_input_tokens': 40}
     assert record['provider'] == 'openai-compatible' and record['model'] == 'GPT-OSS:120b'
+
+
+# ------------------------------------------------------------------ index mode (SDC_AI_SKILL_MODE = 'index')
+def _write_skill_data(path):
+    from sdc_core.management.commands.utils.teach_data import build_skill_data
+    tree = {'nodes': {'login?': {
+        'key': 'login?', 'href': '/~sdc-login', 'path': ['sdc-login'], 'nav_idx': 0, 'args': {'1.next': ['..']},
+        'depth': 0, 'via': 'start', 'seen_as': {'anonymous'}, 'error_code': None, 'headings': ['Login'],
+        'controllers': [{'tag': 'sdc-login', 'url_params': [], 'parent': None, 'nav_idx': 0}], 'url_params': [],
+        'links': [], 'external': [], 'forms': [], 'buttons': [
+            {'text': 'Send', 'handlers': ['send_email'], 'controller': 'sdc-login', 'toggles': '', 'result': 'clicked'}],
+    }}, 'errors': [], 'global': {}}
+    infos = {'sdc-login': {'app': 'sdc_user', 'doc': 'Login form for users. Starts a session.',
+                           'actions': {'send_email': 'Sends a reset mail.'}},
+             'sdc-navigator': {'app': 'sdc_tools', 'doc': 'Frame.', 'hidden': True}}
+    models = [{'name': 'Author', 'app': 'main_test', 'doc': 'An author of books.',
+               'fields': [{'name': 'name', 'type': 'CharField', 'related': None}], 'views': {}}]
+    data = build_skill_data(tree, {'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01',
+                                   'controller_infos': infos, 'models': models})
+    path.write_text(json.dumps(data, default=str))
+
+
+INDEX = dict(SDC_AI_SKILL_MODE='index', SDC_AI_SKILL_SOURCE='auto', SDC_AI_SKILL_FILE=None)
+
+
+def _describe(id, name):
+    return SimpleNamespace(type='tool_use', id=id, name='describe', input={'name': name})
+
+
+def test_index_mode_prompt_lists_one_line_per_item(tmp_path):
+    _write_skill_data(tmp_path / 'SDC_SKILL.data.json')
+    (tmp_path / 'SDC_SKILL.md').write_text('# Full skill file')
+    with override_settings(BASE_DIR=tmp_path, **INDEX):
+        prompt = SDCAiConsumer._system_prompt()
+        assert '## Index of this website' in prompt and '# Full skill file' not in prompt
+        assert '- `sdc-login` `/~sdc-login` — Login form for users.; args: next' in prompt
+        assert '- `Author` — An author of books. Fields: name.' in prompt
+        assert '- `sdc-navigator`' not in prompt  # @ai-hidden
+        assert prompt.count('## How to read SDC URLs') == 1
+    # Without the data file (or with another format) the full skill file is used
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_DATA_FILE='missing.json', **INDEX):
+        assert SDCAiConsumer._system_prompt().endswith('# Full skill file')
+    with override_settings(SDC_AI_SKILL_MODE='summary'), pytest.raises(Exception, match='SDC_AI_SKILL_MODE'):
+        SDCAiConsumer._system_prompt()
+
+
+def test_describe_is_answered_on_the_server_without_an_action_round(tmp_path, monkeypatch):
+    _write_skill_data(tmp_path / 'SDC_SKILL.data.json')
+    client = FakeClient(script=[
+        ((), 'tool_use', [_describe('d1', '<SDC-Login>'), _describe('d2', 'logn')]),
+        (('Done',), 'end_turn', ())])
+    with override_settings(BASE_DIR=tmp_path, **AI, **INDEX):
+        _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'How do I log in?'}], client, monkeypatch)
+    # Nothing went to the browser; the model got both results and answered
+    assert [m['type'] for m in received if m['type'] != 'ai_delta'] == ['ai_answer']
+    assert 'describe' in [t['name'] for t in client.calls[0]['tools']]
+    results = {r['tool_use_id']: r for r in client.calls[1]['messages'][-1]['content']}
+    assert not results['d1']['is_error'] and '### `<sdc-login>`' in results['d1']['content']
+    assert 'action: `send_email()`: Sends a reset mail.' in results['d1']['content']
+    assert results['d2']['is_error'] and 'Close matches: sdc-login' in results['d2']['content']
+
+
+def test_describe_rounds_are_free_but_limited(tmp_path, monkeypatch):
+    from sdc_core.consumers import AI_MAX_DESCRIBE_ROUNDS
+    _write_skill_data(tmp_path / 'SDC_SKILL.data.json')
+    client = FakeClient(script=[((), 'tool_use', [_describe('d', 'Author')])])  # forever
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_MAX_ACTION_ROUNDS=1, **AI, **INDEX):
+        run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Loop'}], client, monkeypatch)
+    # Free describe rounds, then they count: one action round, then the forced answer
+    assert len(client.calls) == AI_MAX_DESCRIBE_ROUNDS + 2
+    assert client.calls[-1]['tool_choice'] == {'type': 'none'}
+    # Without index mode there is no describe tool
+    with override_settings(BASE_DIR=tmp_path, **AI, SDC_AI_SKILL_MODE='full'):
+        client = FakeClient()
+        run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], client, monkeypatch)
+    assert 'describe' not in [t['name'] for t in client.calls[0]['tools']]

@@ -614,6 +614,12 @@ AI_MAX_TOKENS_LIMIT = 128000
 # (``SDC_AI_SKILL_FILE``) if it exists, else the apps' SDC_SKILL.json; 'full' = only the skill file (an error if it
 # is missing); 'apps' = only the apps' SDC_SKILL.json; 'none' = no knowledge (e.g. as baseline of an evaluation)
 AI_SKILL_SOURCES = ('auto', 'full', 'apps', 'none')
+# How the knowledge of sdc_teach goes into the prompt (``SDC_AI_SKILL_MODE``): 'full' = the whole skill file;
+# 'index' = one line per view, controller and model (from ``SDC_AI_SKILL_DATA_FILE``) plus the server tool
+# ``describe`` for the details - the prompt stays small however large the app is
+AI_SKILL_MODES = ('full', 'index')
+# describe calls answered on the server per answer before they count as action rounds
+AI_MAX_DESCRIBE_ROUNDS = 5
 # Added to the system prompt instead of the knowledge if there is none (``SDC_AI_NO_SKILL_NOTE``, '' disables it):
 # the default prompt refers to a context below
 AI_NO_SKILL_NOTE = ('No generated description of the views and data models of this website is available. Explore '
@@ -628,13 +634,17 @@ class AiConfigError(ValueError):
     """An invalid value in the user's AI settings; the message is shown to the user."""
 
 
-# System prompt of the assistant, built once per process (see ``SDCAiConsumer._cached_system_prompt``)
+# System prompt and skill data of the assistant, built once per process (see
+# ``SDCAiConsumer._cached_system_prompt`` / ``_cached_skill_data``)
 _ai_system_prompt = None
+_UNSET = object()
+_ai_skill_data = _UNSET
 
 
 def _ai_reset_system_prompt(**kwargs):
-    global _ai_system_prompt
+    global _ai_system_prompt, _ai_skill_data
     _ai_system_prompt = None
+    _ai_skill_data = _UNSET
 
 
 # Tests that override settings get a new prompt
@@ -833,6 +843,18 @@ AI_TOOLS = [
                                      'filter': {'type': 'object', 'description': 'Django field lookups, '
                                                 'e.g. {"author__name": "Jane"}; omit to load all records'}}}},
 ]
+# Server tool of the index mode: answered by the consumer from the skill data, never sent to the browser
+AI_DESCRIBE_TOOL = {
+    'name': 'describe',
+    'description': 'Full documentation of one view, controller or SdcModel of this website from the index: '
+                   'arguments, links, buttons and what they do, forms and fields, recipes. Answered at once, '
+                   'without acting on the page.',
+    'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['name'],
+                     'properties': {'name': {'type': 'string', 'description': 'View or controller tag (e.g. '
+                                                                              '"sdc-login") or model name'}}},
+}
+AI_SERVER_TOOLS = ('describe',)
+
 _AI_JSON_TYPES = {'string': str, 'integer': int, 'object': dict, 'array': list}
 
 
@@ -844,7 +866,7 @@ def _ai_type_ok(value, json_type):
 
 def _ai_tool_input_error(name, tool_input):
     """Validates a tool call against ``AI_TOOLS`` (inputs may arrive truncated while streaming); None if valid."""
-    tool = next((t for t in AI_TOOLS if t['name'] == name), None)
+    tool = next((t for t in AI_TOOLS + [AI_DESCRIBE_TOOL] if t['name'] == name), None)
     if tool is None:
         return f'Unknown tool {name}'
     if not isinstance(tool_input, dict):
@@ -925,6 +947,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         self.turn_text = ''
         # Actions sent to the client and not answered yet: {'id', 'round', 'tool_use_ids', 'results'}
         self.pending = None
+        # Rounds of the current answer that only used server tools (describe); they do not count as action rounds
+        self.describe_rounds = 0
         # Identifies the connection in the metrics log
         self.connection_id = uuid.uuid4().hex
         if not _ai_origin_allowed(self.scope):
@@ -1145,14 +1169,16 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             self._append_tool_results(cancelled=True)
         self.turn_start = len(self.messages)
         self.turn_text = ''
+        self.describe_rounds = 0
         self.messages.append({'role': 'user', 'content': prompt})
         await self._run(id, round=0)
 
     async def _run(self, id, round):
         """Streams one model response of the current turn; ends the turn or sends its actions to the client."""
         started = time.monotonic()
+        final = round >= self._max_action_rounds()
         try:
-            result = await self._stream(id, final=round >= self._max_action_rounds())
+            result = await self._stream(id, final=final)
         except Exception as e:
             self._drop_turn()
             await self._log_request(id, round, started, error=f'{type(e).__name__}: {e}')
@@ -1167,6 +1193,14 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             return
         self.messages.append(result['message'])
         self.turn_text += result['text']
+        if final and result['tool_uses']:
+            # The model was told to answer without tools: its tool calls are not run (no endless loop of server
+            # tools), and every tool use keeps a result for the next turn
+            self.pending = {'id': id, 'round': round, 'tool_use_ids': [t['id'] for t in result['tool_uses']],
+                            'results': {t['id']: {'content': 'Not run: the action round limit was reached.',
+                                                  'is_error': True} for t in result['tool_uses']}}
+            self._append_tool_results()
+            result = result | {'tool_uses': []}
         if not result['tool_uses']:
             await self.send(text_data=json.dumps({
                 'type': 'ai_answer',
@@ -1184,12 +1218,19 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         for tool_use in result['tool_uses']:
             error = (_ai_tool_input_error(tool_use['name'], tool_use['input'])
                      or _ai_resolve_model(tool_use['name'], tool_use['input']))
-            if error:
+            if not error and tool_use['name'] in AI_SERVER_TOOLS:
+                self.pending['results'][tool_use['id']] = self._server_tool(tool_use['name'], tool_use['input'])
+            elif error:
                 self.pending['results'][tool_use['id']] = {'content': error, 'is_error': True}
             else:
                 actions.append({'tool_use_id': tool_use['id'], 'name': tool_use['name'], 'input': tool_use['input']})
         if not actions:
-            await self._continue()
+            # Only server answers: describe-only rounds are free up to AI_MAX_DESCRIBE_ROUNDS per answer
+            free = (all(t['name'] in AI_SERVER_TOOLS for t in result['tool_uses'])
+                    and self.describe_rounds < AI_MAX_DESCRIBE_ROUNDS)
+            if free:
+                self.describe_rounds += 1
+            await self._continue(count_round=not free)
             return
         await self.send(text_data=json.dumps({
             'type': 'ai_actions', 'id': id, 'text': result['text'], 'actions': actions, 'is_error': False,
@@ -1216,11 +1257,65 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                                                  for k, r in results.items()]})
         await self._continue()
 
-    async def _continue(self):
+    async def _continue(self, count_round=True):
         """Appends the results of the pending actions and lets the model continue its answer."""
         id, round = self.pending['id'], self.pending['round']
         self._append_tool_results()
-        await self._run(id, round + 1)
+        await self._run(id, round + 1 if count_round else round)
+
+    # ------------------------------------------------------------- knowledge
+    @staticmethod
+    def _skill_mode():
+        mode = getattr(settings, 'SDC_AI_SKILL_MODE', None) or 'full'
+        if mode not in AI_SKILL_MODES:
+            raise ImproperlyConfigured(f'SDC_AI_SKILL_MODE must be one of {", ".join(AI_SKILL_MODES)}')
+        return mode
+
+    @staticmethod
+    def _skill_data():
+        """
+        The skill data of ``sdc_teach`` (``SDC_AI_SKILL_DATA_FILE``, default ``SDC_SKILL.data.json`` next to
+        manage.py) in index mode, else None. Without the file the index mode falls back to the full skill file.
+        """
+        if SDCAiConsumer._skill_mode() != 'index' or SDCAiConsumer._skill_source() in ('apps', 'none'):
+            return None
+        path = os.path.join(str(getattr(settings, 'BASE_DIR', '')),
+                            os.fspath(getattr(settings, 'SDC_AI_SKILL_DATA_FILE', None) or 'SDC_SKILL.data.json'))
+        try:
+            with open(path, encoding='utf-8') as f:
+                data = json.load(f)
+        except (OSError, ValueError) as e:
+            logger.warning(f'SDC_AI_SKILL_MODE "index": cannot read {path} ({e}); using the full skill file')
+            return None
+        from sdc_core.management.commands.utils.teach_data import FORMAT
+        if not isinstance(data, dict) or data.get('format') != FORMAT:
+            logger.warning(f'SDC_AI_SKILL_MODE "index": {path} has another format (run sdc_teach again); '
+                           f'using the full skill file')
+            return None
+        return data
+
+    def _tools(self):
+        """The tools of the model requests: the browser tools, plus describe in index mode."""
+        return AI_TOOLS + ([AI_DESCRIBE_TOOL] if self._cached_skill_data() is not None else [])
+
+    @classmethod
+    def _cached_skill_data(cls):
+        """``_skill_data``, read once per process (with ``DEBUG`` for every call, like the system prompt)."""
+        global _ai_skill_data
+        if settings.DEBUG:
+            return cls._skill_data()
+        if _ai_skill_data is _UNSET:
+            _ai_skill_data = cls._skill_data()
+        return _ai_skill_data
+
+    def _server_tool(self, name, tool_input):
+        """Answers a server tool (describe) from the skill data."""
+        from sdc_core.management.commands.utils.teach_markdown import describe
+        data = self._cached_skill_data()
+        if data is None:
+            return {'content': 'describe is not available: there is no skill data', 'is_error': True}
+        text = describe(data, tool_input.get('name'))
+        return {'content': text, 'is_error': text.startswith('Unknown name')}
 
     def _append_tool_results(self, cancelled=False):
         """Adds one result per pending tool use to the conversation (in the provider's format)."""
@@ -1274,7 +1369,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             max_tokens=int(self._config('max_tokens')),
             # The tools and the system prompt (incl. the skill file) are stable and cached; so is the conversation
             system=[{'type': 'text', 'text': self.system_prompt, 'cache_control': {'type': 'ephemeral'}}],
-            tools=[t | {'eager_input_streaming': True} for t in AI_TOOLS],
+            tools=[t | {'eager_input_streaming': True} for t in self._tools()],
             cache_control={'type': 'ephemeral'},
             messages=self.messages,
         )
@@ -1309,7 +1404,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             max_tokens=int(self._config('max_tokens')),
             messages=[{'role': 'system', 'content': self.system_prompt}] + self.messages,
             tools=[{'type': 'function', 'function': {'name': t['name'], 'description': t['description'],
-                                                     'parameters': t['input_schema']}} for t in AI_TOOLS],
+                                                     'parameters': t['input_schema']}} for t in self._tools()],
             stream=True,
         )
         if final:
@@ -1527,10 +1622,17 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     @staticmethod
     def _skill_context():
-        """The knowledge about the website selected by ``SDC_AI_SKILL_SOURCE`` (see ``AI_SKILL_SOURCES``)."""
+        """
+        The knowledge about the website selected by ``SDC_AI_SKILL_SOURCE`` (see ``AI_SKILL_SOURCES``); in index
+        mode (``SDC_AI_SKILL_MODE``) the index of the skill data.
+        """
         source = SDCAiConsumer._skill_source()
         if source == 'none':
             return ''
+        data = SDCAiConsumer._skill_data()
+        if data is not None:
+            from sdc_core.management.commands.utils.teach_markdown import render_index
+            return render_index(data)
         if source in ('auto', 'full'):
             path = SDCAiConsumer._skill_file()
             if os.path.isfile(path):

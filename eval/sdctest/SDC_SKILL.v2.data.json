@@ -1,0 +1,1829 @@
+{
+ "format": 1,
+ "generator": "manage.py sdc_teach",
+ "project": "SdcTest",
+ "date": "2026-11-06",
+ "crawled_as": [
+  "anonymous",
+  "regular",
+  "editor",
+  "staff",
+  "admin"
+ ],
+ "global": {
+  "links": [
+   {
+    "text": "TEST",
+    "raw_href": "~main-view",
+    "target": {
+     "href": "/~main-view",
+     "path": [
+      "main-view"
+     ],
+     "args": {}
+    },
+    "controller": "sdc-navigator",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "only-logged-out main-view",
+    "raw_href": "~main-view",
+    "target": {
+     "href": "/~main-view",
+     "path": [
+      "main-view"
+     ],
+     "args": {}
+    },
+    "controller": "sdc-navigator",
+    "only_logged_in": false,
+    "only_logged_out": true,
+    "nav_idx": null
+   },
+   {
+    "text": "only-logged-in editor-no-staff",
+    "raw_href": "~main-view",
+    "target": {
+     "href": "/~main-view",
+     "path": [
+      "main-view"
+     ],
+     "args": {}
+    },
+    "controller": "sdc-navigator",
+    "only_logged_in": true,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "main-view",
+    "raw_href": "~main-view",
+    "target": {
+     "href": "/~main-view",
+     "path": [
+      "main-view"
+     ],
+     "args": {}
+    },
+    "controller": "sdc-navigator",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "editor-no-staff",
+    "raw_href": "~editor-no-staff",
+    "target": {
+     "href": "/~editor-no-staff",
+     "path": [
+      "editor-no-staff"
+     ],
+     "args": {}
+    },
+    "controller": "sdc-navigator",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "Login",
+    "raw_href": "~sdc-login",
+    "target": {
+     "href": "/~sdc-login",
+     "path": [
+      "sdc-login"
+     ],
+     "args": {}
+    },
+    "controller": "sdc-user-nav-btn",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "Register",
+    "raw_href": "~register?model=SdcUser&next=..",
+    "target": {
+     "href": "/~register~&1.model=SdcUser&1.next=..",
+     "path": [
+      "register"
+     ],
+     "args": {
+      "1.model": "SdcUser",
+      "1.next": ".."
+     }
+    },
+    "controller": "sdc-user-nav-btn",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "Edit jane",
+    "raw_href": "~sdc-model-form?model=SdcUser&pk=1",
+    "target": {
+     "href": "/~sdc-model-form~&1.model=SdcUser&1.pk=1",
+     "path": [
+      "sdc-model-form"
+     ],
+     "args": {
+      "1.model": "SdcUser",
+      "1.pk": 1
+     }
+    },
+    "controller": "sdc-user-nav-btn",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "Edit eddie",
+    "raw_href": "~sdc-model-form?model=SdcUser&pk=2",
+    "target": {
+     "href": "/~sdc-model-form~&1.model=SdcUser&1.pk=2",
+     "path": [
+      "sdc-model-form"
+     ],
+     "args": {
+      "1.model": "SdcUser",
+      "1.pk": 2
+     }
+    },
+    "controller": "sdc-user-nav-btn",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "Edit sam",
+    "raw_href": "~sdc-model-form?model=SdcUser&pk=3",
+    "target": {
+     "href": "/~sdc-model-form~&1.model=SdcUser&1.pk=3",
+     "path": [
+      "sdc-model-form"
+     ],
+     "args": {
+      "1.model": "SdcUser",
+      "1.pk": 3
+     }
+    },
+    "controller": "sdc-user-nav-btn",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   },
+   {
+    "text": "Edit root",
+    "raw_href": "~sdc-model-form?model=SdcUser&pk=4",
+    "target": {
+     "href": "/~sdc-model-form~&1.model=SdcUser&1.pk=4",
+     "path": [
+      "sdc-model-form"
+     ],
+     "args": {
+      "1.model": "SdcUser",
+      "1.pk": 4
+     }
+    },
+    "controller": "sdc-user-nav-btn",
+    "only_logged_in": false,
+    "only_logged_out": false,
+    "nav_idx": null
+   }
+  ],
+  "buttons": [
+   {
+    "text": "",
+    "handlers": [],
+    "controller": "sdc-navigator",
+    "toggles": "collapse",
+    "result": "hidden (not clicked)"
+   },
+   {
+    "text": "Logout",
+    "handlers": [],
+    "controller": "sdc-logout",
+    "toggles": "",
+    "result": "skipped (denylist / form submit)"
+   }
+  ],
+  "forms": [],
+  "model_calls": []
+ },
+ "views": [
+  {
+   "tag": "editor-no-staff",
+   "href": "/~editor-no-staff",
+   "paths": [
+    "/~editor-no-staff"
+   ],
+   "args": {},
+   "seen_as": [
+    "admin",
+    "editor"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [
+    "Controller Test",
+    "EditorNoStaff"
+   ],
+   "embedded": [],
+   "links": [],
+   "buttons": [],
+   "forms": [],
+   "external": [],
+   "model_calls": [],
+   "url_params": [],
+   "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- May be opened by logged-in users in group `Editor` and superusers; staff status alone is not enough.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- Shows and changes no data.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.EditorNoStaff",
+   "url": "/sdc_view/main_test/editor_no_staff",
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "admin",
+    "editor"
+   ]
+  },
+  {
+   "tag": "main-view",
+   "href": "/~main-view",
+   "paths": [
+    "/~main-view"
+   ],
+   "args": {},
+   "seen_as": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ],
+   "denied": [
+    "anonymous"
+   ],
+   "requires_login": true,
+   "errors": [],
+   "headings": [
+    "Test header",
+    "test 123"
+   ],
+   "embedded": [
+    "test-item"
+   ],
+   "links": [],
+   "buttons": [
+    {
+     "text": "",
+     "handlers": [
+      "attr_sdc_click"
+     ],
+     "controller": "main-view",
+     "toggles": "",
+     "updates": [
+      "attr click 123"
+     ],
+     "result": "clicked"
+    },
+    {
+     "text": "",
+     "handlers": [
+      "events.click[\".class_sdc_click\"]"
+     ],
+     "controller": "main-view",
+     "toggles": "",
+     "updates": [
+      "Class click 123"
+     ],
+     "result": "clicked"
+    },
+    {
+     "text": "BB",
+     "handlers": [],
+     "controller": "main-view",
+     "toggles": "",
+     "updates": [
+      "Button Pressed!! 123"
+     ],
+     "controller_count": [
+      11,
+      10
+     ],
+     "result": "clicked"
+    }
+   ],
+   "forms": [],
+   "external": [],
+   "model_calls": [],
+   "url_params": [],
+   "doc": "Demo page of the framework's test project, used by the Jest tests to exercise controller features; it has no real business purpose.\n\n- Requires a logged-in user; anonymous users get a permission-denied (403) error instead of a login redirect.\n- Shows a list of `<test-item>` children (initially 5) and a test header.\n- \"BB\" removes one `<test-item>` from the list and sets the header to \"Button Pressed!!\"; the two unlabeled buttons only change the header text.\n- Server calls `call_echo` and `call_async_echo` return their arguments and each create a new `Author` named `XX FF` (age `2`).\n- Server call `test_echo_call` redirects the browser to `<logged-in>`; `call_no_response` does nothing.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.MainView",
+   "url": "/sdc_view/main_test/main_view",
+   "actions": {
+    "attr_sdc_click": "Test button: sets the header text to \"attr click\". Changes no data."
+   },
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "admin",
+    "editor",
+    "regular",
+    "staff"
+   ]
+  },
+  {
+   "tag": "sdc-login",
+   "href": "/~sdc-login",
+   "paths": [
+    "/~sdc-login",
+    "/~editor-no-staff~sdc-login~&2.next=~editor-no-staff"
+   ],
+   "args": {
+    "next": [
+     "~editor-no-staff"
+    ]
+   },
+   "seen_as": [
+    "anonymous",
+    "regular",
+    "staff"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [
+    "Login"
+   ],
+   "embedded": [],
+   "links": [
+    {
+     "text": "Password forgotten",
+     "raw_href": "/*/sdc-password-forgotten",
+     "target": {
+      "href": "/~sdc-login~sdc-password-forgotten",
+      "path": [
+       "sdc-login",
+       "sdc-password-forgotten"
+      ],
+      "args": {}
+     },
+     "controller": "sdc-login",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 0
+    },
+    {
+     "text": "Register",
+     "raw_href": "/register?model=SdcUser&next=..",
+     "target": {
+      "href": "/~register~&1.model=SdcUser&1.next=..",
+      "path": [
+       "register"
+      ],
+      "args": {
+       "1.model": "SdcUser",
+       "1.next": ".."
+      }
+     },
+     "controller": "sdc-login",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 0
+    },
+    {
+     "text": "Password forgotten",
+     "raw_href": "/*/sdc-password-forgotten",
+     "target": {
+      "href": "/~editor-no-staff~sdc-password-forgotten",
+      "path": [
+       "editor-no-staff",
+       "sdc-password-forgotten"
+      ],
+      "args": {}
+     },
+     "controller": "sdc-login",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 1
+    }
+   ],
+   "buttons": [
+    {
+     "text": "Login",
+     "handlers": [],
+     "controller": "sdc-login",
+     "toggles": "",
+     "result": "skipped (denylist / form submit)"
+    }
+   ],
+   "forms": [
+    {
+     "controller": "sdc-login",
+     "visible": true,
+     "action": "/sdc_view/sdc_user/sdc_login",
+     "method": "post",
+     "submit_handlers": [
+      "events.submit[\".ajax-form\"]"
+     ],
+     "fields": [
+      {
+       "name": "username",
+       "type": "text",
+       "required": true,
+       "label": "Username",
+       "options": []
+      },
+      {
+       "name": "password",
+       "type": "password",
+       "required": true,
+       "label": "Password",
+       "options": []
+      }
+     ],
+     "nav_idx": 0,
+     "result": "not submitted (needs manual input)"
+    }
+   ],
+   "external": [],
+   "model_calls": [],
+   "url_params": [],
+   "doc": "Login form (username and password) that starts a session for an `SdcUser`; the view other views redirect to when login is required.\n\n- Arguments: `next` (optional) is the URL to go to after login; without it the project's start page (`LOGIN_SUCCESS`) is used.\n- \"Login\" checks the credentials. On success the user is logged in and the whole page reloads at the `next` target; on failure the errors are shown in the form.\n- If the project requires confirmed e-mail addresses and the user has not confirmed theirs, login is refused and a new confirmation e-mail is sent.\n- Links lead to `<sdc-password-forgotten>` and to `<register>`.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcLogin",
+   "url": "/sdc_view/sdc_user/sdc_login",
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "anonymous",
+    "regular",
+    "staff"
+   ]
+  },
+  {
+   "tag": "register",
+   "href": "/~register~&1.model=SdcUser&1.next=..",
+   "paths": [
+    "/~register~&1.model=SdcUser&1.next=.."
+   ],
+   "args": {
+    "model": [
+     "SdcUser"
+    ],
+    "next": [
+     ".."
+    ]
+   },
+   "seen_as": [
+    "anonymous",
+    "regular",
+    "staff"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [],
+   "embedded": [],
+   "links": [],
+   "buttons": [
+    {
+     "text": "Create",
+     "handlers": [],
+     "controller": "register",
+     "toggles": "",
+     "result": "skipped (denylist / form submit)"
+    }
+   ],
+   "forms": [
+    {
+     "controller": "register",
+     "visible": true,
+     "action": "",
+     "method": "get",
+     "submit_handlers": [
+      "submitModelFormDistributor"
+     ],
+     "fields": [
+      {
+       "name": "username",
+       "type": "text",
+       "required": true,
+       "label": "Username",
+       "options": []
+      },
+      {
+       "name": "first_name",
+       "type": "text",
+       "required": false,
+       "label": "First name",
+       "options": []
+      },
+      {
+       "name": "last_name",
+       "type": "text",
+       "required": false,
+       "label": "Last name",
+       "options": []
+      },
+      {
+       "name": "email",
+       "type": "email",
+       "required": false,
+       "label": "Email address",
+       "options": []
+      },
+      {
+       "name": "password1",
+       "type": "password",
+       "required": true,
+       "label": "Password",
+       "options": []
+      },
+      {
+       "name": "password2",
+       "type": "password",
+       "required": true,
+       "label": "Confirm Password",
+       "options": []
+      }
+     ],
+     "nav_idx": 0,
+     "result": "not submitted (needs manual input)"
+    }
+   ],
+   "external": [],
+   "model_calls": [
+    {
+     "via": "model-socket",
+     "controller": "register",
+     "target": "SdcUser",
+     "function": "connect",
+     "query": [],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "register",
+     "target": "SdcUser",
+     "function": "create_form",
+     "query": [],
+     "args": [
+      "id",
+      "pk"
+     ]
+    }
+   ],
+   "url_params": [],
+   "doc": "Registration form that creates a new `SdcUser` account; open it from the \"Register\" link of `<sdc-login>` or `<sdc-user-nav-btn>`.\n\n- Arguments: `model` must be `SdcUser`; `next` is where to go after creating (the links pass `..`, i.e. back).\n- Fields: `username`, `first_name`, `last_name`, `email`, the password and its confirmation (must match and pass the password rules).\n- \"Create\" creates the account; anyone may register, no login is needed. The new user is not logged in automatically.\n- If an `email` was given, a confirmation e-mail with a link to `<sdc-confirm-email>` (valid 3 days) is sent to it.\n- If the project requires confirmed e-mail addresses, the new user can only log in after following that link.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.Register",
+   "url": "/sdc_view/sdc_user/register",
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": [
+    {
+     "title": "Register a new account",
+     "steps": [
+      "Open `/~register~&model=SdcUser&next=..` (or the \"Register\" link).",
+      "Fill `username`, `password1` and `password2` (the user types the passwords) and optionally the names and `email`.",
+      "The user clicks \"Create\"; with an `email` a confirmation e-mail is sent."
+     ]
+    }
+   ],
+   "available_to": [
+    "anonymous",
+    "regular",
+    "staff"
+   ]
+  },
+  {
+   "tag": "sdc-detail-view",
+   "href": "/~sdc-detail-view~&1.model=Author&1.pk=1",
+   "paths": [
+    "/~sdc-detail-view~&1.model=Author&1.pk=1"
+   ],
+   "args": {
+    "model": [
+     "Author",
+     "Book",
+     "SdcUser"
+    ],
+    "pk": [
+     1,
+     6,
+     4
+    ]
+   },
+   "seen_as": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [
+    "Test"
+   ],
+   "embedded": [],
+   "links": [],
+   "buttons": [
+    {
+     "text": "Remove",
+     "handlers": [],
+     "controller": "sdc-detail-view",
+     "toggles": "modal",
+     "result": "skipped (denylist / form submit)"
+    },
+    {
+     "text": "Close",
+     "handlers": [],
+     "controller": "sdc-detail-view",
+     "toggles": "",
+     "result": "hidden (not clicked)"
+    },
+    {
+     "text": "Remove Test",
+     "handlers": [
+      "removeInstance"
+     ],
+     "controller": "sdc-detail-view",
+     "toggles": "",
+     "result": "hidden (not clicked)"
+    }
+   ],
+   "forms": [],
+   "external": [],
+   "model_calls": [
+    {
+     "via": "model-socket",
+     "controller": "sdc-detail-view",
+     "target": "Author",
+     "function": "connect",
+     "query": [
+      "id"
+     ],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-detail-view",
+     "target": "Author",
+     "function": "load",
+     "query": [
+      "id"
+     ],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-detail-view",
+     "target": "Author",
+     "function": "detail_view",
+     "query": [
+      "id"
+     ],
+     "args": [
+      "id",
+      "pk"
+     ]
+    }
+   ],
+   "url_params": [],
+   "doc": "Generic read-only view of one record of an SDC model, rendered with the model's detail template.\n\n- Arguments: `model` (required) is the SDC model name and `pk` (or `id`) the record id, e.g. `/~sdc-detail-view~&model=Author&pk=3`.\n- The view refreshes automatically when the record changes on the server.\n- Usually reached via the \"Detail\" link of a `<sdc-list-view>` row; access depends on the model's server-side permissions.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcDetailView",
+   "url": "/sdc_view/sdc_tools/sdc_detail_view",
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ]
+  },
+  {
+   "tag": "sdc-list-view",
+   "href": "/~sdc-list-view~&1.model=Author",
+   "paths": [
+    "/~sdc-list-view~&1.model=Author"
+   ],
+   "args": {
+    "model": [
+     "Author",
+     "Book",
+     "SdcUser"
+    ]
+   },
+   "seen_as": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [],
+   "embedded": [
+    "sdc-search-view"
+   ],
+   "links": [
+    {
+     "text": "Edit",
+     "raw_href": "/~sdc-model-form~&model=Author&pk=6",
+     "target": {
+      "href": "/~sdc-model-form~&1.model=Author&1.pk=6",
+      "path": [
+       "sdc-model-form"
+      ],
+      "args": {
+       "1.model": "Author",
+       "1.pk": 6
+      }
+     },
+     "controller": "sdc-list-view",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 0
+    },
+    {
+     "text": "Detail",
+     "raw_href": "/~sdc-detail-view~&model=Author&pk=6",
+     "target": {
+      "href": "/~sdc-detail-view~&1.model=Author&1.pk=6",
+      "path": [
+       "sdc-detail-view"
+      ],
+      "args": {
+       "1.model": "Author",
+       "1.pk": 6
+      }
+     },
+     "controller": "sdc-list-view",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 0
+    },
+    {
+     "text": "Edit",
+     "raw_href": "/~sdc-model-form~&model=Author&pk=4",
+     "target": {
+      "href": "/~sdc-model-form~&1.model=Author&1.pk=4",
+      "path": [
+       "sdc-model-form"
+      ],
+      "args": {
+       "1.model": "Author",
+       "1.pk": 4
+      }
+     },
+     "controller": "sdc-list-view",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 0
+    },
+    {
+     "text": "Detail",
+     "raw_href": "/~sdc-detail-view~&model=Author&pk=4",
+     "target": {
+      "href": "/~sdc-detail-view~&1.model=Author&1.pk=4",
+      "path": [
+       "sdc-detail-view"
+      ],
+      "args": {
+       "1.model": "Author",
+       "1.pk": 4
+      }
+     },
+     "controller": "sdc-list-view",
+     "only_logged_in": false,
+     "only_logged_out": false,
+     "nav_idx": 0
+    }
+   ],
+   "buttons": [
+    {
+     "text": "Prev",
+     "handlers": [
+      "events.click[\".page-number-control-btn\"]"
+     ],
+     "controller": "sdc-search-view",
+     "toggles": "",
+     "result": "error: Locator.click: Timeout 10000ms exceeded."
+    },
+    {
+     "text": "Next",
+     "handlers": [
+      "events.click[\".page-number-control-btn\"]"
+     ],
+     "controller": "sdc-search-view",
+     "toggles": "",
+     "server_calls": [
+      {
+       "via": "model-socket",
+       "controller": "sdc-list-view",
+       "target": "Author",
+       "function": "list_view",
+       "query": [
+        "__search_values"
+       ],
+       "args": [
+        "view_name"
+       ]
+      }
+     ],
+     "result": "clicked"
+    },
+    {
+     "text": "Remove",
+     "handlers": [],
+     "controller": "sdc-list-view",
+     "toggles": "modal",
+     "result": "skipped (denylist / form submit)"
+    },
+    {
+     "text": "Close",
+     "handlers": [],
+     "controller": "sdc-list-view",
+     "toggles": "",
+     "result": "hidden (not clicked)"
+    },
+    {
+     "text": "Remove Ada Lovelace",
+     "handlers": [
+      "removeInstance"
+     ],
+     "controller": "sdc-list-view",
+     "toggles": "",
+     "result": "hidden (not clicked)"
+    },
+    {
+     "text": "Remove Artin",
+     "handlers": [
+      "removeInstance"
+     ],
+     "controller": "sdc-list-view",
+     "toggles": "",
+     "result": "hidden (not clicked)"
+    }
+   ],
+   "forms": [],
+   "external": [],
+   "model_calls": [
+    {
+     "via": "model-socket",
+     "controller": "sdc-list-view",
+     "target": "Author",
+     "function": "connect",
+     "query": [],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-list-view",
+     "target": "Author",
+     "function": "list_view",
+     "query": [
+      "__search_values"
+     ],
+     "args": [
+      "view_name"
+     ]
+    }
+   ],
+   "url_params": [],
+   "doc": "Generic live list of the records of one SDC model, rendered with the model's list template.\n\n- Arguments: `model` (required) is the SDC model name, e.g. `/~sdc-list-view~&model=Author`; optional `filter` restricts the records (normally only set from code by a parent view).\n- The list updates automatically when records are created, changed or deleted (model socket).\n- An embedded `<sdc-search-view>` (if the model's list template has one) filters and pages the list.\n- In the default list template each row has \"Edit\" (opens `<sdc-model-form>`), \"Detail\" (opens `<sdc-detail-view>`) and \"Remove\"; \"Remove\" asks for confirmation in a dialog and then deletes the record on the server; this cannot be undone.\n- What is listed and whether delete is allowed is decided by the model's server-side permissions.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcListView",
+   "url": "/sdc_view/sdc_tools/sdc_list_view",
+   "actions": {
+    "removeInstance": "Deletes the record of the \"Remove\" button (`data-instance-pk`) of the list's model. This cannot be undone."
+   },
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ]
+  },
+  {
+   "tag": "sdc-password-forgotten",
+   "href": "/~sdc-login~sdc-password-forgotten",
+   "paths": [
+    "/~sdc-login~sdc-password-forgotten"
+   ],
+   "args": {},
+   "seen_as": [
+    "anonymous"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [
+    "Request a reset-password token"
+   ],
+   "embedded": [],
+   "links": [],
+   "buttons": [
+    {
+     "text": "Send E-mail",
+     "handlers": [
+      "send_email"
+     ],
+     "controller": "sdc-password-forgotten",
+     "toggles": "",
+     "result": "clicked (no visible effect)"
+    }
+   ],
+   "forms": [],
+   "external": [],
+   "model_calls": [],
+   "url_params": [],
+   "doc": "Requests a password-reset e-mail for a user who forgot their password; reached from the \"Password forgotten\" link of `<sdc-login>`.\n\n- No arguments and no login needed. Enter the username or the e-mail address of the account.\n- \"Send E-mail\" sends an e-mail with a link to `<sdc-reset-password>` to the account's address; the link is valid for 3 days and can be used once.\n- An empty input only shows a hint, no request is sent.\n- Shows \"User not found\" if no account (or more than one) matches, and an error if the e-mail could not be sent.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcPasswordForgotten",
+   "url": "/sdc_view/sdc_user/sdc_password_forgotten",
+   "actions": {
+    "send_email": "Sends a password reset e-mail to the user with the entered username or e-mail address; shows an error\nmessage if the field is empty."
+   },
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "anonymous"
+   ]
+  },
+  {
+   "tag": "sdc-model-form",
+   "href": "/~sdc-model-form~&1.model=Author",
+   "paths": [
+    "/~sdc-model-form~&1.model=Author",
+    "/~sdc-model-form~&1.model=Author&1.pk=1",
+    "/~sdc-model-form~sdc-model-form~&2.model=SdcUser&2.next=..&2.pk=1&2.form_name=password_form&2.auto_save=false&2.form_header=Reset Password&1.model=SdcUser&1.pk=1"
+   ],
+   "args": {
+    "model": [
+     "Author",
+     "Book",
+     "BookContent",
+     "SdcUser"
+    ],
+    "pk": [
+     4,
+     1,
+     6,
+     3,
+     2
+    ],
+    "next": [
+     ".."
+    ],
+    "form_name": [
+     "password_form"
+    ],
+    "auto_save": [
+     false
+    ],
+    "form_header": [
+     "Reset Password"
+    ]
+   },
+   "seen_as": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ],
+   "denied": [],
+   "requires_login": false,
+   "errors": [],
+   "headings": [],
+   "embedded": [],
+   "links": [],
+   "buttons": [
+    {
+     "text": "Create",
+     "handlers": [],
+     "controller": "sdc-model-form",
+     "toggles": "",
+     "result": "skipped (denylist / form submit)"
+    },
+    {
+     "text": "Save",
+     "handlers": [],
+     "controller": "sdc-model-form",
+     "toggles": "",
+     "result": "skipped (denylist / form submit)"
+    }
+   ],
+   "forms": [
+    {
+     "controller": "sdc-model-form",
+     "visible": true,
+     "action": "",
+     "method": "get",
+     "submit_handlers": [
+      "submitModelFormDistributor"
+     ],
+     "fields": [
+      {
+       "name": "name",
+       "type": "text",
+       "required": true,
+       "label": "Name",
+       "options": []
+      },
+      {
+       "name": "age",
+       "type": "number",
+       "required": true,
+       "label": "Age",
+       "options": []
+      }
+     ],
+     "nav_idx": 0,
+     "result": "not submitted (needs manual input)"
+    },
+    {
+     "controller": "sdc-model-form",
+     "visible": true,
+     "action": "",
+     "method": "get",
+     "submit_handlers": [
+      "submitModelFormDistributor"
+     ],
+     "fields": [
+      {
+       "name": "password_old",
+       "type": "password",
+       "required": true,
+       "label": "Current password",
+       "options": []
+      },
+      {
+       "name": "password1",
+       "type": "password",
+       "required": true,
+       "label": "Password",
+       "options": []
+      },
+      {
+       "name": "password2",
+       "type": "password",
+       "required": true,
+       "label": "Confirm Password",
+       "options": []
+      }
+     ],
+     "nav_idx": 1,
+     "result": "not submitted (needs manual input)"
+    }
+   ],
+   "external": [],
+   "model_calls": [
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "Author",
+     "function": "connect",
+     "query": [],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "Author",
+     "function": "create_form",
+     "query": [],
+     "args": [
+      "id",
+      "pk"
+     ]
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "Author",
+     "function": "connect",
+     "query": [
+      "id"
+     ],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "Author",
+     "function": "load",
+     "query": [
+      "id"
+     ],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "Author",
+     "function": "edit_form",
+     "query": [],
+     "args": [
+      "id",
+      "pk"
+     ]
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "SdcUser",
+     "function": "connect",
+     "query": [
+      "id"
+     ],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "SdcUser",
+     "function": "load",
+     "query": [
+      "id"
+     ],
+     "args": []
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "SdcUser",
+     "function": "edit_form",
+     "query": [],
+     "args": [
+      "id",
+      "pk"
+     ]
+    },
+    {
+     "via": "model-socket",
+     "controller": "sdc-model-form",
+     "target": "SdcUser",
+     "function": "named_form",
+     "query": [],
+     "args": [
+      "form_name",
+      "id",
+      "pk"
+     ]
+    }
+   ],
+   "url_params": [],
+   "doc": "Generic create/edit form for one record of an SDC model, generated from the model's server-side form; saves via the model socket.\n\n- Arguments: `model` (required) is the SDC model name; with `pk` (or `id`) it edits that record, without it it creates a new one (e.g. `/~sdc-model-form~&model=Author&pk=3`).\n- Edit mode: every field change is saved automatically, there is no save step; with `form_name=<name>` a named alternative form of the model is used, and with `auto_save=false` changes are only stored when the save button (`button_text`, default \"Save\") is pressed.\n- Create mode: \"Create\" creates the record and then navigates to `next` (default `..`, one level up); `reset_on_save=true` instead clears the form for another entry, `editing_after_save=true` switches to editing the new record.\n- After a successful save of an existing record the form navigates to `next` if given.\n- Other optional arguments: `form_header` (heading text) and `filter` (selects the record to edit instead of `pk`).\n- Validation errors are shown at the fields; who may create or edit is decided by the model's server-side permissions.\n- Also used as a mixin by app-specific form controllers.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcModelForm",
+   "url": "/sdc_view/sdc_tools/sdc_model_form",
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": [],
+   "available_to": [
+    "admin",
+    "anonymous",
+    "editor",
+    "regular",
+    "staff"
+   ]
+  }
+ ],
+ "embedded": [
+  {
+   "tag": "sdc-logout",
+   "doc": "Logout button; usually embedded in `<sdc-user-nav-btn>` when a user is logged in.\n\n- \"Logout\" ends the session of the current user immediately (no confirm dialog) and redirects to the login view; the WebSocket connections are reopened as anonymous user.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcLogout",
+   "url": "/sdc_view/sdc_user/sdc_logout",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-navigator",
+   "doc": "Root navigation frame of an SDC app: owns the URL, the nested views and the breadcrumb; there is one per page and it is exposed as `window.sdcNav`.\n\n- URL scheme: `/~<tag>~<child-tag>~&key=value&...`. Each `~` segment is a controller tag rendered nested inside the previous one; arguments after `~&` are passed to the views as data attributes (`N.key=value` targets only the view at depth `N`, plain `key` applies to the deepest one). Relative paths (`.`, `..`, `*` = keep the current segment at that depth) are resolved against the current path.\n- An empty path opens the controller named in its `default-controller` argument; a view container with its own `data-default-controller` opens that child automatically.\n- Links with the class `navigation-links` are handled client-side without page reload; `window.sdcNav.goTo('<path>', {args})` (or triggering the `goTo` event) navigates programmatically. Browser back/forward works.\n- An unknown tag in the path shows `sdc-error 404` instead of the view. Some containers open their view in a modal; closing the modal navigates back one level.\n- Links marked as login-only/logout-only are shown or hidden depending on whether a user is logged in; the `login`/`logout` events reload the whole page.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcNavigator",
+   "url": "/sdc_view/sdc_tools/sdc_navigator",
+   "url_params": [],
+   "actions": {},
+   "hidden": true,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-search-view",
+   "doc": "Search and paging bar embedded at the top of a model list (inside `<sdc-list-view>`); its fields come from the model's server-side search form.\n\nChanging a search field filters the surrounding list immediately (no submit button needed). \"Prev\"/\"Next\" page through the results and the bar shows the current range and total count; the paging controls are hidden when everything fits on one page. It changes no data.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcSearchView",
+   "url": "/sdc_view/sdc_tools/sdc_search_view",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": "Search and paging bar of a model list; changing a field filters the list at once.",
+   "tasks": []
+  },
+  {
+   "tag": "test-item",
+   "doc": "Small demo list item inside `<main-view>`: a single text input named `i_<idx>`.\n\nArgument `idx` is the item's position in the list; changing the input shows a browser alert with that `idx`. It saves no data and is open to everyone.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.TestItem",
+   "url": "/sdc_view/main_test/test_item",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  }
+ ],
+ "unreached": [
+  {
+   "tag": "admin-only",
+   "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- Only logged-in superusers may open it; staff status or group membership is not enough.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- The Jest tests also use it as an empty host controller for `SdcModel` tests; it changes no data itself.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.AdminOnly",
+   "url": "/sdc_view/main_test/admin_only",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "book-edit",
+   "doc": "Demo form for one `Book`, used by the framework's tests; it reuses the `<sdc-model-form>` behaviour.\n\n- Arguments: `pk` (or `id`) is the id of the book to edit; without it the form creates a new `Book`.\n- In edit mode every field change is saved immediately via the model socket; there is no separate save button.\n- \"Add X to name\" appends ` X` to the title and sets `author` to the author with id `1`, in the form's model object only (not saved by this button itself).\n- Open to everyone, no login required.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.BookEdit",
+   "url": "/sdc_view/main_test/book_edit",
+   "url_params": [],
+   "actions": {
+    "add_x": "Appends \" X\" to the book title in the form and sets the author to the record with id 1; nothing is saved\nuntil the form is saved."
+   },
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "editor-and-staff",
+   "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- May be opened by logged-in users in group `Editor`, staff users and superusers.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- Shows and changes no data.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.EditorAndStaff",
+   "url": "/sdc_view/main_test/editor_and_staff",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "error404",
+   "doc": "Test fixture of the framework's test project; it shows only the static test heading \"Error404\".\n\nDespite its name it is not an error handler: it is open to everyone and shows and changes no data.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.Error404",
+   "url": "/sdc_view/main_test/error_404",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "logged-in",
+   "doc": "Test fixture of the framework's test project; it shows only the static test heading \"LoggedIn\".\n\n- Open to everyone; despite its name it does not require a login.\n- Target of the `test_echo_call` server call of `<main-view>`, which redirects the browser to `/logged-in`.\n- Shows and changes no data.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.LoggedIn",
+   "url": "/sdc_view/main_test/logged_in",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-ai-assistant",
+   "doc": "Chat panel of the AI assistant, fixed at the right edge of the page; only rendered when the project sets `SDC_AI_ASSISTANT`.\n\n- The user types a question; the answer streams in. The assistant can also act on the page, always with the\n  logged-in user's permissions: open views like a navigation link, read the current page, enter values into\n  its forms (also the search bar of `<sdc-search-view>`, which filters its list at once), click buttons and\n  links, and read SdcModel records.\n- The assistant never submits a form: it fills forms (SdcModel forms are marked by `SdcModelName` /\n  `SdcModelPK`) and the user checks and submits or saves them. Before it clicks a button that may delete, save\n  or send data or log out, the chat asks the user to allow it. Links that leave the app are not clicked. It\n  never reads or fills password, hidden or file fields.\n- Depending on the project settings it requires a login, and either uses the server's API key or the user's own.\n- \"⚙\" opens the settings: with the server's key they only show the model in use; otherwise the user enters their\n  API key and may choose the provider (Anthropic or any OpenAI-compatible API such as the KIT KI-Toolbox) and set\n  the API URL (https, public hosts only), model, effort and max tokens. Changing the provider starts a new\n  conversation. \"Remember on this device\" keeps the settings in the browser, the key only until the tab is closed.\n- The panel starts collapsed at the right edge of the page; a click on it (or \"⇆\") expands it, \"⇆\" collapses it\n  again. It opens by itself when the settings need the user's API key.\n- Dragging the header moves the panel and dragging its edges or corners resizes it (kept in the browser);\n  a double-click on the header docks it at the right edge again.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcAiAssistant",
+   "url": "/sdc_view/sdc_tools/sdc_ai_assistant",
+   "url_params": [],
+   "actions": {},
+   "hidden": true,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-alert-messenger",
+   "doc": "Global toast area for status messages; usually placed once in the page next to `<sdc-navigator>`.\n\nMessages pushed by other controllers (e.g. success or validation errors after a form submit) appear here with a header and time and disappear automatically after about 2 seconds; error messages are highlighted. Nothing to operate.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcAlertMessenger",
+   "url": "/sdc_view/sdc_tools/sdc_alert_messenger",
+   "url_params": [],
+   "actions": {},
+   "hidden": true,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-change-password",
+   "doc": "Form for the logged-in user to change their own password (the `password_form` of `SdcUser`).\n\n- No arguments; it always edits the current user. Requires login, otherwise it redirects to the login view.\n- Enter the current password, then the new password twice (must match and pass the password rules).\n- \"Change password\" saves the new password immediately. Other sessions of this user are logged out; the current session stays logged in.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcChangePassword",
+   "url": "/sdc_view/sdc_user/sdc_change_password",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-confirm-email",
+   "doc": "Confirms the e-mail address of an `SdcUser`; this is the target of the link in the confirmation e-mail.\n\n- Arguments: `token` (required) is the token from the e-mail link (`/~sdc-confirm-email~&1.token=...`).\n- Opening the view with a valid token immediately marks the address as confirmed (`email_confirmed`) and shows a success message; there is nothing to click. No login is needed.\n- Each token works once and is valid for 3 days. An expired token automatically sends a new confirmation e-mail; an invalid or already used token shows \"No valid token.\".",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcConfirmEmail",
+   "url": "/sdc_view/sdc_user/sdc_confirm_email/<str:token>",
+   "url_params": [
+    "token"
+   ],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-dummy",
+   "doc": "Placeholder/test view that shows the text of its `text` argument (e.g. `/~sdc-dummy~&text=Hello`) followed by any content placed inside the tag. Has no actions.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcDummy",
+   "url": "/sdc_view/sdc_tools/sdc_dummy",
+   "url_params": [],
+   "actions": {},
+   "hidden": true,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-error",
+   "doc": "Error page that shows \"We have an error: <code>\" for the HTTP status in its `code` argument.\n\n- `<sdc-navigator>` shows `sdc-error 404` when a path segment names an unknown controller.\n- `sdc-error 403` (or similar) means the server refused the view: log in, or use a user with the required permissions.\n- It has no actions; navigate elsewhere (link, breadcrumb, browser back) to leave it.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcError",
+   "url": "/sdc_view/sdc_tools/sdc_error/<int:code>",
+   "url_params": [
+    "code"
+   ],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-reset-password",
+   "doc": "Sets a new password with a reset token; this is the target of the link in the password-reset e-mail sent by `<sdc-password-forgotten>`.\n\n- Arguments: `token` (required) is the token from the e-mail link (`/~sdc-reset-password~&1.token=...`); it is kept in a hidden form field.\n- Enter the new password twice (at least 8 characters, must match and pass the password rules). No login is needed.\n- \"Reset Password\" sets the new password and shows \"Password has been reset.\"; the user is not logged in and must then use `<sdc-login>`.\n- Each token works once and is valid for 3 days. An expired token automatically sends a new reset e-mail; an invalid or used token shows an error.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcResetPassword",
+   "url": "/sdc_view/sdc_user/sdc_reset_password",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-search-select",
+   "doc": "Searchable dropdown that replaces a normal select field inside forms (rendered by the `SearchableSelect` form widget); the selected value(s) are submitted under the field's name.\n\nClick it to open the option list, type to filter (space or comma separated terms, all must match), click an option to select it. With multiple selection each selected value has a \"×\" button to remove it; the same applies to single selection when the field is not required. Each change fires a change event, so inside an edit-mode `<sdc-model-form>` it is saved immediately.",
+   "app": "sdc_tools",
+   "view_class": "sdc_tools.sdc_views.SdcSearchSelect",
+   "url": "/sdc_view/sdc_tools/sdc_search_select",
+   "url_params": [],
+   "actions": {
+    "onDeactivate": "Closes the option list when the user clicks beside it; the selection stays unchanged.",
+    "onActivate": "Opens the option list with its filter field.",
+    "remove_selection": "Removes the clicked value (\"×\") from the selection and fires a change event; inside an edit-mode\n`<sdc-model-form>` the record is saved at once."
+   },
+   "hidden": false,
+   "summary": "Searchable dropdown that replaces a select field in forms.",
+   "tasks": []
+  },
+  {
+   "tag": "sdc-user",
+   "doc": "Invisible global helper that loads the `SdcUser` record of the logged-in user (nothing for anonymous visitors) and provides it to other controllers on request; it shows no content and has no actions.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcUser",
+   "url": "/sdc_view/sdc_user/sdc_user",
+   "url_params": [],
+   "actions": {},
+   "hidden": true,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "sdc-user-nav-btn",
+   "doc": "User area for the navigation bar: shows \"Login\" and \"Register\" links when nobody is logged in, and an \"Edit <username>\" link (opens the user's own `SdcUser` in `<sdc-model-form>`) plus `<sdc-logout>` when a user is logged in. It refreshes itself after login and logout.",
+   "app": "sdc_user",
+   "view_class": "sdc_user.sdc_views.SdcUserNavBtn",
+   "url": "/sdc_view/sdc_user/sdc_user_nav_btn",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  },
+  {
+   "tag": "staff-and-admin",
+   "doc": "Test fixture of the framework's test project for the group/staff access check; it shows only a static test heading.\n\n- May be opened by logged-in staff users and superusers; no group grants access.\n- Anyone else (anonymous or without permission) is redirected to `<sdc-login>`, with `next` pointing back to the parent view.\n- Shows and changes no data.",
+   "app": "main_test",
+   "view_class": "main_test.sdc_views.StaffAndAdmin",
+   "url": "/sdc_view/main_test/staff_and_admin",
+   "url_params": [],
+   "actions": {},
+   "hidden": false,
+   "summary": null,
+   "tasks": []
+  }
+ ],
+ "models": [
+  {
+   "name": "Author",
+   "app": "main_test",
+   "doc": "Demo/test model of the framework's test project: an author of `Book` records.\n\n- `name` (text, max. 255 characters) and `age` (integer, years); both required.\n- Has no permission checks: anyone, even anonymous users, may read, create, edit and delete authors.\n- Deleting an author also deletes all of that author's `Book` records.\n- The list search matches `name` or the title of one of the author's books.\n- Calling the `call_echo` / `call_async_echo` server calls of `<main-view>` creates an extra author `XX FF` (age `2`).",
+   "fields": [
+    {
+     "name": "id",
+     "type": "BigAutoField",
+     "related": null
+    },
+    {
+     "name": "name",
+     "type": "CharField",
+     "related": null
+    },
+    {
+     "name": "age",
+     "type": "IntegerField",
+     "related": null
+    }
+   ],
+   "routes": {
+    "list": {
+     "path": "/~sdc-list-view~&model=Author",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "detail": {
+     "path": "/~sdc-detail-view~&model=Author&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "create": {
+     "path": "/~sdc-model-form~&model=Author",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "edit": {
+     "path": "/~sdc-model-form~&model=Author&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    }
+   },
+   "remove_in_list": true
+  },
+  {
+   "name": "Book",
+   "app": "main_test",
+   "doc": "Demo/test model of the framework's test project: a book with a title, written by one `Author`.\n\n- `title` (text, max. 255 characters); `author` → `Author` (required).\n- Has no permission checks: anyone, even anonymous users, may read, create, edit and delete books.\n- Deleted automatically when its `Author` is deleted.\n- Besides the full form there is a named form `test` that edits only `title`.\n- The list search matches `title` or the author's `name`.\n- Edited in `<book-edit>`.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "BigAutoField",
+     "related": null
+    },
+    {
+     "name": "title",
+     "type": "CharField",
+     "related": null
+    },
+    {
+     "name": "author",
+     "type": "ForeignKey",
+     "related": "Author"
+    }
+   ],
+   "routes": {
+    "list": {
+     "path": "/~sdc-list-view~&model=Book",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "detail": {
+     "path": "/~sdc-detail-view~&model=Book&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "create": {
+     "path": "/~sdc-model-form~&model=Book",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "edit": {
+     "path": "/~sdc-model-form~&model=Book&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    }
+   },
+   "remove_in_list": false
+  },
+  {
+   "name": "BookContent",
+   "app": "main_test",
+   "doc": "Demo/test model of the framework's test project: an uploaded file that belongs to one user.\n\n- `text`: the uploaded file; `user` → the owning user.\n- If `user` is left empty on save, the currently logged-in user becomes the owner.\n- Only logged-in users may access it, and each user sees and changes only their own records.\n- Deleting the user also deletes the user's `BookContent` records.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "BigAutoField",
+     "related": null
+    },
+    {
+     "name": "user",
+     "type": "ForeignKey",
+     "related": "SdcUser"
+    },
+    {
+     "name": "text",
+     "type": "FileField",
+     "related": null
+    }
+   ],
+   "routes": {
+    "create": {
+     "path": "/~sdc-model-form~&model=BookContent",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "edit": {
+     "path": "/~sdc-model-form~&model=BookContent&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    }
+   },
+   "remove_in_list": false
+  },
+  {
+   "name": "SdcUser",
+   "app": "sdc_user",
+   "doc": "A user account of the site (the project's Django user model); one record per person who can log in.\n\n- `username` (unique, used to log in), `first_name`, `last_name`, `email`; `is_staff`, `is_superuser`,\n  `is_active`, `groups`, `date_joined`, `last_login` as in Django's standard user.\n- `email_confirmed`: `true` once the user followed the link in the confirmation e-mail (`<sdc-confirm-email>`).\n- The password is never sent to the client; it is changed with the `password_form` (`<sdc-change-password>`)\n  or reset by e-mail (`<sdc-password-forgotten>`).\n- Anyone may create an account (registration in `<register>`). By default a logged-in user can read and\n  edit only their own record (`username`, names, `email`); superusers can see and edit all users, and only\n  superusers may delete users.\n- Saving a new or changed `email` resets `email_confirmed` to `false` and sends a confirmation e-mail to\n  that address (link valid for 3 days).\n- Edited in `<sdc-model-form>` via the \"Edit <username>\" link of `<sdc-user-nav-btn>`; `<sdc-user>` loads\n  the current user's record.",
+   "fields": [
+    {
+     "name": "id",
+     "type": "BigAutoField",
+     "related": null
+    },
+    {
+     "name": "last_login",
+     "type": "DateTimeField",
+     "related": null
+    },
+    {
+     "name": "is_superuser",
+     "type": "BooleanField",
+     "related": null
+    },
+    {
+     "name": "username",
+     "type": "CharField",
+     "related": null
+    },
+    {
+     "name": "first_name",
+     "type": "CharField",
+     "related": null
+    },
+    {
+     "name": "last_name",
+     "type": "CharField",
+     "related": null
+    },
+    {
+     "name": "email",
+     "type": "CharField",
+     "related": null
+    },
+    {
+     "name": "is_staff",
+     "type": "BooleanField",
+     "related": null
+    },
+    {
+     "name": "is_active",
+     "type": "BooleanField",
+     "related": null
+    },
+    {
+     "name": "date_joined",
+     "type": "DateTimeField",
+     "related": null
+    },
+    {
+     "name": "email_confirmed",
+     "type": "BooleanField",
+     "related": null
+    },
+    {
+     "name": "groups",
+     "type": "ManyToManyField",
+     "related": "Group"
+    },
+    {
+     "name": "user_permissions",
+     "type": "ManyToManyField",
+     "related": "Permission"
+    }
+   ],
+   "routes": {
+    "list": {
+     "path": "/~sdc-list-view~&model=SdcUser",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "detail": {
+     "path": "/~sdc-detail-view~&model=SdcUser&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "create": {
+     "path": "/~sdc-model-form~&model=SdcUser",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    },
+    "edit": {
+     "path": "/~sdc-model-form~&model=SdcUser&pk=<id>",
+     "ok": [
+      "admin",
+      "anonymous",
+      "editor",
+      "regular",
+      "staff"
+     ],
+     "denied": []
+    }
+   },
+   "remove_in_list": true
+  }
+ ],
+ "tasks": [
+  {
+   "controller": "register",
+   "title": "Register a new account",
+   "steps": [
+    "Open `/~register~&model=SdcUser&next=..` (or the \"Register\" link).",
+    "Fill `username`, `password1` and `password2` (the user types the passwords) and optionally the names and `email`.",
+    "The user clicks \"Create\"; with an `email` a confirmation e-mail is sent."
+   ]
+  }
+ ],
+ "errors": [
+  [
+   "403 Not allowed!",
+   "~sdc-detail-view~&1.model=SdcUser&1.pk=1"
+  ],
+  [
+   "403 Not allowed!",
+   "~sdc-model-form~&1.model=BookContent"
+  ],
+  [
+   "403 Not allowed!",
+   "~sdc-model-form~&1.model=BookContent&1.pk=1"
+  ],
+  [
+   "Cannot read properties of undefined (reading '1')",
+   "~sdc-model-form~&1.model=BookContent&1.pk=1"
+  ],
+  [
+   "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+   "~main-view"
+  ],
+  [
+   "SDC Model (BookContent, 0) Socket closed unexpectedly",
+   "~sdc-model-form~&1.model=BookContent"
+  ],
+  [
+   "SDC Model (BookContent, 0) Socket closed unexpectedly",
+   "~sdc-model-form~&1.model=BookContent&1.pk=1"
+  ],
+  [
+   "model query returns 0 but only 1 expected.",
+   "~sdc-detail-view~&1.model=SdcUser&1.pk=1"
+  ],
+  [
+   "not ready: Page.wait_for_function: Timeout 10000ms exceeded.",
+   "~sdc-detail-view~&1.model=SdcUser&1.pk=1"
+  ]
+ ]
+}

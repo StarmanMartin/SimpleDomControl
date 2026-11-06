@@ -12,6 +12,7 @@ described in `paper/EVALUATION.md` (workspace root).
 | `fixture_large.json` | `fixture.json` plus 300 authors (`Writer 001`…) and 1000 books (`Atlas 0000`…) |
 | `users.yaml` | One user per role: `regular` (jane), `editor` (eddie, group Editor), `staff` (sam), `admin` (root) |
 | `SDC_SKILL.md` | Frozen skill file for the `full` condition (`sdc_teach` crawl as root on this fixture) |
+| `SDC_SKILL.v2.*` | Frozen output of the current `sdc_teach` (crawl as anonymous and all four roles, with model routes): `.md` (agent), `.assistant.md`, `.data.json` (for the `index` condition) |
 
 | Category | Tasks | Checked by |
 |----------|-------|-----------|
@@ -49,6 +50,17 @@ python manage.py sdc_eval_ai eval/sdctest/tasks \
 python manage.py sdc_eval_ai --summarize -o eval/sdctest/results.jsonl --by condition,model,category
 ```
 
+Conditions of the improvements in `plan_ai_improvement.md` (workspace root): the assistant profile and the
+index mode of the new skill data (about 6.7k and 2.1k tokens instead of 7.6k for `SDC_SKILL.md`):
+
+```bash
+    --condition v2=full:eval/sdctest/SDC_SKILL.v2.assistant.md \
+    --condition index:eval/sdctest/SDC_SKILL.v2.data.json
+```
+
+Add `tasks_ui` (with `fixture.json`) and `tasks_large` (with `fixture_large.json`, separate run) to measure
+clicks and long lists.
+
 A run without `--judge-model` leaves the rubric tasks as `needs_judge`; grade them later with
 `python manage.py sdc_eval_ai eval/sdctest/tasks -o eval/sdctest/results.jsonl --judge-pending --judge-model ...`.
 
@@ -79,6 +91,8 @@ them (e.g. the `lists` of the last `read_page` / `page` result).
 - Fixtures: `python manage.py shell -c "exec(open('eval/sdctest/build_fixture.py').read())"` (writes both).
 - Skill file: `DJANGO_DATABASE=jest python manage.py flush --noinput && python manage.py sdc_teach --user root
   --password eval-pass-123 --fixture eval/sdctest/fixture.json --no-ask -o eval/sdctest/SDC_SKILL.md`.
+  The v2 files: `... sdc_teach --users-file eval/sdctest/users.yaml --fixture eval/sdctest/fixture.json --no-ask
+  -o eval/sdctest/SDC_SKILL.v2.md`.
   A new skill file changes the `full` condition: do not mix results of different skill files (the summary warns
   when one condition used several system prompts).
 

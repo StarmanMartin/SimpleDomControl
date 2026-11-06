@@ -50,7 +50,7 @@ import yaml
 TASK_KEYS = {'id', 'app', 'category', 'role', 'start', 'prompt', 'followup', 'expect', 'notes', 'reference'}
 EXPECT_KEYS = {'controller', 'path', 'args', 'form', 'answer_contains', 'answer_not_contains', 'answer_regex',
                'forbidden', 'max_http_errors', 'max_error_views', 'allow_db_changes', 'judge', 'confirm'}
-SKILL_SOURCES = ('auto', 'full', 'apps', 'none')
+SKILL_SOURCES = ('auto', 'full', 'apps', 'none', 'index')
 
 
 class EvalConfigError(ValueError):
@@ -134,17 +134,22 @@ def parse_condition(spec):
     """
     ``[label=]source[:skill_file][+extra:file[,file]]`` -> ``{'label', 'settings'}``; ``source`` is one of
     ``SKILL_SOURCES``. Examples: ``none``, ``full``, ``stale=full:SDC_SKILL_old.md``,
-    ``length=none+extra:filler.md``.
+    ``length=none+extra:filler.md``. ``index[:data_file]`` is the index mode (``SDC_AI_SKILL_MODE``) with the
+    skill data of sdc_teach (default ``SDC_SKILL.data.json``).
     """
     label, _, rest = spec.rpartition('=')
     rest, _, extra = rest.partition('+')
     source, _, skill_file = rest.partition(':')
     if source not in SKILL_SOURCES:
         raise EvalConfigError(f'Condition {spec!r}: the source must be one of {", ".join(SKILL_SOURCES)}')
-    if skill_file and source not in ('full', 'auto'):
-        raise EvalConfigError(f'Condition {spec!r}: a skill file needs the source full or auto')
-    settings = {'SDC_AI_SKILL_SOURCE': source, 'SDC_AI_SKILL_FILE': skill_file or 'SDC_SKILL.md',
-                'SDC_AI_ADDITIONAL_SKILL_FILE': None}
+    if skill_file and source not in ('full', 'auto', 'index'):
+        raise EvalConfigError(f'Condition {spec!r}: a skill file needs the source full, auto or index')
+    if source == 'index':
+        settings = {'SDC_AI_SKILL_SOURCE': 'auto', 'SDC_AI_SKILL_MODE': 'index', 'SDC_AI_SKILL_FILE': 'SDC_SKILL.md',
+                    'SDC_AI_SKILL_DATA_FILE': skill_file or 'SDC_SKILL.data.json', 'SDC_AI_ADDITIONAL_SKILL_FILE': None}
+    else:
+        settings = {'SDC_AI_SKILL_SOURCE': source, 'SDC_AI_SKILL_MODE': 'full',
+                    'SDC_AI_SKILL_FILE': skill_file or 'SDC_SKILL.md', 'SDC_AI_ADDITIONAL_SKILL_FILE': None}
     if extra:
         kind, _, files = extra.partition(':')
         if kind != 'extra' or not files:

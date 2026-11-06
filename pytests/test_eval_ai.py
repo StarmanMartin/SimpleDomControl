@@ -68,7 +68,12 @@ def test_permission_probe_only_needs_forbidden():
 
 def test_parse_condition():
     assert parse_condition('none') == {'label': 'none', 'spec': 'none', 'settings': {
-        'SDC_AI_SKILL_SOURCE': 'none', 'SDC_AI_SKILL_FILE': 'SDC_SKILL.md', 'SDC_AI_ADDITIONAL_SKILL_FILE': None}}
+        'SDC_AI_SKILL_SOURCE': 'none', 'SDC_AI_SKILL_MODE': 'full', 'SDC_AI_SKILL_FILE': 'SDC_SKILL.md',
+        'SDC_AI_ADDITIONAL_SKILL_FILE': None}}
+    index = parse_condition('small=index:eval/x.data.json')
+    assert index['label'] == 'small' and index['settings']['SDC_AI_SKILL_MODE'] == 'index'
+    assert index['settings']['SDC_AI_SKILL_DATA_FILE'] == 'eval/x.data.json'
+    assert parse_condition('index')['settings']['SDC_AI_SKILL_DATA_FILE'] == 'SDC_SKILL.data.json'
     stale = parse_condition('stale=full:skills/old.md')
     assert stale['label'] == 'stale' and stale['settings']['SDC_AI_SKILL_FILE'] == 'skills/old.md'
     length = parse_condition('length=none+extra:filler.md,more.md')

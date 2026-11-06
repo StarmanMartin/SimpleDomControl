@@ -383,3 +383,99 @@ def render_skill(tree, meta, audience='agent'):
                  ``teach_models.sdc_models``) and optional ``date``
     """
     return render_markdown(build_skill_data(tree, meta), audience)
+
+
+# ---------------------------------------------------------------------------------------------- index + describe
+INDEX_HEADING = '## Index of this website'
+MAX_INDEX_SUMMARY = 160
+
+
+def _first_sentence(item):
+    """The ``@ai-summary`` of an item, else the first sentence of its documentation (shortened)."""
+    text = item.get('summary') or _summary(item.get('doc'))
+    if not item.get('summary'):
+        cut = text.find('. ')
+        text = text[:cut + 1] if cut >= 0 else text
+    return text if len(text) <= MAX_INDEX_SUMMARY else text[:MAX_INDEX_SUMMARY - 1].rstrip() + '…'
+
+
+def _visible(data):
+    """The skill data as the assistant sees it: without @ai-hidden controllers."""
+    return data | {k: [i for i in data[k] if not i.get('hidden')] for k in ('views', 'embedded', 'unreached')}
+
+
+def render_index(data):
+    """
+    A short index of the website for the AI assistant (``SDC_AI_SKILL_MODE = 'index'``): the URL guide, the
+    recipes and one line per view, controller and model. The details come from the ``describe`` tool.
+    """
+    data = _visible(data)
+    lines = [SDC_URL_GUIDE, '', INDEX_HEADING, '',
+             'One line per view, controller and model. Call the tool `describe` with a name from this index '
+             '(e.g. `describe {"name": "sdc-login"}`) to get its full documentation - arguments, links, buttons '
+             'and what they do, forms, fields - before you act on a view you have not described yet.', '']
+    _render_tasks(data, lines)
+    if data['views']:
+        lines += ['### Views', '']
+        for view in data['views']:
+            facts = [_first_sentence(view)]
+            if view['args']:
+                facts.append('args: ' + ', '.join(sorted(view['args'])))
+            if view['requires_login']:
+                facts.append('login required')
+            available = view.get('available_to') or []
+            if available and len(data['crawled_as']) > 1 and set(available) != set(data['crawled_as']):
+                facts.append(f'available to {", ".join(available)}')
+            lines.append(f'- `{view["tag"]}` {_code(view["href"])} — ' + '; '.join(filter(None, facts)))
+        lines.append('')
+    others = data['embedded'] + data['unreached']
+    if others:
+        lines += ['### Other controllers', '',
+                  'Embedded in views, or views no crawled link opened (their paths are not verified).', '']
+        lines += [f'- `{c["tag"]}` — {_first_sentence(c)}' for c in sorted(others, key=lambda c: c['tag'])]
+        lines.append('')
+    if data['models']:
+        lines += ['### Data models', '']
+        for m in data['models']:
+            fields = ', '.join(f['name'] for f in m.get('fields') or [])
+            lines.append(f'- `{m["name"]}` — {_first_sentence(m)}' + (f' Fields: {fields}.' if fields else ''))
+        lines.append('')
+    return '\n'.join(lines)
+
+
+def describe(data, name):
+    """
+    The full documentation of one view, controller or model of the skill data (the ``describe`` tool), or an
+    error text with the closest names. Names are matched case-insensitively, ``<tag>`` works too.
+    """
+    import difflib
+    data = _visible(data)
+    actions = _actions_of(data)
+    key = str(name or '').strip().strip('<>`').lower()
+    lines = []
+    for view in data['views']:
+        if view['tag'].lower() == key:
+            _render_view(view, actions, lines, agent=False, crawled_as=data['crawled_as'])
+            lines += [f'Recipe "{t["title"]}": ' + ' '.join(f'{i}. {s}' for i, s in enumerate(t['steps'], 1))
+                      for t in data.get('tasks') or [] if t['controller'] == view['tag']]
+            return '\n'.join(lines).strip()
+    for section, intro in (('embedded', 'Shown inside views.'),
+                           ('unreached', 'No crawled link opened this view: its path and arguments are not verified.')):
+        for item in data[section]:
+            if item['tag'].lower() == key:
+                _render_controllers([item], lines, f'_{intro}_', agent=False)
+                return '\n'.join(lines).strip()
+    for model in data['models']:
+        if model['name'].lower() == key:
+            _render_models([model], lines)
+            routes = model.get('routes') or {}
+            if routes:
+                lines.append('Views: ' + '; '.join(f'{kind} {_code(r["path"])}' for kind, r in routes.items()))
+            # Without the heading and the introduction of the models section
+            return '\n'.join(lines[4:]).strip()
+    names = [v['tag'] for v in data['views']] + [c['tag'] for c in data['embedded'] + data['unreached']] + [
+        m['name'] for m in data['models']]
+    close = difflib.get_close_matches(key, [n.lower() for n in names], n=5, cutoff=0.4)
+    close = [n for n in names if n.lower() in close]
+    return (f'Unknown name "{name}". ' + (f'Close matches: {", ".join(close)}. ' if close else '')
+            + 'Use a view, controller or model name from the index.')

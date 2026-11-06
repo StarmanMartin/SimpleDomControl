@@ -182,7 +182,8 @@ class Command(BaseCommand):
         parser.add_argument('-o', '--output', default='sdc_eval_results.jsonl',
                             help='Result file (JSON lines). Existing episodes are skipped (resume).')
         parser.add_argument('--condition', action='append', dest='conditions', default=None,
-                            help='[label=]source[:skill_file][+extra:file]; source: none, apps, full, auto. '
+                            help='[label=]source[:skill_file][+extra:file]; source: none, apps, full, auto, '
+                                 'index (index mode with the skill data file of sdc_teach). '
                                  'Repeatable (default: none, apps, full)')
         parser.add_argument('--model', action='append', dest='models', default=None,
                             help='[label=]provider:model[@base_url], e.g. anthropic:claude-opus-5-5 or '
@@ -325,6 +326,8 @@ class Command(BaseCommand):
         base_dir = str(getattr(settings, 'BASE_DIR', ''))
         for c in conditions:
             files = [c['settings']['SDC_AI_SKILL_FILE']] if c['settings']['SDC_AI_SKILL_SOURCE'] == 'full' else []
+            if c['settings'].get('SDC_AI_SKILL_MODE') == 'index':
+                files = [c['settings']['SDC_AI_SKILL_DATA_FILE']]
             files += c['settings']['SDC_AI_ADDITIONAL_SKILL_FILE'] or []
             for file in files:
                 if not os.path.isfile(os.path.join(base_dir, file)):
