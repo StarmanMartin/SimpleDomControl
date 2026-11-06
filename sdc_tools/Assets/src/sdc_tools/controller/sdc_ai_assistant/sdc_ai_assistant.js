@@ -39,6 +39,13 @@ const MAX_PAGE_ELEMENTS = 200;
 const CONFIRM_CLICK = /log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|send|abmelden|löschen|entfernen|speichern|senden/i;
 // How long a click waits before it checks whether the page is still loading
 const CLICK_SETTLE_MS = 300;
+// After a change, the page counts as settled when nothing changed for QUIET_MS (at most SETTLE_MAX_MS)
+const QUIET_MS = 200;
+const SETTLE_MAX_MS = 3000;
+// fill_form of a view that updates on change waits up to this long for the update to start
+const UPDATE_START_MS = 2000;
+// A click on a button (not an SDC link) waits up to this long for a change to start (e.g. rows from the server)
+const CLICK_UPDATE_START_MS = 1000;
 // sdc-update-on-change ignores changes shortly after a view is rendered (_isNotReady); wait at most this long
 const READY_MAX_MS = 1500;
 // Elements of the page the model never sees
@@ -97,7 +104,8 @@ class SdcAiAssistantController extends AbstractSDC {
         this._savingSettings = false;
         // {left, top, width, height} once the user moved or resized the window; null = docked at the right edge
         this._geometry = null;
-        this._onWindowResize = () => this._applyGeometry();
+        // Created in _setUpWindow: an arrow function made here would keep the temporary instance (see _actions)
+        this._onWindowResize = null;
         // Stable ids of the elements and forms shown to the model: the same DOM node keeps its id across read_page
         // calls, so a re-render of other parts of the page does not change what an id refers to (see _idOf)
         this._ids = new WeakMap();
@@ -105,14 +113,29 @@ class SdcAiAssistantController extends AbstractSDC {
         this._nextId = 1;
 
         // Actions the assistant may run (tool names of SDCAiConsumer, see sdc_core/consumers.py)
-        // SdcModels are read-only: there are no actions to create, change or delete records
+        // SdcModels are read-only: there are no actions to create, change or delete records.
+        // No arrow functions: sdc_client builds the controller from a temporary instance of this class
+        // (agileAggregation copies the fields), so a `this` captured here would not be the controller.
+        // _runActions calls them with the controller as `this`.
         this._actions = {
-            navigate: (input) => this._navigate(input),
-            read_page: (input) => this._readPage(input),
-            fill_form: (input) => this._fillForm(input),
-            click: (input) => this._click(input),
-            model_get: (input) => this._modelGet(input),
-            model_load: (input) => this._modelLoad(input),
+            navigate(input) {
+                return this._withPage(this._navigate(input));
+            },
+            read_page(input) {
+                return this._readPage(input);
+            },
+            fill_form(input) {
+                return this._fillFormAndWait(input);
+            },
+            click(input) {
+                return this._withPage(this._click(input));
+            },
+            model_get(input) {
+                return this._modelGet(input);
+            },
+            model_load(input) {
+                return this._modelLoad(input);
+            },
         };
     }
 
@@ -173,7 +196,9 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     onRemove() {
-        window.removeEventListener('resize', this._onWindowResize);
+        if (this._onWindowResize) {
+            window.removeEventListener('resize', this._onWindowResize);
+        }
         if (this._socket) {
             this._socket.onclose = null;
             this._socket.close();
@@ -413,7 +438,7 @@ class SdcAiAssistantController extends AbstractSDC {
                             + 'asks for it.');
                     }
                 }
-                const content = await this._withTimeout(handler(action.input), action.name);
+                const content = await this._withTimeout(handler.call(this, action.input), action.name);
                 results.push({tool_use_id: action.tool_use_id, content, is_error: false});
             } catch (e) {
                 const msg = e?.msg || e?.message || String(e);
@@ -461,6 +486,88 @@ class SdcAiAssistantController extends AbstractSDC {
      * page, e.g. ``sdc-error 404`` for a path that does not exist or ``403`` for a view the user may not open, or
      * if it does not finish loading in time.
      */
+    /**
+     * Adds ``page``, the outline of the page after the action (read_page), to an action result when the server
+     * enables it (``page_in_results`` of ai_config, setting ``SDC_AI_PAGE_IN_RESULTS``): the model then needs no
+     * extra read_page round after navigate, click and fill_form. A string result becomes ``{result, page}``.
+     */
+    async _withPage(resultOrPromise) {
+        const result = await resultOrPromise;
+        if (!this._config?.page_in_results) {
+            return result;
+        }
+        let page;
+        try {
+            page = this._readPage();
+        } catch (e) {
+            return result;
+        }
+        return typeof result === 'object' && result !== null ? {...result, page} : {result, page};
+    }
+
+    /**
+     * Resolves when nothing in the page (outside the assistant) changed for ``QUIET_MS``, at the latest after
+     * ``maxMs``; with ``waitForStart`` it first waits up to that long for the first change (e.g. the filtered list
+     * coming back from the server).
+     */
+    _waitForQuiet({maxMs = SETTLE_MAX_MS, waitForStart = 0} = {}) {
+        return new Promise((resolve) => {
+            const start = Date.now();
+            let last = waitForStart ? null : start;
+            const observer = new MutationObserver((mutations) => {
+                if (mutations.some((m) => !m.target.closest?.('sdc-ai-assistant')
+                    && !m.target.parentElement?.closest('sdc-ai-assistant'))) {
+                    last = Date.now();
+                }
+            });
+            observer.observe(document.body, {childList: true, subtree: true, characterData: true});
+            const timer = setInterval(() => {
+                const now = Date.now();
+                const done = now - start >= maxMs
+                    || (last === null ? now - start >= waitForStart : now - last >= QUIET_MS);
+                if (done) {
+                    clearInterval(timer);
+                    observer.disconnect();
+                    resolve();
+                }
+            }, 50);
+        });
+    }
+
+    /** The SDC controller instance that owns the fields of a form entry (for sdc-update-on-change's state). */
+    _controllerInstance(entry) {
+        for (let node = entry.form || entry.container; node && node !== document.body; node = node.parentElement) {
+            const controller = $(node).data('_controller_');
+            if (controller) {
+                return controller;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * fill_form as an action: a view that updates on change (a search bar) is given time to become ready (its
+     * changes are ignored right after it was rendered) and the update is awaited, so the result (and its
+     * ``page``) already shows the filtered list.
+     */
+    async _fillFormAndWait(input) {
+        const entry = this._pageForms().find((e) => this._ids.get(e.form || e.container) === input?.form);
+        const updates = entry && this._updatesOnChange(entry);
+        if (updates) {
+            const controller = this._controllerInstance(entry);
+            const start = Date.now();
+            while (controller?._isNotReady && Date.now() - start < READY_MAX_MS) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+        }
+        const result = this._fillForm(input);
+        if (updates && Object.keys(result.set).length) {
+            await this._waitForQuiet({waitForStart: this._updateStartMs ?? UPDATE_START_MS});
+            await this._waitForPage(0);
+        }
+        return this._withPage(result);
+    }
+
     async _navigate({path}) {
         this._goTo(path);
         await this._waitForPage();
@@ -1317,6 +1424,8 @@ class SdcAiAssistantController extends AbstractSDC {
             el.click();
         }
         await this._waitForPage(CLICK_SETTLE_MS);
+        // Buttons may update the page without navigating (e.g. "Next" of a search bar loads the next rows)
+        await this._waitForQuiet({waitForStart: link?.sdc ? 0 : (this._clickUpdateStartMs ?? CLICK_UPDATE_START_MS)});
         const at = this._checkLoadedView(link?.sdc ? link.target?.href ?? link.href : `"${text}"`);
         const modal = !!document.querySelector('.modal.show');
         return {
@@ -1324,7 +1433,7 @@ class SdcAiAssistantController extends AbstractSDC {
             url: at,
             navigated: at + window.location.search !== before,
             ...(modal && !modalBefore ? {modal_opened: true} : {}),
-            note: 'Use read_page to see the result.',
+            ...(this._config?.page_in_results ? {} : {note: 'Use read_page to see the result.'}),
         };
     }
 
@@ -1360,6 +1469,7 @@ class SdcAiAssistantController extends AbstractSDC {
             handle.addEventListener('pointerdown', (ev) => this._startPointerAction(ev, dir));
             container.appendChild(handle);
         }
+        this._onWindowResize = () => this._applyGeometry();
         window.addEventListener('resize', this._onWindowResize);
         this._applyGeometry();
         // Links to SDC views in answers open in the sdc-navigator instead of reloading the page

@@ -14,9 +14,7 @@
     max_error_views: 0
   reference:
     - navigate: {path: "/~sdc-list-view~&model=Author"}
-    - read_page: {}
     - fill_form: {controller: sdc-search-view, values: {search: Nina}}
-    - read_page: {}
     - click: {text: Edit, href_contains: "pk=3"}
     - answer: "The edit form of Nina is open."
 - id: sdctest-U-02
@@ -31,9 +29,7 @@
     answer_not_contains: ["has been deleted", "was deleted", "wurde gelöscht"]
   reference:
     - navigate: {path: "/~sdc-list-view~&model=Author"}
-    - read_page: {}
     - click: {text: Remove, nth: 2}
-    - read_page: {}
     - click: {text: Remove Artin}
     - answer: "You did not allow the deletion, so Artin was not removed."
 - id: sdctest-U-03

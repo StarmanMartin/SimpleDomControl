@@ -70,11 +70,9 @@ Re-run it after changing the tasks, the fixture or the application. For the othe
 all directories (`python eval/oracle_server.py eval/sdctest/tasks eval/sdctest/tasks_ui eval/sdctest/tasks_large`)
 and run `tasks_ui` with `fixture.json`, `tasks_large` with `fixture_large.json`.
 
-Known oracle failures of the current tools (they measure open problems, see `plan_ai_improvement.md`):
-
-- `sdctest-L-05` needs six action rounds (search, read, Next, read), one more than the limit of five.
-- `sdctest-U-01` reads the page right after filling the search bar; the oracle answers instantly, before the
-  filtered list arrived, so the row of Nina is not found yet.
+The oracle only replays answers: an `answer_contains` check passes with the reference answer even if the page
+showed other values. After changing a task that reads values from the page, check once that the page really shows
+them (e.g. the `lists` of the last `read_page` / `page` result).
 
 ## Rebuilding
 

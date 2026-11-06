@@ -619,11 +619,20 @@ describe('SdcAiAssistant', () => {
                         clicks.push(this.textContent);
                     });
                 });
+                // The real connection to the test server would replace _config with the server's ai_config
+                if (controller._socket instanceof WebSocket) {
+                    controller._socket.onmessage = null;
+                    controller._socket.onclose = null;
+                    controller._socket.close();
+                }
                 controller._socket = {readyState: WebSocket.OPEN, send: () => null};
+                // jsdom: no server answers a click, so the click does not wait for an update to start
+                controller._clickUpdateStartMs = 0;
             });
 
             afterEach(() => {
                 window.sdcNav = savedNav;
+                controller._config = null;
                 controller._socket = null;
                 controller.find('.ai-messages').empty();
                 $buttons.remove();
@@ -703,6 +712,44 @@ describe('SdcAiAssistant', () => {
                 $buttons.find('form').before('<form><input name="other"></form>');
                 expect(controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'search')).id)
                     .toBe(search.id);
+            });
+
+            test('with page_in_results, actions return the page afterwards', async () => {
+                controller._config = {page_in_results: true};
+                const result = await controller._actions.click.call(controller, {element: element('Next').id});
+                expect(result).toMatchObject({clicked: 'Next'});
+                expect(result.note).toBeUndefined();
+                expect(result.page.elements.some((e) => e.text === 'Next')).toBe(true);
+                // A string result (navigate) becomes {result, page}
+                const navigated = await controller._withPage('Now at /~x');
+                expect(navigated).toMatchObject({result: 'Now at /~x'});
+                expect(navigated.page.url).toBe(window.location.pathname);
+                controller._config = {page_in_results: false};
+                expect(await controller._withPage('Now at /~x')).toBe('Now at /~x');
+            });
+
+            test('fill_form of a search bar waits until the view is ready and its update arrived', async () => {
+                const search = controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'search'));
+                const $form = $buttons.find('form');
+                // An sdc-update-on-change controller that ignores changes right after rendering
+                const owner = {_isNotReady: true};
+                $form.data('_controller_', owner);
+                setTimeout(() => {
+                    owner._isNotReady = false;
+                }, 150);
+                const seen = [];
+                $form.find('[name=search]')[0].addEventListener('change', () => {
+                    seen.push(owner._isNotReady ? 'too early' : 'ready');
+                    // The filtered list arrives later
+                    setTimeout(() => $buttons.append('<p class="ai-result">Jane</p>'), 100);
+                });
+                controller._updateStartMs = 1000;
+                controller._config = {page_in_results: true};
+                const result = await controller._actions.fill_form.call(controller, {form: search.id, values: {search: 'jane'}});
+                expect(seen).toEqual(['ready']);
+                expect(result.set).toEqual({search: 'jane'});
+                expect(result.page.text).toContain('Jane');
+                delete controller._updateStartMs;
             });
 
             test('an unanswered question ends with its request', async () => {

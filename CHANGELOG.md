@@ -16,6 +16,10 @@ The server and the client are released with the same version number.
   summarises long lists and lists with a search bar (first 20 rows, total, search form, Next/Prev ids). New
   arguments `mode` (`outline`/`html`), `scope` (element, form or list id, or controller tag) and `rows`
   (`[from, to]`).
+- AI assistant: `navigate`, `click` and `fill_form` return the outline of the page afterwards (`page`; setting
+  `SDC_AI_PAGE_IN_RESULTS`, default `True`). `fill_form` on a view that updates on change waits until it accepts
+  changes (sdc-update-on-change ignores them shortly after rendering) and until its update arrived; clicks wait
+  for the page to settle. The action round limit is the setting `SDC_AI_MAX_ACTION_ROUNDS` (default 5).
 
 ### Added
 - `sdc_eval_ai --confirm deny|allow`, the task check `confirm`, size metrics (`tool_result_chars`, system prompt
@@ -80,6 +84,8 @@ The server and the client are released with the same version number.
 - Documentation pages "Teaching AI agents" and "AI assistant".
 
 ### Fixed
+- AI assistant: actions and the window-resize handler ran on the temporary instance from which sdc_client builds
+  the controller (`agileAggregation`), not on the controller itself.
 - AI assistant: `model_load` / `model_get` with a model name that is not an SdcModel (`User`, `AuthUser`) or not
   spelled exactly (`author`) never returned: the browser waited for a model WebSocket that was never opened, and
   the answer hung until the client timed out. The server now resolves model names case-insensitively and answers

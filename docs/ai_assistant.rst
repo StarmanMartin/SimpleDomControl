@@ -164,6 +164,14 @@ same name.
    * - ``SDC_AI_EFFORT``
      - ``'medium'``
      - Claude only: ``low``, ``medium``, ``high``, ``xhigh`` or ``max``.
+   * - ``SDC_AI_MAX_ACTION_ROUNDS``
+     - ``5``
+     - Rounds of browser actions per answer; then the model has to answer.
+       Every round is a model request (``SDC_AI_MAX_REQUESTS_PER_USER``).
+   * - ``SDC_AI_PAGE_IN_RESULTS``
+     - ``True``
+     - ``navigate``, ``click`` and ``fill_form`` return the outline of the page
+       afterwards (``page``), which saves a ``read_page`` round per action.
    * - ``SDC_AI_ADDITIONAL_SKILL_FILE``
      - ``None``
      - Path or list of paths (relative to ``BASE_DIR``) of hand-written
@@ -290,7 +298,12 @@ The assistant acts through tools that run in the browser:
 Password, hidden and file fields are never read or filled. Because the
 assistant can click buttons, it can change data the user may change, but only
 through the page's own buttons and, for risky ones, after the user allowed it. A response may use
-tools in up to five rounds; then the model has to answer.
+tools in up to five rounds (``SDC_AI_MAX_ACTION_ROUNDS``); then the model has to answer.
+With ``SDC_AI_PAGE_IN_RESULTS`` (default) ``navigate``, ``click`` and
+``fill_form`` return the outline of the page afterwards, so a search with paging
+takes three rounds instead of six. ``fill_form`` on a view that updates on change
+waits until the view accepts changes and its update has arrived; a click on a
+button waits for the page to settle.
 
 
 The panel

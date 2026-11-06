@@ -163,7 +163,11 @@ def test_config_read_only_with_system_token(monkeypatch):
     assert received[0]['type'] == 'ai_config'
     assert received[0]['editable'] is False and received[0]['allow_base_url'] is False
     assert received[0]['model'] == 'claude-opus-5-5' and received[0]['has_token'] is True
+    assert received[0]['page_in_results'] is True
     assert received[1]['type'] == 'error' and '403' in received[1]['msg']
+    with override_settings(**AI, SDC_AI_PAGE_IN_RESULTS=False):
+        _, received = run(_user(), [], FakeClient(), monkeypatch, with_config=True)
+    assert received[0]['page_in_results'] is False
 
 
 def test_user_config_is_used(monkeypatch):
@@ -345,6 +349,20 @@ def test_round_limit_forces_an_answer(monkeypatch):
     assert len(client.calls) == 6
     assert 'tool_choice' not in client.calls[4]
     assert client.calls[5]['tool_choice'] == {'type': 'none'}
+
+
+def test_round_limit_is_a_setting(monkeypatch):
+    client = FakeClient(script=[((), 'tool_use', [LOAD])])
+    events = [{'event': 'prompt', 'id': 1, 'prompt': 'Loop'}] + [
+        {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1', 'content': 'x'}]}] * 8
+    with override_settings(**AI, SDC_AI_MAX_ACTION_ROUNDS=8):
+        run(_user(), events, client, monkeypatch)
+    assert len(client.calls) == 9
+    assert 'tool_choice' not in client.calls[7] and client.calls[8]['tool_choice'] == {'type': 'none'}
+    from django.core.exceptions import ImproperlyConfigured
+    for wrong in (-1, '5', True):
+        with override_settings(SDC_AI_MAX_ACTION_ROUNDS=wrong), pytest.raises(ImproperlyConfigured):
+            SDCAiConsumer._max_action_rounds()
 
 
 # ------------------------------------------------------------------ OpenAI-compatible provider

@@ -1,6 +1,7 @@
 # Large lists: run with --fixture eval/sdctest/fixture_large.json (300 extra authors "Writer MMM", 1000 books
 # "Atlas NNNN"). The author list (sdc-list-view, model Author) shows 2 rows per page, ordered by name, and has a
-# search bar (name or book title). Book "Atlas NNNN" has pk 101 + NNNN and the author "Writer MMM" with
+# search bar: every word of the search text must appear in the name or in a title of the author's books (so
+# "Writer 2" also finds "Writer 012"; single words are unambiguous). Book "Atlas NNNN" has pk 101 + NNNN and the author "Writer MMM" with
 # MMM = NNNN % 300 + 1 (author pk 100 + MMM).
 - id: sdctest-L-01
   app: sdctest
@@ -29,7 +30,6 @@
     max_error_views: 0
   reference:
     - navigate: {path: "/~sdc-list-view~&model=Author"}
-    - read_page: {}
     - fill_form: {controller: sdc-search-view, values: {search: Writer 123}}
     - answer: "The author list is filtered by 'Writer 123'."
 - id: sdctest-L-03
@@ -37,16 +37,14 @@
   category: large-search
   role: regular
   prompt:
-    - "How many authors in the author list match the search 'Writer 2'?"
-    - "Search the author list for 'Writer 2'. How many results are there?"
+    - "How many authors in the author list match the search 'Writer'?"
+    - "Search the author list for 'Writer'. How many results are there?"
   expect:
-    answer_contains: ["100"]
+    answer_contains: ["300"]
   reference:
     - navigate: {path: "/~sdc-list-view~&model=Author"}
-    - read_page: {}
-    - fill_form: {controller: sdc-search-view, values: {search: Writer 2}}
-    - read_page: {}
-    - answer: "100 authors match 'Writer 2'."
+    - fill_form: {controller: sdc-search-view, values: {search: Writer}}
+    - answer: "300 authors match 'Writer'."
 - id: sdctest-L-04
   app: sdctest
   category: large-navigation
@@ -67,15 +65,12 @@
   category: large-paging
   role: regular
   prompt:
-    - "Search the author list for 'Writer 1', go to the next page of results and tell me which author is listed first there."
-    - "In the author list filtered by 'Writer 1', which author is the first one on the second page?"
+    - "Search the author list for 'Writer', go to the next page of results and tell me which author is listed first there."
+    - "In the author list filtered by 'Writer', which author is the first one on the second page?"
   expect:
-    answer_contains: ["Writer 102"]
+    answer_contains: ["Writer 003"]
   reference:
     - navigate: {path: "/~sdc-list-view~&model=Author"}
-    - read_page: {}
-    - fill_form: {controller: sdc-search-view, values: {search: Writer 1}}
-    - read_page: {}
+    - fill_form: {controller: sdc-search-view, values: {search: Writer}}
     - click: {text: Next}
-    - read_page: {}
-    - answer: "The first author on the second page is Writer 102."
+    - answer: "The first author on the second page is Writer 003."

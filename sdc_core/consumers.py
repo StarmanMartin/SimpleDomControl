@@ -603,7 +603,8 @@ class SDCModelConsumer(WebsocketConsumer):
 
 # Claude models that accept the server-side refusal fallback `fallbacks: "default"`
 AI_FALLBACK_MODELS = {'claude-fable-5-1', 'claude-opus-5-5', 'claude-opus-5', 'claude-sonnet-5-5'}
-# Rounds of client actions per answer; after that the model has to answer without further actions
+# Rounds of client actions per answer (default of ``SDC_AI_MAX_ACTION_ROUNDS``); after that the model has to answer
+# without further actions
 AI_MAX_ACTION_ROUNDS = 5
 # Values a user may choose in the assistant's settings menu (``set_config``)
 AI_PROVIDERS = ('anthropic', 'openai-compatible')
@@ -745,6 +746,8 @@ buttons and links (`elements`) with the resolved target of every SDC link. Ask f
 part (`scope`), and for more rows of a list with `scope` and `rows`.
 - `fill_form` enters values into the fields of a form of the current page. It does not submit or save the form. \
 Fields that update their view on change (`updates_on_change`, e.g. the search bar of a list) filter the list at once.
+- When the result of `navigate`, `click` or `fill_form` contains `page`, it is the outline of the page afterwards: \
+use it instead of calling `read_page` again.
 - `click` presses a button or link of the current page, like the user. Form submit buttons and links that leave the \
 app cannot be clicked. Buttons that may delete, save or send data (`needs_confirmation`) are only clicked after the \
 user allowed it in the chat.
@@ -938,6 +941,13 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
     def _setting(name, default=None):
         return getattr(settings, name, default)
 
+    @classmethod
+    def _max_action_rounds(cls):
+        rounds = cls._setting('SDC_AI_MAX_ACTION_ROUNDS', AI_MAX_ACTION_ROUNDS)
+        if not isinstance(rounds, int) or isinstance(rounds, bool) or rounds < 0:
+            raise ImproperlyConfigured('SDC_AI_MAX_ACTION_ROUNDS must be a non-negative integer')
+        return rounds
+
     def _config(self, key):
         """A connection setting: the user's own value (``set_config``) or the project's ``SDC_AI_<KEY>``."""
         defaults = {'provider': 'anthropic', 'model': 'claude-opus-5-5', 'max_tokens': 16000, 'effort': '',
@@ -962,6 +972,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             # The project's own URL (e.g. an internal proxy) is not shown to users
             'base_url': self.config.get('base_url', ''),
             'has_token': bool(self.config.get('token')) or not editable,
+            # navigate, click and fill_form return the outline of the changed page (saves a read_page round)
+            'page_in_results': bool(self._setting('SDC_AI_PAGE_IN_RESULTS', True)),
             'is_error': False,
         }))
 
@@ -1140,7 +1152,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         """Streams one model response of the current turn; ends the turn or sends its actions to the client."""
         started = time.monotonic()
         try:
-            result = await self._stream(id, final=round >= AI_MAX_ACTION_ROUNDS)
+            result = await self._stream(id, final=round >= self._max_action_rounds())
         except Exception as e:
             self._drop_turn()
             await self._log_request(id, round, started, error=f'{type(e).__name__}: {e}')

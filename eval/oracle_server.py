@@ -43,7 +43,7 @@ def load_tasks(paths):
 
 
 def last_page(messages):
-    """The last read_page result (a dict with 'forms') in the conversation."""
+    """The last page in the conversation: a read_page result (a dict with 'forms') or the ``page`` of an action."""
     for m in reversed(messages):
         if m.get('role') == 'tool':
             try:
@@ -52,6 +52,9 @@ def last_page(messages):
                 continue
             if isinstance(content, dict) and 'forms' in content:
                 return content
+            # navigate, click and fill_form return the page afterwards (SDC_AI_PAGE_IN_RESULTS)
+            if isinstance(content, dict) and isinstance(content.get('page'), dict):
+                return content['page']
     return None
 
 
