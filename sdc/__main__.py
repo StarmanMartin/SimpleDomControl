@@ -55,7 +55,7 @@ def cli():
 @click.option("--name", prompt="Project name", help="Name of the new project (a valid Python identifier).")
 @click.option("--package", default=None,
               help="pip requirement used to install SDC into the project's virtualenv "
-                   "(default: the installed version, e.g. simpledomcontrol==0.161.0).")
+                   "(default: the installed version, e.g. simpledomcontrol==0.162.0).")
 @click.option("--skip-npm", is_flag=True, help="Do not run 'npm install'.")
 def new(name, package, skip_npm):
     if not name.isidentifier():

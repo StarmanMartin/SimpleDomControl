@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.162.0
 
 ### Changed
 - App bundles (`gulp bundle`) are ES modules. The npm packages an app lists in `<app>/Assets/sdc_app.json`
@@ -14,8 +14,19 @@ The server and the client are released with the same version number.
   `sdc_app.json` (sdc_client, jquery, lodash, bootstrap). Fixes externals that pointed at non-existent globals
   (e.g. `jquery`). Older plain-script bundles keep working (`window.sdc_client`). Needs sdc_client with
   `check_dependencies` (same release). See *Reusable apps and their npm packages* in the build docs.
+
+## 0.161.0
+
+### Changed
 - AI assistant: the system prompt and the `navigate` tool ask for the full path of a view, with all views in front
   of it (`/~dashboard~settings`, not `/~settings`).
+
+- Content protocol: a `_method=content` request is answered with JSON `{"html": ..., "data": ...}` instead of the
+  bare HTML fragment. `get_content()` may now return `(html, data)` – `html` an `HttpResponse` or `str`, `data`
+  anything JSON serialisable – and the client hands `data` to the controller (`onLoad(html, data)`,
+  `this.contentData`). Returning only `render(...)` keeps working (`data` is `{}`); redirects, error and
+  JSON/streaming responses are sent unchanged. `sdc_cc` generates `return render(...), {}`.
+  Protocol change: requires `sdc_client` 0.161.0 (older clients cannot read the JSON answer).
 
 ### Added
 - AI assistant: the panel remembers the URL at which the model last saw the page; a prompt sent after the user
@@ -33,16 +44,6 @@ The server and the client are released with the same version number.
   crawled path is corrected and the model is told so; other unknown paths of crawled views are refused with the
   crawled paths. Views the crawl never opened are not checked. New setting `SDC_AI_CHECK_PATHS` (default `True`);
   `ai_config` sends `view_paths`.
-
-## 0.161.0
-
-### Changed
-- Content protocol: a `_method=content` request is answered with JSON `{"html": ..., "data": ...}` instead of the
-  bare HTML fragment. `get_content()` may now return `(html, data)` – `html` an `HttpResponse` or `str`, `data`
-  anything JSON serialisable – and the client hands `data` to the controller (`onLoad(html, data)`,
-  `this.contentData`). Returning only `render(...)` keeps working (`data` is `{}`); redirects, error and
-  JSON/streaming responses are sent unchanged. `sdc_cc` generates `return render(...), {}`.
-  Protocol change: requires `sdc_client` 0.161.0 (older clients cannot read the JSON answer).
 
 ## 0.160.0 – 0.160.4
 
