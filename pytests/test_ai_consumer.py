@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from types import SimpleNamespace
@@ -891,3 +892,57 @@ def test_prompt_asks_for_full_view_paths():
     assert 'open `/~dashboard~settings`, never `/~settings`' in AI_DEFAULT_SYSTEM_PROMPT
     navigate = next(t for t in AI_TOOLS if t['name'] == 'navigate')
     assert 'including all views in front of it' in navigate['description']
+
+
+class HangingStream(FakeStream):
+    """Streams its first chunk, then waits forever (a long model response); records whether it was closed."""
+
+    closed = False
+
+    @property
+    def text_stream(self):
+        async def gen():
+            yield self.chunks[0]
+            await asyncio.Event().wait()
+        return gen()
+
+    async def __aexit__(self, *args):
+        HangingStream.closed = True
+        return False
+
+
+def test_stop_cancels_a_streaming_answer(monkeypatch):
+    client = FakeClient(script=[(('Hel', 'lo'), 'end_turn', ()), (('Ok.',), 'end_turn', ())])
+    first = client._stream
+
+    def stream(**params):
+        result = first(**params)
+        return HangingStream(result.chunks, result.stop_reason) if len(client.calls) == 1 else result
+
+    client.beta.messages.stream = stream
+    HangingStream.closed = False
+    with override_settings(**AI):
+        _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Write a lot'},
+                                    {'event': 'stop', 'id': 1},
+                                    {'event': 'prompt', 'id': 2, 'prompt': 'Short please'}], client, monkeypatch)
+    assert HangingStream.closed
+    assert [(m['type'], m.get('id')) for m in received] == [('ai_delta', 1), ('ai_delta', 2), ('ai_answer', 2)]
+    # The stopped prompt stays in the conversation, the unfinished response does not
+    assert [(m['role'], m['content']) for m in client.calls[1]['messages']] == [
+        ('user', 'Write a lot'), ('user', 'Short please')]
+
+
+def test_stop_answers_pending_actions(monkeypatch):
+    client = FakeClient(script=[((), 'tool_use', [LOAD]), (('Ok.',), 'end_turn', ())])
+    with override_settings(**AI):
+        _, received = run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Load'},
+                                    {'event': 'stop', 'id': 1},
+                                    # Late results of the stopped actions and a stop of an old answer are ignored
+                                    {'event': 'action_results', 'id': 1, 'results': [{'tool_use_id': 't1'}]},
+                                    {'event': 'stop', 'id': 0},
+                                    {'event': 'prompt', 'id': 2, 'prompt': 'Next'}], client, monkeypatch)
+    assert [m['type'] for m in received] == ['ai_actions', 'ai_delta', 'ai_answer']
+    messages = client.calls[1]['messages']
+    assert [m['role'] for m in messages] == ['user', 'assistant', 'user', 'user']
+    assert messages[2]['content'][0] == {'type': 'tool_result', 'tool_use_id': 't1', 'is_error': True,
+                                         'content': 'Stopped by the user.'}

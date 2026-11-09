@@ -12,6 +12,9 @@ The server and the client are released with the same version number.
   of it (`/~dashboard~settings`, not `/~settings`).
 
 ### Added
+- AI assistant: Esc while the panel is open stops a running answer and collapses the panel. New client event
+  `{"event": "stop", "id"}`: the consumer runs model requests as a task and cancels the streaming request
+  (no further tokens); unanswered actions get "Stopped by the user". The conversation keeps the prompt.
 - AI assistant: `navigate` checks paths against the paths at which `sdc_teach` opened each view (the skill data,
   `SDC_SKILL.data.json`, now read in every skill mode). A path that leaves out the views in front of the only
   crawled path is corrected and the model is told so; other unknown paths of crawled views are refused with the

@@ -81,6 +81,8 @@ const MIN_WINDOW_HEIGHT = 240;
  *   conversation. "Remember on this device" keeps the settings in the browser, the key only until the tab is closed.
  * - The panel starts collapsed at the right edge of the page; a click on it (or "⇆") expands it, "⇆" collapses it
  *   again. It opens by itself when the settings need the user's API key.
+ * - Esc while the panel is open stops a running answer (its model request and remaining actions) and collapses
+ *   the panel; the conversation goes on with the next prompt.
  * - Dragging the header moves the panel and dragging its edges or corners resizes it (kept in the browser);
  *   a double-click on the header docks it at the right edge again.
  *
@@ -109,6 +111,8 @@ class SdcAiAssistantController extends AbstractSDC {
         this._geometry = null;
         // Created in _setUpWindow: an arrow function made here would keep the temporary instance (see _actions)
         this._onWindowResize = null;
+        // Created in _setUpWindow: Esc stops the answer and collapses the panel (_onEscape)
+        this._onKeyDown = null;
         // Stable ids of the elements and forms shown to the model: the same DOM node keeps its id across read_page
         // calls, so a re-render of other parts of the page does not change what an id refers to (see _idOf)
         this._ids = new WeakMap();
@@ -203,6 +207,9 @@ class SdcAiAssistantController extends AbstractSDC {
         if (this._onWindowResize) {
             window.removeEventListener('resize', this._onWindowResize);
         }
+        if (this._onKeyDown) {
+            document.removeEventListener('keydown', this._onKeyDown);
+        }
         if (this._socket) {
             this._socket.onclose = null;
             this._socket.close();
@@ -255,6 +262,49 @@ class SdcAiAssistantController extends AbstractSDC {
             this._setBusy(true);
             this._setStatus('thinking…');
         }
+    }
+
+    /**
+     * Stops the running answer: its remaining actions, a pending confirmation and its late messages are ignored
+     * (the request id changes), and the server cancels the model request and answers unfinished actions with
+     * "Stopped by the user". The conversation goes on with the next prompt.
+     *
+     * @return {boolean} false if no answer was running
+     */
+    _stop() {
+        if (!this._busy) {
+            return false;
+        }
+        const id = this._requestId;
+        this._requestId += 1;
+        if (this._socket?.readyState === WebSocket.OPEN) {
+            this._socket.send(JSON.stringify({event: 'stop', id}));
+        }
+        this._finishAnswer();
+        this._addMessage('action', 'Stopped.');
+        this._setBusy(false);
+        this._setStatus('');
+        return true;
+    }
+
+    /**
+     * Esc while the panel is open stops the running answer and collapses the panel. Esc that another handler
+     * already used, or that closes a modal of the page (focus outside the panel), is left alone.
+     */
+    _onEscape(ev) {
+        if (ev.key !== 'Escape' || ev.defaultPrevented) {
+            return;
+        }
+        const $container = this.find('.ai-conversation-container');
+        if (!$container.length || $container.hasClass('collapsed')) {
+            return;
+        }
+        if (document.querySelector('.modal.show') && !ev.target?.closest?.('sdc-ai-assistant')) {
+            return;
+        }
+        ev.preventDefault();
+        this._stop();
+        this._setCollapsed(true);
     }
 
     _setBusy(busy) {
@@ -1601,6 +1651,8 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         this._onWindowResize = () => this._applyGeometry();
         window.addEventListener('resize', this._onWindowResize);
+        this._onKeyDown = (ev) => this._onEscape(ev);
+        document.addEventListener('keydown', this._onKeyDown);
         this._applyGeometry();
         // Links to SDC views in answers open in the sdc-navigator instead of reloading the page
         this.find('.ai-messages')[0].addEventListener('click', (ev) => {

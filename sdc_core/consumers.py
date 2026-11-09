@@ -920,6 +920,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
       own connection settings (all optional; empty = project setting), only if ``SDC_AI_TOKEN_FROM_SYSTEM`` is
       False. Kept in memory for this connection only; a new provider starts a new conversation. ``base_url`` must be https and resolve to a public address, and is only
       accepted with ``SDC_AI_ALLOW_USER_BASE_URL``.
+    - ``{"event": "stop", "id": <id>}``: stop the answer ``id`` (Esc in the panel): the running model request is
+      cancelled, unanswered actions get "Stopped by the user"; nothing is sent back
     - ``{"event": "reset"}``: forget the conversation
     - ``{"event": "action_results", "id": <id>, "results": [{"tool_use_id", "content", "is_error"}]}``: the
       outcome of the actions of an ``ai_actions`` message, one result per action
@@ -960,6 +962,9 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         self.pending = None
         # Rounds of the current answer that only used server tools (describe); they do not count as action rounds
         self.describe_rounds = 0
+        # The answer being computed (model requests run as a task, so a stop event can cancel them) and its id
+        self.task = None
+        self.task_id = None
         # Identifies the connection in the metrics log
         self.connection_id = uuid.uuid4().hex
         if not _ai_origin_allowed(self.scope):
@@ -1070,6 +1075,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                 logger.warning('AI assistant: closing the provider client failed', exc_info=True)
 
     async def disconnect(self, code):
+        await self._cancel_task()
         await self._close_client()
 
     async def _access_error(self):
@@ -1108,31 +1114,75 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data=None, bytes_data=None):
         json_data = {}
-        try:
+
+        async def handle():
+            nonlocal json_data
             data = json.loads(text_data or '')
             if not isinstance(data, dict):
                 raise ValueError('A message must be a JSON object')
             json_data = data
             event = json_data.get('event')
-            if event == 'prompt':
-                await self._answer(json_data.get('id'), str(json_data.get('prompt', '')).strip())
+            if event in ('prompt', 'action_results'):
+                # The model requests of an answer run as a task: a stop event can cancel them while they stream
+                await self._wait_for_task()
+                if event == 'prompt':
+                    work = self._answer(json_data.get('id'), str(json_data.get('prompt', '')).strip())
+                else:
+                    work = self._action_results(json_data.get('id'), json_data.get('results'))
+                self.task_id = json_data.get('id')
+                self.task = asyncio.create_task(self._report_errors(work, json_data.get('id')))
+            elif event == 'stop':
+                await self._stop(json_data.get('id'))
             elif event == 'set_config':
                 await self._set_config(json_data)
-            elif event == 'action_results':
-                await self._action_results(json_data.get('id'), json_data.get('results'))
             elif event == 'reset':
+                await self._cancel_task()
                 self.messages = []
                 self.pending = None
             else:
-                raise ValueError('event must be prompt, action_results, set_config or reset')
+                raise ValueError('event must be prompt, action_results, stop, set_config or reset')
+
+        await self._report_errors(handle(), lambda: json_data.get('id'))
+
+    async def _wait_for_task(self):
+        """Waits until the running answer task (if any) ended, so the messages of a connection stay in order."""
+        if self.task and not self.task.done():
+            try:
+                await self.task
+            except asyncio.CancelledError:
+                pass
+
+    async def _cancel_task(self):
+        """Cancels the running answer task (if any); a model response that is streaming is closed."""
+        if self.task and not self.task.done():
+            self.task.cancel()
+            await self._wait_for_task()
+        self.task = None
+
+    async def _stop(self, id):
+        """
+        The user stopped the answer ``id`` (Esc in the panel): a running model request is cancelled and actions
+        the browser has not answered get the result "Stopped by the user". The conversation keeps the prompt and
+        what happened before the stop; the next prompt continues it. Stops of older answers are ignored.
+        """
+        if self.task_id == id:
+            await self._cancel_task()
+        if self.pending and self.pending['id'] == id:
+            self._append_tool_results(cancelled='Stopped by the user.')
+
+    async def _report_errors(self, work, id):
+        """Awaits ``work`` and sends its errors to the client (``id``: the request id, or a function for it)."""
+        get_id = id if callable(id) else (lambda: id)
+        try:
+            await work
         except PermissionDenied:
-            await self.state_error({'msg': _f('403 Not allowed!'), 'header': _f('Upps!!')}, json_data.get('id'))
+            await self.state_error({'msg': _f('403 Not allowed!'), 'header': _f('Upps!!')}, get_id())
         except AiConfigError as e:
             await self.state_error({'msg': str(e), 'header': _f('AI settings'), 'scope': 'settings'},
-                                   json_data.get('id'))
+                                   get_id())
         except AiLimitError:
             await self.state_error({'msg': _f('You have reached the daily limit of AI requests.'),
-                                    'header': _f('AI assistant')}, json_data.get('id'))
+                                    'header': _f('AI assistant')}, get_id())
         except Exception as e:
             logger.error('AI assistant: ' + ''.join(traceback.format_exception(e)))
             provider_msg = self._provider_error_message(e)
@@ -1140,10 +1190,10 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                 # The user's own settings are the likely cause: the settings menu opens again
                 scope = None if self._uses_system_token() else 'settings'
                 await self.state_error({'msg': provider_msg, 'header': _f('AI service'), 'scope': scope},
-                                       json_data.get('id'))
+                                       get_id())
                 return
             msg = str(e) if settings.DEBUG else _f('Something went wrong')
-            await self.state_error({'msg': msg, 'header': _f('Upps!!')}, json_data.get('id'))
+            await self.state_error({'msg': msg, 'header': _f('Upps!!')}, get_id())
 
     def _provider_error_message(self, e):
         """A readable message for errors of the provider SDKs (anthropic, openai); None for other errors."""
@@ -1179,7 +1229,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         if self.pending:
             # Unanswered actions of the previous answer are cancelled, so every tool use keeps its result. They
             # belong to the previous turn (Anthropic joins the two consecutive user messages).
-            self._append_tool_results(cancelled=True)
+            self._append_tool_results(cancelled='Cancelled: the user sent a new message instead.')
         self.turn_start = len(self.messages)
         self.turn_text = ''
         self.describe_rounds = 0
@@ -1192,6 +1242,10 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         final = round >= self._max_action_rounds()
         try:
             result = await self._stream(id, final=final)
+        except asyncio.CancelledError:
+            # Stopped by the user: the conversation ends with the prompt (or the last tool results)
+            await self._log_request(id, round, started, error='Stopped by the user')
+            raise
         except Exception as e:
             self._drop_turn()
             await self._log_request(id, round, started, error=f'{type(e).__name__}: {e}')
@@ -1356,13 +1410,17 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         text = describe(data, tool_input.get('name'))
         return {'content': text, 'is_error': text.startswith('Unknown name')}
 
-    def _append_tool_results(self, cancelled=False):
-        """Adds one result per pending tool use to the conversation (in the provider's format)."""
+    def _append_tool_results(self, cancelled=None):
+        """
+        Adds one result per pending tool use to the conversation (in the provider's format). ``cancelled``: the
+        error text for every action (the answer was cancelled); unanswered actions also get it.
+        """
         results = []
         for tool_use_id in self.pending['tool_use_ids']:
             result = self.pending['results'].get(tool_use_id)
             if cancelled or result is None:
-                result = {'content': 'Cancelled: the user sent a new message instead.', 'is_error': True}
+                result = {'content': cancelled or 'Cancelled: the user sent a new message instead.',
+                          'is_error': True}
             content = result['content']
             if not isinstance(content, str):
                 content = json.dumps(content, cls=DjangoJSONEncoder, ensure_ascii=False)

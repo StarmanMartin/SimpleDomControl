@@ -364,6 +364,11 @@ The panel
 - While an answer is running, a new question cannot be sent (the send button
   is disabled), so the assistant never acts on a page the user has moved on
   from.
+- Esc while the panel is open stops a running answer and collapses the panel.
+  The model request is cancelled (no further tokens), remaining actions are
+  not run, and the chat shows "Stopped."; the conversation goes on with the
+  next question. Esc that closes a modal of the page (focus outside the panel)
+  does not touch the assistant.
 - Answers are shown as formatted Markdown. Links to SDC views open in the
   ``sdc-navigator``. The model's text is never inserted as HTML.
 - Enter sends, Shift+Enter adds a line break.
@@ -533,6 +538,10 @@ Client to server:
 ``{"event": "set_config", "provider", "token", "base_url", "model", "effort", "max_tokens", "clear_token"}``
     The user's connection settings (own key only). Empty fields use the project
     settings; an empty ``token`` keeps the current key.
+``{"event": "stop", "id": <id>}``
+    Stop the answer ``id``: a running model request is cancelled, actions
+    without results get "Stopped by the user". No message follows; the client
+    ignores later messages of that answer. Stops of older answers are ignored.
 ``{"event": "reset"}``
     Forget the conversation.
 

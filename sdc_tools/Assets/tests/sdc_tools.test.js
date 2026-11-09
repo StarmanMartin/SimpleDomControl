@@ -297,6 +297,50 @@ describe('SdcAiAssistant', () => {
         controller._socket = null;
     });
 
+    test('Esc stops the running answer and collapses the panel', async () => {
+        const sent = [];
+        if (controller._socket instanceof WebSocket) {
+            controller._socket.onmessage = null;
+            controller._socket.onclose = null;
+            controller._socket.close();
+        }
+        controller._socket = {readyState: WebSocket.OPEN, send: (msg) => sent.push(JSON.parse(msg))};
+        const $container = controller.find('.ai-conversation-container');
+        const esc = (target = document.body) => {
+            const ev = new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true});
+            target.dispatchEvent(ev);
+            return ev;
+        };
+        // Collapsed: Esc belongs to the page
+        controller._setCollapsed(true);
+        expect(esc().defaultPrevented).toBe(false);
+        // Open and answering: stopped, late messages of the answer are ignored, the panel collapses
+        controller._setCollapsed(false);
+        controller._busy = true;
+        const id = controller._requestId;
+        expect(esc(controller.find('.ai-prompt-input')[0]).defaultPrevented).toBe(true);
+        expect(sent).toEqual([{event: 'stop', id}]);
+        expect(controller._busy).toBe(false);
+        expect(controller._requestId).not.toBe(id);
+        expect($container.hasClass('collapsed')).toBe(true);
+        expect(controller.find('.ai-messages .ai-message').last().text()).toBe('Stopped.');
+        await controller._onMessage({type: 'ai_delta', id, text: 'late'});
+        expect(controller.find('.ai-messages').text()).not.toContain('late');
+        // Open and idle: only collapses; with a modal of the page open, Esc closes the modal instead
+        controller._setCollapsed(false);
+        esc();
+        expect($container.hasClass('collapsed')).toBe(true);
+        expect(sent.length).toBe(1);
+        controller._setCollapsed(false);
+        const $modal = $('<div class="modal show"></div>').appendTo('body');
+        expect(esc().defaultPrevented).toBe(false);
+        expect($container.hasClass('collapsed')).toBe(false);
+        $modal.remove();
+        controller._setCollapsed(true);
+        controller.find('.ai-messages').empty();
+        controller._socket = null;
+    });
+
     describe('window', () => {
         const pointer = (el, type, x, y) => el.dispatchEvent(new MouseEvent(type, {bubbles: true, button: 0, clientX: x, clientY: y}));
         let $container, header;
