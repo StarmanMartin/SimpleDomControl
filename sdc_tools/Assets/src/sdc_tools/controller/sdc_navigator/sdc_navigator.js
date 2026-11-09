@@ -1,4 +1,5 @@
 import {AbstractSDC, app, on, trigger, checkIfParamNumberBoolOrString} from 'sdc_client';
+import {matchesAllowedPaths} from '../sdc_navigation_client/sdc_navigation_client.js';
 
 const SDC_SUB_DETAIL_CONTROLLER = 'sdc_sub_detail_container';
 const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
@@ -10,7 +11,7 @@ const SDC_DETAIL_CONTROLLER = 'sdc_detail_view';
  * - URL scheme: `/~<tag>~<child-tag>~&key=value&...`. Each `~` segment is a controller tag rendered nested inside the previous one; arguments after `~&` are passed to the views as data attributes (`N.key=value` targets only the view at depth `N`, plain `key` applies to the deepest one). Relative paths (`.`, `..`, `*` = keep the current segment at that depth) are resolved against the current path.
  * - An empty path opens the controller named in its `default-controller` argument; a view container with its own `data-default-controller` opens that child automatically.
  * - Links with the class `navigation-links` are handled client-side without page reload; `window.sdcNav.goTo('<path>', {args})` (or triggering the `goTo` event) navigates programmatically. Browser back/forward works.
- * - An unknown tag in the path shows `sdc-error 404` instead of the view. Some containers open their view in a modal; closing the modal navigates back one level.
+ * - An unknown tag in the path shows `sdc-error 404` instead of the view. A view whose `allowedPaths` do not match the views in front of it shows `sdc-error 403` ("Not allowed"), e.g. `/~settings` for a view only allowed below `dashboard`. Some containers open their view in a modal; closing the modal navigates back one level.
  * - Links marked as login-only/logout-only are shown or hidden depending on whether a user is logged in; the `login`/`logout` events reload the whole page.
  *
  * @ai-hidden
@@ -232,6 +233,9 @@ export class SdcNavigatorController extends AbstractSDC {
 
   navLoaded(controller) {
     let idx = this._history_path.length - 1;
+    if (this._showNotAllowed(controller, idx)) {
+      return;
+    }
     let last_view_array = this._preparedLastViewContainer(idx);
     last_view_array.active_container.removeClass('active loading').addClass('empty');
     last_view_array.active_sub_container.removeClass('active loading');
@@ -257,6 +261,31 @@ export class SdcNavigatorController extends AbstractSDC {
         this.$container.find('.header-loading').removeClass('active');
       }, 100);
     }
+  }
+
+  /**
+   * Checks the ``allowedPaths`` of a loaded view against the views in front of it (the branch). If they do not
+   * match, the view (still hidden in its loading container) is replaced by ``sdc-error 403`` with a "Not allowed"
+   * text, whose own navLoaded then shows it.
+   *
+   * @param {AbstractSDC} controller - the loaded view
+   * @param {number} idx - its depth in ``_history_path``
+   * @return {boolean} true if the view was replaced
+   */
+  _showNotAllowed(controller, idx) {
+    const branch = this._history_path.slice(0, idx);
+    if (matchesAllowedPaths(controller.allowedPaths, branch)) {
+      return false;
+    }
+    const tag = this._history_path[idx];
+    const at = `/~${this._history_path.slice(0, idx + 1).join('~')}`;
+    console.error(`<${tag}> is not allowed at ${at}; allowedPaths: ${JSON.stringify(controller.allowedPaths)}`);
+    const $message = $('<p class="sdc-not-allowed"></p>').text(`Not allowed: ${tag} cannot be opened at ${at}.`);
+    const $error = $('<sdc-error_sdc-navigation-client data-code="403"></sdc-error_sdc-navigation-client>')
+      .append($message);
+    this._preparedLastViewContainer(idx).empty_container.safeEmpty().append($error);
+    this.refresh();
+    return true;
   }
 
   _prepareUrl(controller_path_as_array) {

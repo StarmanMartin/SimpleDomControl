@@ -103,6 +103,43 @@ segments of the path stay put.
 In practice: give a view its own ``<div class="sdc_detail_view"></div>`` when you want children to
 nest below it, and leave it out when a deeper link should replace the current view.
 
+Allowed paths
+-------------
+
+By default a view can be opened at any depth: ``/~settings`` opens the settings on their own, even
+if they only make sense inside the dashboard (``/~dashboard~settings``). A view restricts where it
+may be opened with ``allowedPaths`` in its constructor. It is a list of patterns for the views *in
+front of* it (outermost first); each pattern must match that whole branch:
+
+- ``'*'`` matches exactly one view, ``'**'`` any number of views (also none);
+- ``[]`` (the default) allows every path, ``[[]]`` only the top level.
+
+.. code-block:: javascript
+
+    class SettingsController extends AbstractSDC {
+        constructor() {
+            super();
+            this.contentUrl = "/sdc_view/main_app/settings";
+            // directly below a dashboard, at any depth, or below the admin view
+            this.allowedPaths = [['**', 'dashboard'], ['admin']];
+        }
+    }
+
+===============================  ==========================  =====================
+``allowedPaths``                 allowed                     not allowed
+===============================  ==========================  =====================
+``[['**', 'dashboard']]``        ``/~dashboard~settings``,   ``/~settings``,
+                                 ``/~a~dashboard~settings``  ``/~dashboard~x~settings``
+``[['*']]``                      ``/~a~settings``            ``/~settings``, ``/~a~b~settings``
+``[[]]``                         ``/~settings``              ``/~a~settings``
+===============================  ==========================  =====================
+
+The ``sdc-navigator`` checks the patterns every time it opens a view (the property comes from the
+``SdcNavigationClientController`` mixin that every navigated view has). If none matches, it shows
+``sdc-error 403`` with "Not allowed: <view> cannot be opened at <path>." instead of the view and
+logs the patterns to the console. The view's content has already been loaded at that point, so
+this is a structural check, not access control: protect data on the server.
+
 Subview in Modal
 ----------------
 

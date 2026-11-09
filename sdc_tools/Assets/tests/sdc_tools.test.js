@@ -6,6 +6,7 @@ import {AbstractSDC, app, test_utils, trigger} from 'sdc_client';
 import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
 import {SdcNavigatorController} from '../src/sdc_tools/controller/sdc_navigator/sdc_navigator.js';
+import {matchesAllowedPaths} from '../src/sdc_tools/controller/sdc_navigation_client/sdc_navigation_client.js';
 import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
 import {jest} from '@jest/globals';
 
@@ -93,6 +94,64 @@ describe('SdcNavigator', () => {
         } finally {
             get.mockRestore();
             navigate.mockRestore();
+        }
+    });
+
+    test('allowedPaths patterns', () => {
+        expect(matchesAllowedPaths([], ['a', 'b'])).toBe(true);
+        expect(matchesAllowedPaths(undefined, [])).toBe(true);
+        expect(matchesAllowedPaths([[]], [])).toBe(true);
+        expect(matchesAllowedPaths([[]], ['a'])).toBe(false);
+        expect(matchesAllowedPaths([['*']], ['a'])).toBe(true);
+        expect(matchesAllowedPaths([['*']], [])).toBe(false);
+        expect(matchesAllowedPaths([['*']], ['a', 'b'])).toBe(false);
+        expect(matchesAllowedPaths([['**', 'dashboard']], ['dashboard'])).toBe(true);
+        expect(matchesAllowedPaths([['**', 'dashboard']], ['main', 'x', 'dashboard'])).toBe(true);
+        expect(matchesAllowedPaths([['**', 'dashboard']], ['dashboard', 'x'])).toBe(false);
+        expect(matchesAllowedPaths([['**', 'dashboard']], [])).toBe(false);
+        expect(matchesAllowedPaths([['dashboard'], ['admin', '**']], ['admin', 'x', 'y'])).toBe(true);
+        expect(matchesAllowedPaths([['dashboard', '*', 'list']], ['dashboard', 'x', 'list'])).toBe(true);
+        expect(matchesAllowedPaths([['**']], [])).toBe(true);
+    });
+
+    test('a view opened outside its allowedPaths shows "Not allowed" (sdc-error 403)', async () => {
+        await new Promise(resolve => setTimeout(resolve, 300));
+        let allowedPaths = [];
+        class AllowedPathTestController extends AbstractSDC {
+            constructor() {
+                super();
+                this.contentUrl = '/allowed-path-test';
+                this.contentReload = true;
+                this.allowedPaths = allowedPaths;
+            }
+        }
+        app.register(AllowedPathTestController);
+        if (!app.tagNames.includes('allowed-path-test')) app.tagNames.push('allowed-path-test');
+        const originalGet = $.get.bind($);
+        const get = jest.spyOn($, 'get').mockImplementation((url, args) => url === '/allowed-path-test'
+            ? Promise.resolve('<div class="allowed-view">Allowed view</div>') : originalGet(url, args));
+        const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+        const active = () => controller.find('.0_sdc_sub_detail_container.active');
+        try {
+            // Only at the top: allowed
+            allowedPaths = [[]];
+            trigger('goTo', '/allowed-path-test');
+            await new Promise(resolve => setTimeout(resolve, 400));
+            expect(active().find('.allowed-view').text()).toBe('Allowed view');
+            // Only below a dashboard: refused at the top
+            allowedPaths = [['**', 'dashboard']];
+            trigger('goTo', '/sdc-dummy', {text: 'Between'});
+            await new Promise(resolve => setTimeout(resolve, 300));
+            trigger('goTo', '/allowed-path-test');
+            await new Promise(resolve => setTimeout(resolve, 600));
+            expect(active().find('.allowed-view').length).toBe(0);
+            expect(active().find('[data-code="403"]').length).toBe(1);
+            expect(active().text()).toContain('Not allowed: allowed-path-test cannot be opened at /~allowed-path-test.');
+            expect(controller._is_processing).toBe(false);
+            expect(error).toHaveBeenCalledWith(expect.stringContaining('<allowed-path-test> is not allowed at /~allowed-path-test'));
+        } finally {
+            get.mockRestore();
+            error.mockRestore();
         }
     });
 

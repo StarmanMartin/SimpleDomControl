@@ -12,6 +12,10 @@ The server and the client are released with the same version number.
   of it (`/~dashboard~settings`, not `/~settings`).
 
 ### Added
+- `allowedPaths` for views opened by the `sdc-navigator` (property of the `SdcNavigationClientController` mixin):
+  patterns of the views in front of a view (`'*'` = one view, `'**'` = any number), e.g.
+  `[['**', 'dashboard']]`. Empty (default) = allowed everywhere. A view opened outside its patterns shows
+  `sdc-error 403` "Not allowed" instead. See *Allowed paths* in the navigation docs.
 - AI assistant: Esc while the panel is open stops a running answer and collapses the panel. New client event
   `{"event": "stop", "id"}`: the consumer runs model requests as a task and cancels the streaming request
   (no further tokens); unanswered actions get "Stopped by the user". The conversation keeps the prompt.
