@@ -28,7 +28,8 @@ def test_sets_the_version_everywhere(repo, capsys):
         assert '9.8.7' in text, file
         assert old not in text, file
     assert '"sdc_client": "^9.8.7"' in (repo / 'sdc_core/template_files/package.json').read_text()
-    assert 'Updated 7 file(s)' in capsys.readouterr().out
+    assert '"sdc_client": "^9.8.7"' in (repo / 'sdc_tools/Assets/sdc_app.json').read_text()
+    assert 'Updated 9 file(s)' in capsys.readouterr().out
 
 
 def test_client_version_and_dry_run(repo):

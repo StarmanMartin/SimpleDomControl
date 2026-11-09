@@ -55,7 +55,10 @@ The ``default`` task runs these steps:
    - ``python manage.py sdc_update_links``
    - ``python manage.py sdc_make_model_js``
 
-3. In parallel:
+3. ``check_dependencies`` (from ``sdc_client``): checks the npm packages the
+   installed apps take from the project (see `Reusable apps and their npm
+   packages`_). If something is missing or incompatible, the build stops here.
+4. In parallel:
 
    - ``scss``: compiles ``Assets/src/*.scss`` to ``static/`` (for example
      ``index.style.scss`` to ``static/index.style.css``).
@@ -214,9 +217,11 @@ takes the list of entry files and returns a webpack configuration.
     controller class names at run time, so do not remove these options.
 
 ``webpack.bundle.config.jsx``
-    Production plus the externals ``jquery``, ``lodash``, ``bootstrap`` and
-    ``sdc_client``, with output ``<app>/[name].js``. Used by the ``bundle``
-    task.
+    Production plus ES module output (``<app>/[name].js``). The packages in
+    the ``peerDependencies`` of ``<app>/Assets/sdc_app.json`` stay imports
+    (default without the file: ``sdc_client``, ``jquery``, ``lodash``,
+    ``bootstrap``); everything else is compiled into the bundle. Used by the
+    ``bundle`` task.
 
 Babel uses ``Assets/babel.config.json``. It enables ``@babel/preset-react``
 with the classic runtime and ``sdcDom`` as pragma, so JSX in controller files
@@ -264,11 +269,72 @@ Run a single task with ``npx gulp --gulpfile=Assets/gulpfile.jsx <task>``.
 
 ``bundle``
     Builds a reusable app package into ``Assets/bin``: ``copy_statics``,
-    ``link_files``, then compiles ``Assets/src/*/*.scss`` to ``Assets/bin``
-    and bundles every ``_build/<app>/*.js`` (except models) with the bundle
-    configuration.
+    ``link_files``, ``check_dependencies``, then compiles
+    ``Assets/src/*/*.scss`` to ``Assets/bin`` and bundles every
+    ``_build/<app>/*.js`` (except models) with the bundle configuration.
+
+``check_dependencies``
+    Only the dependency check of the installed apps (see below).
 
 ``bundle_dev``
     ``copy_statics``, then pre-compiles ``Assets/src`` and copies the
     unbundled JavaScript from ``_build`` to ``Assets/bin``. It runs neither
     ``link_files`` nor SCSS.
+
+
+Reusable apps and their npm packages
+------------------------------------
+
+An app installed with pip (like ``sdc_tools``) does not bring its JavaScript
+source into the project, but the pre-built bundle
+``<app>/Assets/bin/<app>/<app>.organizer.js``, linked to
+``Assets/libs/<app>``. The project's webpack compiles it together with the
+project's own code.
+
+The app declares the npm packages it takes from the project in
+``<app>/Assets/sdc_app.json`` (shipped with the package):
+
+.. code-block:: json
+
+   {
+     "peerDependencies": {
+       "sdc_client": "^0.161.0",
+       "jquery": "^3.7.0",
+       "chart.js": "^4.4.0"
+     }
+   }
+
+- **Bundling** (``gulp bundle``, in the project where the app is developed):
+  the packages listed there stay ``import`` statements in the ES module bundle;
+  everything else the app imports is compiled into it. List large libraries
+  that other apps or the project may use too, so the final build contains
+  them only once; ``sdc_client`` must always be listed (the app and the
+  project have to share one runtime). Without ``sdc_app.json`` the base set
+  ``sdc_client``, ``jquery``, ``lodash``, ``bootstrap`` is used.
+- **Building the project**: the ``check_dependencies`` step (``npm run build``,
+  ``develop`` and ``bundle``) reads the ``sdc_app.json`` of every app in
+  ``Assets/libs``:
+
+  - a package the project's ``package.json`` lacks is added to its
+    ``dependencies`` with the app's range;
+  - a package whose range in ``package.json`` cannot satisfy the app (or two
+    apps that need incompatible versions) is reported; ``package.json`` is
+    not changed;
+  - a package that is declared but not installed, or installed in a version
+    outside the app's range, is reported.
+
+  In all these cases the build stops. Run ``npm install`` (or ``yarn
+  install``) after packages were added, or fix the reported ranges, and build
+  again.
+
+  .. code-block:: text
+
+     Added to package.json for the installed SDC apps:
+       - chart.js@^4.4.0 (charts needs ^4.4.0)
+     Run "npm install" and build again.
+
+Apps inside the project (``Assets/src/<app>``) are compiled from source with
+the project's own ``package.json`` and are not checked. Older app bundles
+(plain scripts instead of ES modules, without ``sdc_app.json``) keep working:
+they read ``window.sdc_client``, which the generated ``index.organizer.js``
+sets.

@@ -8,6 +8,12 @@ The server and the client are released with the same version number.
 ## Unreleased
 
 ### Changed
+- App bundles (`gulp bundle`) are ES modules. The npm packages an app lists in `<app>/Assets/sdc_app.json`
+  (`peerDependencies`) stay imports and are installed by the project, so large libraries shared by several apps
+  are built once; everything else is still compiled into the bundle. `sdc_tools` and `sdc_user` ship an
+  `sdc_app.json` (sdc_client, jquery, lodash, bootstrap). Fixes externals that pointed at non-existent globals
+  (e.g. `jquery`). Older plain-script bundles keep working (`window.sdc_client`). Needs sdc_client with
+  `check_dependencies` (same release). See *Reusable apps and their npm packages* in the build docs.
 - AI assistant: the system prompt and the `navigate` tool ask for the full path of a view, with all views in front
   of it (`/~dashboard~settings`, not `/~settings`).
 

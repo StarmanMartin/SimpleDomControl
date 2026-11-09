@@ -32,9 +32,13 @@ TARGETS = [
     ('sdc_core/template_files/package.json', rf'"sdc_client": "\^(?P<v>{VERSION_RE})"', 'client'),
     ('pytests/expections/test_init/test_django_project/package.json',
      rf'"sdc_client": "\^(?P<v>{VERSION_RE})"', 'client'),
+    # What the bundled apps take from the project (checked by sdc_client's build)
+    ('sdc_tools/Assets/sdc_app.json', rf'"sdc_client": "\^(?P<v>{VERSION_RE})"', 'client'),
+    ('sdc_user/Assets/sdc_app.json', rf'"sdc_client": "\^(?P<v>{VERSION_RE})"', 'client'),
     # Documentation
     ('docs/snippets/js_deps.rst', rf'sdc_client = \^(?P<v>{VERSION_RE})', 'client'),
     ('docs/build.rst', rf'``sdc_client`` (?P<v>{VERSION_RE})', 'client'),
+    ('docs/build.rst', rf'"sdc_client": "\^(?P<v>{VERSION_RE})"', 'client'),
     # Help text of the sdc command
     ('sdc/__main__.py', rf'simpledomcontrol==(?P<v>{VERSION_RE})', 'version'),
 ]
