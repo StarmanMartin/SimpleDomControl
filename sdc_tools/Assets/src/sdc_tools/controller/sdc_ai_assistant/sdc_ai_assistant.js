@@ -575,9 +575,65 @@ class SdcAiAssistantController extends AbstractSDC {
     }
 
     async _navigate({path}) {
-        this._goTo(path);
+        const checked = this._checkNavigationPath(path);
+        this._goTo(checked.path);
         await this._waitForPage();
-        return `Now at ${this._checkLoadedView(path)}`;
+        const at = this._checkLoadedView(checked.path);
+        return checked.note ? `Now at ${at}. ${checked.note}` : `Now at ${at}`;
+    }
+
+    /**
+     * Checks a navigate path against the paths at which ``sdc_teach`` opened its view (``view_paths`` of ai_config,
+     * e.g. ``{settings: ['/~dashboard~settings']}``). Small models often leave out the views in front
+     * (``/~settings``); the navigator would open the view alone, without its parent views.
+     *
+     * - The view was opened at this path, was never crawled, or the path cannot be resolved: unchanged.
+     * - The path leaves out views in front of exactly one crawled path: that path is opened instead (arguments
+     *   with a depth, ``1.page``, are shifted) and ``note`` tells the model.
+     * - Otherwise an error lists the crawled paths of the view.
+     *
+     * @param {string} path - the path of the navigate call
+     * @return {{path: string, note?: string}} the path to open
+     */
+    _checkNavigationPath(path) {
+        const known = this._config?.view_paths;
+        const resolved = known && this._resolveSdcHref(path);
+        const tag = resolved?.path.at(-1);
+        const paths = tag && Object.hasOwn(known, tag) ? known[tag] : null;
+        if (!paths?.length) {
+            return {path};
+        }
+        const chain = resolved.path;
+        const same = (a, b) => a.length === b.length && a.every((t, i) => t === b[i]);
+        const chains = paths.map((p) => p.split('~').slice(1));
+        if (chains.some((c) => same(c, chain))) {
+            return {path};
+        }
+        const parents = chains.filter((c) => c.length > chain.length && same(c.slice(-chain.length), chain));
+        if (parents.length === 1) {
+            const target = paths[chains.indexOf(parents[0])];
+            const fixed = target + this._shiftArgs(path, parents[0].length - chain.length);
+            return {
+                path: fixed, note: `${path} left out the views in front of ${tag}: ${tag} only works at ${target}, `
+                    + `so ${fixed} was opened instead. Use the full paths from the context.`,
+            };
+        }
+        throw new Error(`Navigation to ${path} refused: it opens ${tag} at /~${chain.join('~')}, but ${tag} only `
+            + `works at ${paths.join(', ')}. Navigate to one of these paths (with the arguments).`);
+    }
+
+    /**
+     * The arguments of ``path`` as ``~&key=value...`` for a path with ``offset`` more views in front: keys with a
+     * depth (``1.page``) are shifted, plain keys still belong to the deepest view. ``''`` without arguments.
+     */
+    _shiftArgs(path, offset) {
+        const start = path.search(/[&?]/);
+        if (start < 0) {
+            return '';
+        }
+        const args = path.slice(start + 1).split('&').filter(Boolean).map((pair) => pair.replace(
+            /^(\d+)\./, (m, depth) => `${parseInt(depth) + offset}.`));
+        return args.length ? `~&${args.join('&')}` : '';
     }
 
     /** Navigates with the sdc-navigator (``sdcNav.goTo``), else with the ``goTo`` event. */

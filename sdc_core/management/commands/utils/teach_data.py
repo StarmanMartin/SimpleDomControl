@@ -205,3 +205,22 @@ def build_skill_data(tree, meta):
                   if not info.get('hidden')],
         'errors': sorted({(e['error'], e['url'].split('/', 3)[-1]) for e in tree.get('errors', [])}),
     }
+
+
+def view_paths(data):
+    """
+    ``{tag: ['/~parent-view~tag', ...]}``: the paths (views without arguments) at which the crawl opened each view.
+    The AI assistant checks its ``navigate`` calls against them, so a view is not opened outside the views in
+    front of it (e.g. ``/~settings`` instead of ``/~dashboard~settings``).
+    """
+    result = {}
+    for view in (data or {}).get('views') or []:
+        tag = view.get('tag')
+        if not tag or tag == '(root)':
+            continue
+        paths = result.setdefault(tag, [])
+        for href in view.get('paths') or []:
+            path = re.split(r'[&?]', href, maxsplit=1)[0].rstrip('~')
+            if path.split('~')[-1] == tag and path not in paths:
+                paths.append(path)
+    return {tag: paths for tag, paths in result.items() if paths}

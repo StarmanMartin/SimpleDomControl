@@ -5,6 +5,7 @@
 import {AbstractSDC, app, test_utils, trigger} from 'sdc_client';
 import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
+import {SdcNavigatorController} from '../src/sdc_tools/controller/sdc_navigator/sdc_navigator.js';
 import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
 import {jest} from '@jest/globals';
 
@@ -631,6 +632,67 @@ describe('SdcAiAssistant', () => {
             const id = controller._readPage().forms.find((f) => f.fields.some((x) => x.name === 'z')).id;
             expect(controller._fillForm({form: id, values: {z: '1'}}).warning).toContain('not visible');
             $hidden.remove();
+        });
+
+        describe('navigate path check', () => {
+            let nav, savedNav;
+
+            beforeEach(() => {
+                // The real navigator resolves the paths; goTo only records them
+                savedNav = window.sdcNav;
+                nav = new SdcNavigatorController();
+                nav._history_path = ['dashboard'];
+                nav.opened = [];
+                nav.goTo = (path) => nav.opened.push(path);
+                window.sdcNav = nav;
+                // The real connection to the test server would replace _config with the server's ai_config
+                if (controller._socket instanceof WebSocket) {
+                    controller._socket.onmessage = null;
+                    controller._socket.onclose = null;
+                    controller._socket.close();
+                }
+                controller._socket = null;
+                controller._config = {view_paths: {
+                    settings: ['/~dashboard~settings'],
+                    profile: ['/~dashboard~profile', '/~admin~profile'],
+                }};
+            });
+
+            afterEach(() => {
+                window.sdcNav = savedNav;
+                controller._config = null;
+            });
+
+            test('crawled, relative and unknown paths are opened unchanged', () => {
+                expect(controller._checkNavigationPath('/~dashboard~settings~&pk=3')).toEqual(
+                    {path: '/~dashboard~settings~&pk=3'});
+                expect(controller._checkNavigationPath('.~settings')).toEqual({path: '.~settings'});
+                expect(controller._checkNavigationPath('/~other-view')).toEqual({path: '/~other-view'});
+                controller._config = {};
+                expect(controller._checkNavigationPath('/~settings')).toEqual({path: '/~settings'});
+            });
+
+            test('a path without the views in front is corrected, arguments with a depth are shifted', () => {
+                const checked = controller._checkNavigationPath('/~settings~&pk=3&1.tab=2');
+                expect(checked.path).toBe('/~dashboard~settings~&pk=3&2.tab=2');
+                expect(checked.note).toContain('settings only works at /~dashboard~settings');
+                expect(controller._checkNavigationPath('~settings').path).toBe('/~dashboard~settings');
+            });
+
+            test('an ambiguous or wrong path is refused with the crawled paths', () => {
+                expect(() => controller._checkNavigationPath('/~profile')).toThrow(
+                    'Navigation to /~profile refused: it opens profile at /~profile, but profile only works at '
+                    + '/~dashboard~profile, /~admin~profile.');
+                expect(() => controller._checkNavigationPath('/~other~settings')).toThrow('only works at /~dashboard~settings');
+            });
+
+            test('navigate opens the corrected path and tells the model', async () => {
+                const result = await controller._navigate({path: '/~settings'});
+                expect(nav.opened).toEqual(['/~dashboard~settings']);
+                expect(result).toMatch(/^Now at .*\. \/~settings left out the views in front of settings/);
+                await expect(controller._navigate({path: '/~profile'})).rejects.toThrow('refused');
+                expect(nav.opened).toEqual(['/~dashboard~settings']);
+            });
         });
 
         describe('buttons and links', () => {

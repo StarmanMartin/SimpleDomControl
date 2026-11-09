@@ -5,6 +5,19 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Changed
+- AI assistant: the system prompt and the `navigate` tool ask for the full path of a view, with all views in front
+  of it (`/~dashboard~settings`, not `/~settings`).
+
+### Added
+- AI assistant: `navigate` checks paths against the paths at which `sdc_teach` opened each view (the skill data,
+  `SDC_SKILL.data.json`, now read in every skill mode). A path that leaves out the views in front of the only
+  crawled path is corrected and the model is told so; other unknown paths of crawled views are refused with the
+  crawled paths. Views the crawl never opened are not checked. New setting `SDC_AI_CHECK_PATHS` (default `True`);
+  `ai_config` sends `view_paths`.
+
 ## 0.161.0
 
 ### Changed

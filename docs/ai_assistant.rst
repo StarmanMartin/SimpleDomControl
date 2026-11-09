@@ -197,6 +197,12 @@ same name.
    * - ``SDC_AI_SKILL_DATA_FILE``
      - ``'SDC_SKILL.data.json'``
      - The skill data written by ``sdc_teach`` (relative to ``BASE_DIR``).
+       Also the source of the path check of ``navigate`` (in both modes).
+   * - ``SDC_AI_CHECK_PATHS``
+     - ``True``
+     - ``navigate`` checks paths against the paths at which ``sdc_teach``
+       opened each view (see ``navigate`` below). Needs the skill data file;
+       ``False`` turns the check off.
    * - ``SDC_AI_NO_SKILL_NOTE``
      - see ``sdc_core.consumers.AI_NO_SKILL_NOTE``
      - Used instead of the knowledge if there is none (it tells the model to
@@ -246,7 +252,25 @@ The assistant acts through tools that run in the browser:
     Opens a view (``/~view~child~&key=value``, or relative such as ``..~view``)
     with ``sdcNav.goTo``, like a navigation link. The system prompt explains how
     SDC URLs are read (from the skill file, or the same section added by the
-    consumer when there is none; not with ``SDC_AI_SKILL_SOURCE = 'none'``).
+    consumer when there is none; not with ``SDC_AI_SKILL_SOURCE = 'none'``) and
+    asks for the full path of a view, with all views in front of it.
+
+    The navigator opens any view at any depth, so ``/~settings`` shows the
+    settings without their dashboard instead of an error. Small models often
+    leave out the views in front like this. With the skill data of
+    ``sdc_teach`` (``SDC_AI_CHECK_PATHS``) the browser checks every path
+    against the paths at which the crawl opened the view:
+
+    - a path the view was opened at, a relative path that resolves to one, and
+      views the crawl never opened are not changed;
+    - a path that leaves out the views in front of exactly one crawled path is
+      corrected (``/~settings~&pk=3`` → ``/~dashboard~settings~&pk=3``; keys
+      with a depth such as ``1.tab`` are shifted), and the result tells the
+      model;
+    - any other path is refused with an error that lists the crawled paths.
+
+    Run ``sdc_teach`` again after adding views or moving them to another
+    parent view, otherwise a new path is refused.
 ``read_page``
     Returns the URL, the title, an outline of the visible page and the forms
     with their fields, labels, current values and options. The outline is the

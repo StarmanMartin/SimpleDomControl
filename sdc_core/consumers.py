@@ -639,12 +639,14 @@ class AiConfigError(ValueError):
 _ai_system_prompt = None
 _UNSET = object()
 _ai_skill_data = _UNSET
+_ai_view_paths = _UNSET
 
 
 def _ai_reset_system_prompt(**kwargs):
-    global _ai_system_prompt, _ai_skill_data
+    global _ai_system_prompt, _ai_skill_data, _ai_view_paths
     _ai_system_prompt = None
     _ai_skill_data = _UNSET
+    _ai_view_paths = _UNSET
 
 
 # Tests that override settings get a new prompt
@@ -749,7 +751,10 @@ Your knowledge about this website comes from the context below: its views (contr
 and its data models (SdcModels).
 
 You can act on the page with your tools. They run in the user's browser with the user's own permissions:
-- `navigate` opens a view, using the `/~view~child~&key=value` paths ("How to read SDC URLs" in the context).
+- `navigate` opens a view, using the `/~view~child~&key=value` paths ("How to read SDC URLs" in the context). \
+Use the full path of a view as the context lists it, with all views in front of it: a view listed at \
+`/~dashboard~settings` only works inside `dashboard`, so open `/~dashboard~settings`, never `/~settings`. Change only \
+the arguments.
 - `read_page` returns an outline of the current page: its text with `[#id label]` for buttons and links, its \
 lists (first rows, total, search form and next/prev buttons), forms with their fields and current values, and its \
 buttons and links (`elements`) with the resolved target of every SDC link. Ask for `mode: "html"` only for one \
@@ -787,7 +792,8 @@ _AI_ID = {'type': 'integer', 'description': 'Primary key (id) of the record'}
 # SdcModels are read-only for the assistant: there are no tools to create, change or delete records.
 AI_TOOLS = [
     {'name': 'navigate',
-     'description': 'Open a view of this website in the browser, e.g. "/~main-view~book-edit~&pk=3". Paths and '
+     'description': 'Open a view of this website in the browser, e.g. "/~main-view~book-edit~&pk=3". Use the full '
+                    'path of the view as listed in the context, including all views in front of it. Paths and '
                     'arguments follow the SDC navigation rules described in the context; ".." goes one view up.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['path'],
                       'properties': {'path': {'type': 'string', 'description': 'SDC path, starting with "/~", or '
@@ -1003,6 +1009,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             'has_token': bool(self.config.get('token')) or not editable,
             # navigate, click and fill_form return the outline of the changed page (saves a read_page round)
             'page_in_results': bool(self._setting('SDC_AI_PAGE_IN_RESULTS', True)),
+            # The crawled paths of every view: navigate corrects or refuses paths that leave out the views in front
+            'view_paths': self._cached_view_paths(),
             'is_error': False,
         }))
 
@@ -1284,20 +1292,46 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         """
         if SDCAiConsumer._skill_mode() != 'index' or SDCAiConsumer._skill_source() in ('apps', 'none'):
             return None
+        data, problem = SDCAiConsumer._read_skill_data_file()
+        if problem:
+            logger.warning(f'SDC_AI_SKILL_MODE "index": {problem}; using the full skill file')
+        return data
+
+    @staticmethod
+    def _read_skill_data_file():
+        """
+        ``(data, None)`` with the content of ``SDC_AI_SKILL_DATA_FILE`` (default ``SDC_SKILL.data.json`` next to
+        manage.py), or ``(None, problem)`` if it is missing, unreadable or has another format.
+        """
         path = os.path.join(str(getattr(settings, 'BASE_DIR', '')),
                             os.fspath(getattr(settings, 'SDC_AI_SKILL_DATA_FILE', None) or 'SDC_SKILL.data.json'))
         try:
             with open(path, encoding='utf-8') as f:
                 data = json.load(f)
         except (OSError, ValueError) as e:
-            logger.warning(f'SDC_AI_SKILL_MODE "index": cannot read {path} ({e}); using the full skill file')
-            return None
+            return None, f'cannot read {path} ({e})'
         from sdc_core.management.commands.utils.teach_data import FORMAT
         if not isinstance(data, dict) or data.get('format') != FORMAT:
-            logger.warning(f'SDC_AI_SKILL_MODE "index": {path} has another format (run sdc_teach again); '
-                           f'using the full skill file')
-            return None
-        return data
+            return None, f'{path} has another format (run sdc_teach again)'
+        return data, None
+
+    @classmethod
+    def _cached_view_paths(cls):
+        """
+        ``{tag: [paths]}`` of the crawled views (``teach_data.view_paths``) for the path check of ``navigate``
+        (``SDC_AI_CHECK_PATHS``); ``{}`` without skill data or with the check disabled. Read once per process
+        (with ``DEBUG`` for every call).
+        """
+        global _ai_view_paths
+        if not settings.DEBUG and _ai_view_paths is not _UNSET:
+            return _ai_view_paths
+        paths = {}
+        if cls._setting('SDC_AI_CHECK_PATHS', True) and cls._skill_source() != 'none':
+            from sdc_core.management.commands.utils.teach_data import view_paths
+            paths = view_paths(cls._read_skill_data_file()[0])
+        if not settings.DEBUG:
+            _ai_view_paths = paths
+        return paths
 
     def _tools(self):
         """The tools of the model requests: the browser tools, plus describe in index mode."""

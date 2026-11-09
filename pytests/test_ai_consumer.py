@@ -855,3 +855,39 @@ def test_describe_rounds_are_free_but_limited(tmp_path, monkeypatch):
         client = FakeClient()
         run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Hi'}], client, monkeypatch)
     assert 'describe' not in [t['name'] for t in client.calls[0]['tools']]
+
+
+def test_view_paths_of_the_skill_data():
+    from sdc_core.management.commands.utils.teach_data import view_paths
+    data = {'views': [
+        {'tag': '(root)', 'paths': ['/~']},
+        {'tag': 'dashboard', 'paths': ['/~dashboard', '/~dashboard~&tab=2']},
+        {'tag': 'settings', 'paths': ['/~dashboard~settings~&pk=3', '/~dashboard~settings', '/app/~admin~settings']},
+        {'tag': 'odd', 'paths': ['/~other']},
+    ]}
+    assert view_paths(data) == {'dashboard': ['/~dashboard'],
+                                'settings': ['/~dashboard~settings', '/app/~admin~settings']}
+    assert view_paths(None) == {}
+
+
+def test_config_sends_the_crawled_view_paths(monkeypatch, tmp_path):
+    from sdc_core.management.commands.utils.teach_data import FORMAT
+    (tmp_path / 'SDC_SKILL.data.json').write_text(json.dumps({'format': FORMAT, 'views': [
+        {'tag': 'settings', 'paths': ['/~dashboard~settings']}]}))
+    with override_settings(**AI, BASE_DIR=tmp_path):
+        _, received = run(_user(), [], FakeClient(), monkeypatch, with_config=True)
+    assert received[0]['view_paths'] == {'settings': ['/~dashboard~settings']}
+    with override_settings(**AI, BASE_DIR=tmp_path, SDC_AI_CHECK_PATHS=False):
+        _, received = run(_user(), [], FakeClient(), monkeypatch, with_config=True)
+    assert received[0]['view_paths'] == {}
+    # Without skill data nothing is checked
+    with override_settings(**AI, BASE_DIR=tmp_path / 'missing'):
+        _, received = run(_user(), [], FakeClient(), monkeypatch, with_config=True)
+    assert received[0]['view_paths'] == {}
+
+
+def test_prompt_asks_for_full_view_paths():
+    from sdc_core.consumers import AI_DEFAULT_SYSTEM_PROMPT
+    assert 'open `/~dashboard~settings`, never `/~settings`' in AI_DEFAULT_SYSTEM_PROMPT
+    navigate = next(t for t in AI_TOOLS if t['name'] == 'navigate')
+    assert 'including all views in front of it' in navigate['description']
