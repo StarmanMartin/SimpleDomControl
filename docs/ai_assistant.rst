@@ -364,6 +364,12 @@ The panel
 - While an answer is running, a new question cannot be sent (the send button
   is disabled), so the assistant never acts on a page the user has moved on
   from.
+- The panel remembers the URL at which the model last saw the page
+  (``read_page``, or the page returned after an action). If the user has
+  navigated since, the next question carries a note for the model: the page
+  changed, now at ``<url>``, read it again before relying on what it saw. The
+  chat shows the question without the note. The note is repeated with every
+  question until the model reads the page again.
 - Esc while the panel is open stops a running answer and collapses the panel.
   The model request is cancelled (no further tokens), remaining actions are
   not run, and the chat shows "Stopped."; the conversation goes on with the
@@ -530,8 +536,11 @@ own client.
 
 Client to server:
 
-``{"event": "prompt", "id": <id>, "prompt": "..."}``
-    Ask; the conversation is kept per connection.
+``{"event": "prompt", "id": <id>, "prompt": "...", "page_changed_to": "/~..."}``
+    Ask; the conversation is kept per connection. ``page_changed_to``
+    (optional) is the browser's URL when it changed since the model last saw
+    the page; the server adds a note to the prompt that asks the model to read
+    the page again (``AI_PAGE_CHANGED_NOTE``).
 ``{"event": "action_results", "id": <id>, "results": [{"tool_use_id", "content", "is_error"}]}``
     One result per action of an ``ai_actions`` message. Results for another
     request (e.g. of actions cancelled by a new prompt) are ignored.

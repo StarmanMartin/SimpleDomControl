@@ -12,6 +12,9 @@ The server and the client are released with the same version number.
   of it (`/~dashboard~settings`, not `/~settings`).
 
 ### Added
+- AI assistant: the panel remembers the URL at which the model last saw the page; a prompt sent after the user
+  navigated elsewhere carries `page_changed_to`, and the consumer adds a note asking the model to read the page
+  again (`AI_PAGE_CHANGED_NOTE`).
 - `allowedPaths` for views opened by the `sdc-navigator` (property of the `SdcNavigationClientController` mixin):
   patterns of the views in front of a view (`'*'` = one view, `'**'` = any number), e.g.
   `[['**', 'dashboard']]`. Empty (default) = allowed everywhere. A view opened outside its patterns shows

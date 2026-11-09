@@ -356,6 +356,42 @@ describe('SdcAiAssistant', () => {
         controller._socket = null;
     });
 
+    test('a prompt after the URL changed since the last read_page asks to read the page again', () => {
+        const sent = [];
+        if (controller._socket instanceof WebSocket) {
+            controller._socket.onmessage = null;
+            controller._socket.onclose = null;
+            controller._socket.close();
+        }
+        controller._socket = {readyState: WebSocket.OPEN, send: (msg) => sent.push(JSON.parse(msg))};
+        const textarea = controller.find('.ai-prompt-form textarea')[0];
+        const ask = (prompt) => {
+            controller._busy = false;
+            textarea.value = prompt;
+            controller._sendPrompt();
+            return sent.at(-1);
+        };
+        const start = window.location.pathname + window.location.search;
+        try {
+            // Never read: nothing to compare
+            controller._seenUrl = null;
+            expect(ask('first')).not.toHaveProperty('page_changed_to');
+            controller._readPage();
+            expect(ask('same page')).not.toHaveProperty('page_changed_to');
+            window.history.pushState({}, '', '/~dashboard~&pk=3');
+            expect(ask('other page').page_changed_to).toBe('/~dashboard~&pk=3');
+            // Until the model reads the page again
+            expect(ask('still other').page_changed_to).toBe('/~dashboard~&pk=3');
+            controller._readPage();
+            expect(ask('read again')).not.toHaveProperty('page_changed_to');
+        } finally {
+            window.history.pushState({}, '', start);
+            controller._setBusy(false);
+            controller.find('.ai-messages').empty();
+            controller._socket = null;
+        }
+    });
+
     test('Esc stops the running answer and collapses the panel', async () => {
         const sent = [];
         if (controller._socket instanceof WebSocket) {

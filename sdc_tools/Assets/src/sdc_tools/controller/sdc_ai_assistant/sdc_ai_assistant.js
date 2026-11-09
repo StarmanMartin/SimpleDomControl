@@ -113,6 +113,8 @@ class SdcAiAssistantController extends AbstractSDC {
         this._onWindowResize = null;
         // Created in _setUpWindow: Esc stops the answer and collapses the panel (_onEscape)
         this._onKeyDown = null;
+        // URL at which the model last saw the page (_readPage); a prompt sent elsewhere asks it to read it again
+        this._seenUrl = null;
         // Stable ids of the elements and forms shown to the model: the same DOM node keeps its id across read_page
         // calls, so a re-render of other parts of the page does not change what an id refers to (see _idOf)
         this._ids = new WeakMap();
@@ -255,7 +257,13 @@ class SdcAiAssistantController extends AbstractSDC {
             return;
         }
         this._requestId += 1;
-        if (this._send({event: 'prompt', id: this._requestId, prompt})) {
+        const message = {event: 'prompt', id: this._requestId, prompt};
+        // The user navigated since the model last saw the page: the server asks the model to read it again
+        const url = this._currentUrl();
+        if (this._seenUrl && this._seenUrl !== url) {
+            message.page_changed_to = url;
+        }
+        if (this._send(message)) {
             $textarea.val('');
             this._addMessage('user', prompt);
             this._$answer = null;
@@ -305,6 +313,11 @@ class SdcAiAssistantController extends AbstractSDC {
         ev.preventDefault();
         this._stop();
         this._setCollapsed(true);
+    }
+
+    /** Path and query of the browser's URL: SDC views and their arguments (``/~view~&pk=3``). */
+    _currentUrl() {
+        return window.location.pathname + window.location.search;
     }
 
     _setBusy(busy) {
@@ -870,6 +883,8 @@ class SdcAiAssistantController extends AbstractSDC {
         if (!['outline', 'html'].includes(mode)) {
             throw new Error('mode must be "outline" or "html"');
         }
+        // The model sees the page at this URL (read_page, or the page in the result of an action)
+        this._seenUrl = this._currentUrl();
         const root = this._scopeRoot(scope);
         const inRoot = (el) => root === document.body || root.contains(el);
         const elements = this._pageElements().filter(inRoot);

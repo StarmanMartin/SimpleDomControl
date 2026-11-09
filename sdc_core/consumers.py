@@ -626,6 +626,18 @@ AI_NO_SKILL_NOTE = ('No generated description of the views and data models of th
                     'it with `read_page` and the links on the page.')
 
 
+# Added to a prompt when the browser's URL changed since the model last saw the page (``page_changed_to``)
+AI_PAGE_CHANGED_NOTE = ('[The page changed since you last read it: the browser is now at {url}. Read the page again '
+                        '(read_page) before you rely on what you saw before.]')
+
+
+def _ai_page_changed_note(url):
+    """The note for a prompt sent after the page changed; '' without a URL."""
+    if not isinstance(url, str) or not url.strip():
+        return ''
+    return AI_PAGE_CHANGED_NOTE.format(url=url.strip()[:300])
+
+
 def round_ms(seconds):
     return int(round(seconds * 1000))
 
@@ -915,7 +927,9 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     Client -> server (JSON):
 
-    - ``{"event": "prompt", "id": <id>, "prompt": "..."}``: ask; the conversation is kept per connection
+    - ``{"event": "prompt", "id": <id>, "prompt": "...", "page_changed_to": "/~..."}``: ask; the conversation is
+      kept per connection. ``page_changed_to`` (optional): the browser's URL changed since the model last saw the
+      page; the prompt gets ``AI_PAGE_CHANGED_NOTE``, which asks the model to read the page again
     - ``{"event": "set_config", "provider", "token", "base_url", "model", "effort", "max_tokens"}``: the user's
       own connection settings (all optional; empty = project setting), only if ``SDC_AI_TOKEN_FROM_SYSTEM`` is
       False. Kept in memory for this connection only; a new provider starts a new conversation. ``base_url`` must be https and resolve to a public address, and is only
@@ -1126,7 +1140,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
                 # The model requests of an answer run as a task: a stop event can cancel them while they stream
                 await self._wait_for_task()
                 if event == 'prompt':
-                    work = self._answer(json_data.get('id'), str(json_data.get('prompt', '')).strip())
+                    work = self._answer(json_data.get('id'), str(json_data.get('prompt', '')).strip(),
+                                        json_data.get('page_changed_to'))
                 else:
                     work = self._action_results(json_data.get('id'), json_data.get('results'))
                 self.task_id = json_data.get('id')
@@ -1218,7 +1233,7 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             'hint': hints.get(status, _f('Please check the AI settings.'))}
 
     # ---------------------------------------------------------------- answer
-    async def _answer(self, id, prompt):
+    async def _answer(self, id, prompt, page_changed_to=None):
         if not prompt:
             return
         if not self._uses_system_token() and not self.config.get('token'):
@@ -1233,7 +1248,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
         self.turn_start = len(self.messages)
         self.turn_text = ''
         self.describe_rounds = 0
-        self.messages.append({'role': 'user', 'content': prompt})
+        note = _ai_page_changed_note(page_changed_to)
+        self.messages.append({'role': 'user', 'content': f'{prompt}\n\n{note}' if note else prompt})
         await self._run(id, round=0)
 
     async def _run(self, id, round):

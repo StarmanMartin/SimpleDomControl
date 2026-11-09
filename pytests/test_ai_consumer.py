@@ -946,3 +946,15 @@ def test_stop_answers_pending_actions(monkeypatch):
     assert [m['role'] for m in messages] == ['user', 'assistant', 'user', 'user']
     assert messages[2]['content'][0] == {'type': 'tool_result', 'tool_use_id': 't1', 'is_error': True,
                                          'content': 'Stopped by the user.'}
+
+
+def test_prompt_after_a_page_change_asks_to_read_the_page_again(monkeypatch):
+    client = FakeClient()
+    with override_settings(**AI):
+        run(_user(), [{'event': 'prompt', 'id': 1, 'prompt': 'Hi'},
+                      {'event': 'prompt', 'id': 2, 'prompt': 'And now?', 'page_changed_to': '/~dashboard~&pk=3'},
+                      {'event': 'prompt', 'id': 3, 'prompt': 'Thanks', 'page_changed_to': ''}], client, monkeypatch)
+    prompts = [m['content'] for m in client.calls[2]['messages'] if m['role'] == 'user']
+    assert prompts[0] == 'Hi' and prompts[2] == 'Thanks'
+    assert prompts[1] == ('And now?\n\n[The page changed since you last read it: the browser is now at '
+                          '/~dashboard~&pk=3. Read the page again (read_page) before you rely on what you saw before.]')
