@@ -139,7 +139,7 @@ class AddControllerManager:
         fin = open(os.path.join(options.PROJECT_ROOT, self.app_name, "sdc_views.py"), "at", encoding='utf-8')
 
         fin.write(
-            "\n%sdef get_content(self, request%s, *args, **kwargs):\n%sreturn render(request, self.template_name)" % (
+            "\n%sdef get_content(self, request%s, *args, **kwargs):\n%sreturn render(request, self.template_name), {}" % (
                 options.SEP, self.get_params_as_string(), options.SEP * 2))
         fin.close()
 

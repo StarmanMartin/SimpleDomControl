@@ -580,7 +580,14 @@ tasks and selects the handler with the request parameter ``_method``:
 ``get_content(self, request, *args, **kwargs)``
     ``GET`` with ``_method=content``. Returns the HTML of the controller. The
     client sends this request when the controller is loaded. URL parameters
-    of the path are passed as keyword arguments.
+    of the path are passed as keyword arguments. Return either the HTML
+    (``render(...)`` or a string) or a tuple ``(html, data)``; ``data`` must be
+    JSON serialisable. ``SDCView`` answers with JSON
+    ``{"html": ..., "data": ...}`` (``data`` is ``{}`` if only HTML is
+    returned), and the client passes ``data`` to ``onLoad(html, data)`` and
+    ``this.contentData``. Responses that are not a successful HTML page
+    (``send_redirect()``, error responses, JSON or streaming responses) are
+    sent unchanged.
 ``get_api(self, request, ...)``
     ``GET`` with ``_method=api``. Called by ``this.get(url, args)`` in the
     controller.

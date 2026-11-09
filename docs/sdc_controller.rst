@@ -46,6 +46,24 @@ Example:
 
 The client-side controller points its ``contentUrl`` at that endpoint.
 
+``get_content()`` can also send data to the client controller. Return a tuple
+``(html, data)``: ``html`` is the rendered response (or a string), ``data`` any
+JSON-serialisable value. The controller receives it as the second argument of
+``onLoad(html, data)`` and as ``this.contentData``:
+
+.. code-block:: python
+
+   def get_content(self, request, *args, **kwargs):
+       books = Book.objects.filter(owner=request.user)
+       return render(request, self.template_name, {"books": books}), {"count": books.count()}
+
+.. code-block:: javascript
+
+   onLoad($html, data) {
+     this.bookCount = data.count;
+     return super.onLoad($html, data);
+   }
+
 Example:
 
 .. code-block:: javascript
@@ -136,14 +154,16 @@ Parameters passed through a navigation link (``/view-a?name=Max``) end up in
    ``onInit()`` is no longer called by the runtime. Read ``this.params`` in
    ``onLoad()`` instead.
 
-``onLoad(html)``
-^^^^^^^^^^^^^^^^
+``onLoad(html, data)``
+^^^^^^^^^^^^^^^^^^^^^^
 
 Runs after the HTML fragment has been fetched and before nested controllers are
 replaced. This is the normal place to read ``this.params`` and to mutate or
 extend the loaded HTML. ``$html`` is a jQuery object, or ``null`` when the
-controller has no ``contentUrl``. ``onLoad()`` runs only once per controller
-instance.
+controller has no ``contentUrl``. ``data`` is the second value of
+``get_content()`` (``{}`` if it returns only the HTML; ``undefined`` without
+``contentUrl``); it is also stored in ``this.contentData``. ``onLoad()`` runs
+only once per controller instance.
 
 ``willShow()``
 ^^^^^^^^^^^^^^

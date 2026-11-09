@@ -175,7 +175,10 @@ Example:
 -------------------------------
 
 If a controller sets ``contentUrl``, the runtime fetches HTML for it from the
-backend. Responses are cached per tag unless ``contentReload`` is true.
+backend. The server answers with ``{html, data}``; ``data`` (the second value
+returned by ``get_content()``) is passed to ``onLoad(html, data)`` and stored in
+``this.contentData``. Responses (HTML and data) are cached per tag unless
+``contentReload`` is true, so instances of the same tag share the cached data.
 
 If the URL contains placeholders such as ``%(pk)s``, the runtime fills them
 from controller tag data and enables reload behavior automatically.

@@ -5,7 +5,17 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.161.0
+
+### Changed
+- Content protocol: a `_method=content` request is answered with JSON `{"html": ..., "data": ...}` instead of the
+  bare HTML fragment. `get_content()` may now return `(html, data)` – `html` an `HttpResponse` or `str`, `data`
+  anything JSON serialisable – and the client hands `data` to the controller (`onLoad(html, data)`,
+  `this.contentData`). Returning only `render(...)` keeps working (`data` is `{}`); redirects, error and
+  JSON/streaming responses are sent unchanged. `sdc_cc` generates `return render(...), {}`.
+  Protocol change: requires `sdc_client` 0.161.0 (older clients cannot read the JSON answer).
+
+## 0.160.0 – 0.160.4
 
 ### Changed
 - AI assistant: `fill_form` fires `change` on every changed field after all values are set (also in SdcModel

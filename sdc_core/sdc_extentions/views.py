@@ -7,7 +7,9 @@ import json
 from channels.db import database_sync_to_async
 from django.contrib.auth.mixins import AccessMixin
 from django.core.exceptions import PermissionDenied, ImproperlyConfigured
-from django.http import HttpResponse
+from django.core.serializers.json import DjangoJSONEncoder
+from django.http import HttpResponse, JsonResponse
+from django.http.response import HttpResponseBase
 from django.views import View
 from functools import wraps
 from sdc_core.sdc_extentions.response import send_redirect, send_success
@@ -133,10 +135,12 @@ class SDCView(View):
     http_method_names = View.http_method_names + ['get_api', 'post_api', 'get_content', 'search']
 
     def dispatch(self, request, *args, **kwargs):
+        is_content = False
         if request.method.lower() == 'post' and request.POST.get('_method') == 'search':
             request.method = 'search'
 
         if request.method.lower() == 'get' and request.GET.get('_method') == 'content':
+            is_content = True
             request.method = 'get_content'
 
         if request.method.lower() == 'post' and request.POST.get('_method') == 'api':
@@ -160,8 +164,35 @@ class SDCView(View):
             if isinstance(res, HttpResponse):
                 return res
             return send_success(_return_data=res)
+        result = super().dispatch(request, *args, **kwargs)
+        if is_content:
+            return _content_response(result)
+        return result
 
-        return super(SDCView, self).dispatch(request, *args, **kwargs)
+
+def _content_response(result):
+    """
+    Wraps the return value of ``get_content`` into the JSON content protocol ``{"html": ..., "data": ...}``.
+
+    ``get_content`` may return an ``HttpResponse`` / ``str`` (HTML only) or a tuple ``(html, data)``, where
+    ``html`` is an ``HttpResponse`` or ``str`` and ``data`` is JSON serializable. Responses that are not
+    a successful HTML page (redirects, errors, JSON, streaming) are passed through unchanged.
+
+    :meta private:
+    """
+    data = {}
+    if isinstance(result, tuple):
+        result, data = result
+    if isinstance(result, HttpResponse):
+        content_type = result.get('Content-Type', '')
+        if result.status_code != 200 or not content_type.startswith('text/html'):
+            return result
+        html = result.content.decode(result.charset or 'utf-8')
+    elif isinstance(result, HttpResponseBase):
+        return result
+    else:
+        html = '' if result is None else str(result)
+    return JsonResponse({'html': html, 'data': data}, encoder=DjangoJSONEncoder)
 
 
 def _channel_user(channel):
