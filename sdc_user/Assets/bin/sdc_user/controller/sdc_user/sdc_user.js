@@ -1,0 +1,74 @@
+import {AbstractSDC, app, on} from 'sdc_client';
+
+
+/**
+ * Invisible global helper that loads the `SdcUser` record of the logged-in user (nothing for anonymous visitors) and provides it to other controllers on request; it shows no content and has no actions.
+ */
+class SdcUserController extends AbstractSDC {
+
+    constructor() {
+        super();
+        this.contentUrl = "/sdc_view/sdc_user/sdc_user"; //<sdc-user></sdc-user>
+        this.user = null;
+
+        /**
+         * Uncomment the following line to make sure the HTML template
+         * of this controller is not cached and reloaded for every instance
+         * of this controller.
+         */
+        // this.contentReload = true;
+
+        /**
+         * Uncomment the following line to make this controller asynchronous.
+         * This means that the parent controller finishes loading without
+         * waiting for this controller
+         */
+        // this.load_async = true;
+
+        /**
+         * Events is an array of dom events.
+         * The pattern is {'event': {'dom_selector': handler}}
+         * Uncomment the following line to add events;
+         */
+        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}});
+    }
+
+    //-------------------------------------------------//
+    // Lifecycle handler                               //
+    // - onLoad (DOM not set)                          //
+    // - willShow  (DOM set)                           //
+    // - onRefresh  (recalled on reload)              //
+    //-------------------------------------------------//
+    // - onRemove                                      //
+    //-------------------------------------------------//
+
+    onLoad($html) {
+        on('getUser', this);
+        return this.serverCall('get_user_id')
+            .then((user_id) => {
+                if (user_id === null || user_id === undefined) {
+                    return null;
+                }
+                return this.querySet('SdcUser', {'id': user_id}).get().then((user) => {
+                    this.user = user;
+                });
+            })
+            .catch(() => null)
+            .then(() => super.onLoad($html));
+    }
+
+    willShow() {
+        return super.willShow();
+    }
+
+    onRefresh() {
+        return super.onRefresh();
+    }
+
+    getUser() {
+      return this.user;
+    }
+
+}
+
+app.registerGlobal(SdcUserController);

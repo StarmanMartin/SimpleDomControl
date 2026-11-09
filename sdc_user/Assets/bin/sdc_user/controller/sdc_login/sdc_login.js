@@ -1,0 +1,58 @@
+import {AbstractSDC, app, trigger, socketReconnect} from 'sdc_client';
+
+/**
+ * Login form (username and password) that starts a session for an `SdcUser`; the view other views redirect to when login is required.
+ *
+ * - Arguments: `next` (optional) is the URL to go to after login; without it the project's start page (`LOGIN_SUCCESS`) is used.
+ * - "Login" checks the credentials. On success the user is logged in and the whole page reloads at the `next` target; on failure the errors are shown in the form.
+ * - If the project requires confirmed e-mail addresses and the user has not confirmed theirs, login is refused and a new confirmation e-mail is sent.
+ * - Links lead to `<sdc-password-forgotten>` and to `<register>`.
+ */
+class SdcLoginController extends AbstractSDC {
+
+    constructor() {
+        super();
+        this.contentUrl = "/sdc_view/sdc_user/sdc_login"; //<sdc-login></sdc-login>
+        this.contentReload = true;
+
+        /**
+         * Events is an array of dom events.
+         * The pattern is {'event': {'dom_selector': handler}}
+         * Uncommend the following line to add events;
+         */
+        // this.events.unshift({'click': {'.header-sample': (ev, $elem)=> $elem.css('border', '2px solid black')}}});
+    }
+
+    //-------------------------------------------------//
+    // Lifecycle handler                               //
+    // - onLoad (DOM not set)                          //
+    // - willShow  (DOM set)                           //
+    // - onRefresh  (recalled on reload)              //
+    //-------------------------------------------------//
+    // - onRemove                                      //
+    //-------------------------------------------------//
+
+    onLoad($html) {
+        return super.onLoad($html);
+    }
+
+    willShow() {
+        return super.willShow();
+    }
+
+    onRefresh() {
+        return super.onRefresh();
+    }
+
+    onSubmit(serverRes) {
+        // Tell the application before the page reloads (a reload is needed because
+        // Django issues a new CSRF token and session at login).
+        trigger('login');
+        if (serverRes && serverRes.status === "redirect") {
+            location.assign(serverRes.url);
+        }
+    }
+
+}
+
+app.register(SdcLoginController).addMixin('sdc-auto-submit');
