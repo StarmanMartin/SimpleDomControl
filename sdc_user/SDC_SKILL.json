@@ -19,6 +19,17 @@
         }
       ]
     },
+    "sdc-api-tokens": {
+      "doc": "Lists, creates and revokes the API tokens of the logged-in user: tokens let programs and AI assistants use the\nsite with the user's account through the REST API (`sdc_api/`) or MCP.\n\n- No arguments; login required.\n- The list shows every token of the user (also expired and revoked ones): name, the first characters of the\n  token, privileges, creation, expiry and last use. Tokens of `sdc_api/login/` (username and password) are\n  marked \"login\".\n- \"Create token\" needs a name, a lifetime (\"Valid for\") and privileges: \"Read only\" (read all data and the\n  account), \"Read & write\" (also create and change data), \"Full access\" (also delete data, change the profile\n  and manage tokens) or \"Custom\" (read/write/delete per data model or for all of them, and the account\n  privileges). A token never has more rights than the user.\n- The new token is shown once above the list with a \"Copy\" button; it cannot be shown again.\n- \"Revoke\" asks for confirmation and then revokes the token and every token created with it; this cannot be\n  undone.",
+      "view_class": "sdc_user.sdc_views.SdcApiTokens",
+      "url": "/sdc_view/sdc_user/sdc_api_tokens",
+      "url_params": [],
+      "actions": {
+        "copy_token": "Copies the new token to the clipboard.",
+        "create_token": "Creates a token with the entered name, lifetime and privileges and shows it once; the list is reloaded.",
+        "revoke_token": "Revokes the token of the button (`data-token-id`) after a confirmation; tokens created with it are revoked\nas well."
+      }
+    },
     "sdc-change-password": {
       "doc": "Form for the logged-in user to change their own password (the `password_form` of `SdcUser`).\n\n- No arguments; it always edits the current user. Requires login, otherwise it redirects to the login view.\n- Enter the current password, then the new password twice (must match and pass the password rules).\n- \"Change password\" saves the new password immediately. Other sessions of this user are logged out; the current session stays logged in.",
       "view_class": "sdc_user.sdc_views.SdcChangePassword",
@@ -74,7 +85,7 @@
       "hidden": true
     },
     "sdc-user-nav-btn": {
-      "doc": "User area for the navigation bar: shows \"Login\" and \"Register\" links when nobody is logged in, and an \"Edit <username>\" link (opens the user's own `SdcUser` in `<sdc-model-form>`) plus `<sdc-logout>` when a user is logged in. It refreshes itself after login and logout.",
+      "doc": "User area for the navigation bar: shows \"Login\" and \"Register\" links when nobody is logged in, and an \"Edit <username>\" link (opens the user's own `SdcUser` in `<sdc-model-form>`) an \"API tokens\" link (opens `<sdc-api-tokens>`) and `<sdc-logout>` when a user is logged in. It refreshes itself after login and logout.",
       "view_class": "sdc_user.sdc_views.SdcUserNavBtn",
       "url": "/sdc_view/sdc_user/sdc_user_nav_btn",
       "url_params": [],

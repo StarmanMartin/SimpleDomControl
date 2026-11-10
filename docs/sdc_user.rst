@@ -198,9 +198,19 @@ them as tags or navigate to them with navigation links (see
 
 ``sdc-user-nav-btn`` — ``<sdc-user-nav-btn></sdc-user-nav-btn>``
    Navigation-bar block. For a logged-in user it shows an *Edit <username>*
-   link (``/sdc-model-form?model=SdcUser&pk=<pk>``) and ``<sdc-logout>``; for
-   anonymous users *Login* (``/<LOGIN_CONTROLLER>``) and *Register*. It reloads
-   itself on the ``login`` and ``logout`` events.
+   link (``/sdc-model-form?model=SdcUser&pk=<pk>``), an *API tokens* link
+   (``/sdc-api-tokens``) and ``<sdc-logout>``; for anonymous users *Login*
+   (``/<LOGIN_CONTROLLER>``) and *Register*. It reloads itself on the
+   ``login`` and ``logout`` events.
+
+``sdc-api-tokens`` — ``<sdc-api-tokens></sdc-api-tokens>``
+   The API tokens of the logged-in user (login required). Lists all tokens,
+   also expired and revoked ones; creates a token with a name, a lifetime and
+   privileges (presets *Read only*, *Read & write*, *Full access* or *Custom*
+   per model and account privilege) and shows it once with a *Copy* button;
+   *Revoke* asks for confirmation. Server calls ``create_token`` and
+   ``revoke_token``. Tokens are used by the REST API (:doc:`rest_api`) and the
+   MCP endpoint (:doc:`mcp`).
 
 The ``send_email`` and ``get_user_id`` server methods work with both server-call
 transports (HTTP and ``SERVER_CALL_VIA_WEB_SOCKET = True``).

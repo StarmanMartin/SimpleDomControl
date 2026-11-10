@@ -1,108 +1,99 @@
+"""
+The REST API of the SdcModels (``sdc_api/``), authenticated with API tokens (``sdc_core.api_tokens``):
+
+- ``login/``: username and password → a short-lived login token
+- ``tokens/``, ``tokens/current/``, ``tokens/<id>/``: list, create and revoke the own tokens
+- ``account/``: the own user record
+- ``<model>/`` and ``<model>/<id>/``: read, create, change and delete records
+
+Routes: ``sdc_core.api_urls`` (``path('sdc_api/', include('sdc_core.api_urls'))``).
+"""
 import json
 
 import jwt
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import update_last_login
-from django.forms.models import model_to_dict
-from django.http import Http404, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
+from django.utils.dateparse import parse_datetime
 from django.utils.datastructures import MultiValueDict
-from django.views import View
 from django.utils.decorators import method_decorator
+from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth import get_user_model
 
-from sdc_core.consumers import ALL_MODELS
-from sdc_core.jwt_utils import jwt_required, generate_jwt, get_auth_token_from_request, \
-    verify_refresh_jwt
-from sdc_core.sdc_extentions.models import SDCSerializer, sanitize_filter_query, resolve_form
+from sdc_core import api_tokens
+from sdc_core.api_tokens import api_token_required
+from sdc_core.sdc_extentions import model_actions
 
 User = get_user_model()
 
 
+def _login_response(token, secret):
+    return JsonResponse({
+        "access_token": secret,
+        "token_type": "bearer",
+        "token_id": str(token.id),
+        "expires_at": token.expires_at,
+        "privileges": token.privileges,
+    })
+
+
+def _refresh_with_jwt(request):
+    """GET of the deprecated refresh flow: a refresh JWT of SDC ≤ 0.162 is exchanged for a login token."""
+    from sdc_core.jwt_utils import verify_refresh_jwt
+    try:
+        secret = api_tokens.bearer_token(request)
+    except api_tokens.AuthenticationFailed as e:
+        return api_tokens.unauthorized_response(e)
+    if secret.startswith(api_tokens.TOKEN_PREFIX) or not api_tokens.token_settings()['accept_jwt']:
+        return JsonResponse({"error": "Tokens are not refreshed any more: log in again (POST) or use a personal "
+                                      "API token"}, status=410)
+    try:
+        _payload, user = verify_refresh_jwt(secret)
+    except jwt.ExpiredSignatureError:
+        return JsonResponse({"error": "Expired token"}, status=401)
+    except (jwt.InvalidTokenError, User.DoesNotExist):
+        return JsonResponse({"error": "Invalid token"}, status=401)
+    token, new_secret = api_tokens.create_token(user, 'Login (refreshed JWT)', api_tokens.FULL_ACCESS,
+                                                kind='login')
+    return api_tokens.mark_deprecated(_login_response(token, new_secret))
+
+
 @csrf_exempt
 def get_api_token(request):
-    if request.method not in ["POST", "GET"]:
-        return JsonResponse(
-            {"error": "POST required"},
-            status=405,
-        )
+    """
+    ``POST {"username", "password", "name"?, "privileges"?}`` → a login token (``kind`` ``login``, valid for
+    ``SDC_API_TOKENS['login_lifetime_seconds']``; all privileges of the user unless ``privileges`` narrows them).
+    """
+    if request.method == "GET":
+        return _refresh_with_jwt(request)
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
     try:
-        if request.method == "GET":
-            token, err = get_auth_token_from_request(request)
-            if err is not None:
-                return err
-            try:
-                payload, user = verify_refresh_jwt(token)
-            except jwt.ExpiredSignatureError:
-                return JsonResponse(
-                    {"error": "Expired token"},
-                    status=401,
-                )
-            except jwt.InvalidTokenError:
-                return JsonResponse(
-                    {"error": "Invalid token"},
-                    status=401,
-                )
-            except User.DoesNotExist:
-                return JsonResponse(
-                    {"error": "User not found"},
-                    status=401,
-                )
-
-        else:
-            data = json.loads(request.body)
-
-            username = data.get("username")
-            password = data.get("password")
-
-            if not username or not password:
-                return JsonResponse(
-                    {"error": "Missing credentials"},
-                    status=400,
-                )
-
-            user = authenticate(
-                request,
-                username=username,
-                password=password,
-            )
-
+        data = json.loads(request.body)
+        if not isinstance(data, dict):
+            raise ValueError()
+    except ValueError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+    try:
+        username = data.get("username")
+        password = data.get("password")
+        if not username or not password:
+            return JsonResponse({"error": "Missing credentials"}, status=400)
+        user = authenticate(request, username=username, password=password)
         if user is None:
-            return JsonResponse(
-                {"error": "Invalid credentials"},
-                status=401,
-            )
-
-
+            return JsonResponse({"error": "Invalid credentials"}, status=401)
+        try:
+            token, secret = api_tokens.create_token(user, data.get("name") or "Login",
+                                                    data.get("privileges") or api_tokens.FULL_ACCESS,
+                                                    kind='login')
+        except api_tokens.TokenError as e:
+            return JsonResponse({"error": str(e)}, status=400)
         update_last_login(None, user)
-
-        token, refresh_token = generate_jwt(user)
-
-        return JsonResponse({
-            "access_token": token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-        })
-
-    except json.JSONDecodeError:
-        return JsonResponse(
-            {"error": "Invalid JSON"},
-            status=400,
-        )
-
+        return _login_response(token, secret)
     except Exception as e:
-        return JsonResponse(
-            {"error": str(e) if settings.DEBUG else "Internal server error"},
-            status=500,
-        )
-
-
-def _serialize_instance(instance):
-    # Same format as GET on a single object; never echo the submitted form data
-    # (it may contain passwords and non-JSON values such as model instances).
-    return json.loads(SDCSerializer().serialize([instance]))[0]
+        return JsonResponse({"error": str(e) if settings.DEBUG else "Internal server error"}, status=500)
 
 
 def _parse_body(request):
@@ -124,91 +115,53 @@ def _parse_body(request):
     return QueryDict(request.body), MultiValueDict()
 
 
-def _patch_data(form_class, instance, data):
-    """Form data for a partial update: the current values, overwritten by the submitted ones."""
-    field_names = list(form_class(instance=instance).fields.keys())
-    current = model_to_dict(instance, fields=field_names)
-    if isinstance(data, QueryDict):
-        merged = QueryDict(mutable=True)
-        for key, value in current.items():
-            values = value if isinstance(value, list) else [value]
-            merged.setlist(key, ['' if v is None else v for v in values])
-        for key in data.keys():
-            merged.setlist(key, data.getlist(key))
-        return merged
-    return current | dict(data)
-
-
 def _error(message, status):
     return JsonResponse({"success": False, "error": message}, status=status)
 
 
-@method_decorator(jwt_required, name="dispatch")
+def _action_response(action):
+    """
+    Runs ``action`` (a call of ``model_actions``) and maps its result and errors to the responses of the API:
+    ``{"success": true, "data": ...}``, 400 with the form errors, 403 (with the missing privilege of the token),
+    and 404 for records the user cannot reach. An unknown model raises ``Http404``.
+    """
+    try:
+        result = action()
+    except model_actions.MissingPrivilege as e:
+        return api_tokens.insufficient_privilege_response(e)
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+    except model_actions.FormValidationError as e:
+        return JsonResponse({"success": False, "errors": e.errors}, status=400)
+    if result is None:
+        return JsonResponse({"success": True})
+    return JsonResponse({"success": True, "data": result})
+
+
+@method_decorator(api_token_required, name="dispatch")
 @method_decorator(csrf_exempt, name='dispatch')
 class AdcApi(View):
     @staticmethod
     def get_element(model_name):
-        model = ALL_MODELS.get(model_name)
-        if model is None:
-            raise Http404(f"Model: {model_name} not found")
-        return model
+        return model_actions.get_model(model_name)
 
     def get(self, request, model, id=None):
-        model_class = self.get_element(model)
+        grant = request.api_grant
         if id is not None:
-            qs = {'pk': id}
-            is_single_result = True
-        else:
-            try:
-                qs = sanitize_filter_query(model_class, request.GET or {})
-            except PermissionDenied as e:
-                return HttpResponseForbidden(str(e))
-            is_single_result = False
-        if not model_class.is_authorised(request.user, 'load', qs):
-            return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'load', qs)
-        if is_single_result:
-            try:
-                model_obj = model_qs.get(**qs)
-            except model_class.DoesNotExist:
-                return HttpResponseNotFound()
-            return JsonResponse({
-                "success": True,
-                "data": json.loads(SDCSerializer().serialize([model_obj]))[0]
-            },
-                status=200
-            )
-        data = json.loads(SDCSerializer().serialize(model_qs.filter(**qs)))
-        return JsonResponse({
-            "success": True,
-            "data": data
-        },
-            status=200
-        )
+            return _action_response(lambda: model_actions.get(request.user, model, id, grant=grant))
+        return _action_response(lambda: model_actions.load(request.user, model, request.GET, grant=grant))
 
     def post(self, request, model, id=None):
         if id is not None:
             return _error("Create with POST on the list URL (without id)", 405)
-        model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'create', {}):
-            return HttpResponseForbidden()
         try:
             data, files = _parse_body(request)
         except ValueError as e:
             return _error(f"Invalid request body: {e}", 400)
-        Form = resolve_form(model_class.SdcMeta.create_form)
-        form = Form(instance=None, data=data, files=files)
-        if not form.is_valid():
-            return JsonResponse({
-                "success": False,
-                "errors": form.errors,
-            }, status=400)
-
-        instance = form.save()
-        return JsonResponse({
-            "success": True,
-            "data": _serialize_instance(instance),
-        })
+        return _action_response(lambda: model_actions.create(request.user, model, data, files,
+                                                             grant=request.api_grant))
 
     def put(self, request, model, id=None):
         return self._update(request, model, id, partial=False)
@@ -219,47 +172,128 @@ class AdcApi(View):
     def _update(self, request, model, id, partial):
         if id is None:
             return _error("Update with PUT or PATCH on the object URL (with id)", 405)
-        qs = {'pk': id}
-        model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'save', {}):
-            return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'save', qs)
-        try:
-            model_obj = model_qs.get(**qs)
-        except model_class.DoesNotExist:
-            return HttpResponseNotFound()
-
         try:
             data, files = _parse_body(request)
         except ValueError as e:
             return _error(f"Invalid request body: {e}", 400)
-        Form = resolve_form(model_class.SdcMeta.edit_form)
-        if partial:
-            data = _patch_data(Form, model_obj, data)
-        form = Form(instance=model_obj, data=data, files=files)
-        if not form.is_valid():
-            return JsonResponse({
-                "success": False,
-                "errors": form.errors,
-            }, status=400)
-
-        instance = form.save()
-        return JsonResponse({
-            "success": True,
-            "data": _serialize_instance(instance),
-        })
+        return _action_response(lambda: model_actions.update(request.user, model, id, data, files, partial=partial,
+                                                             grant=request.api_grant))
 
     def delete(self, request, model, id=None):
         if id is None:
             return _error("Delete with DELETE on the object URL (with id)", 405)
-        qs = {'pk': id}
-        model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'delete', qs):
-            return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'delete', qs)
+        return _action_response(lambda: model_actions.delete(request.user, model, id, grant=request.api_grant))
+
+
+# ------------------------------------------------------------------ tokens
+
+def _own_tokens(request):
+    from sdc_core.models import ApiToken
+    return ApiToken.objects.filter(user=request.user)
+
+
+def _parse_expiry(value):
+    """``expires_at`` of a create request: missing → default lifetime, null → no expiry, else an ISO datetime."""
+    if value is None:
+        return None
+    parsed = parse_datetime(value) if isinstance(value, str) else None
+    if parsed is None:
+        raise api_tokens.TokenError('expires_at must be an ISO 8601 date and time')
+    if parsed.tzinfo is None:
+        from django.utils import timezone
+        parsed = timezone.make_aware(parsed)
+    return parsed
+
+
+@method_decorator(api_token_required, name="dispatch")
+@method_decorator(csrf_exempt, name='dispatch')
+class ApiTokensView(View):
+    """``GET``: the user's tokens (``account:read``); ``POST {"name", "privileges", "expires_at"?}``: a new token
+    (``account:tokens``; at most the privileges of the calling token)."""
+
+    def get(self, request):
+        return _action_response(lambda: self._list(request))
+
+    @staticmethod
+    def _list(request):
+        api_tokens.require_account(request.api_grant, api_tokens.ACCOUNT_READ)
+        return [api_tokens.token_to_dict(t) for t in _own_tokens(request)]
+
+    def post(self, request):
         try:
-            model_obj = model_qs.get(**qs)
-        except model_class.DoesNotExist:
-            return HttpResponseNotFound()
-        model_obj.delete()
-        return JsonResponse({"success": True})
+            api_tokens.require_account(request.api_grant, api_tokens.ACCOUNT_TOKENS)
+        except model_actions.MissingPrivilege as e:
+            return api_tokens.insufficient_privilege_response(e)
+        try:
+            data = json.loads(request.body or b'{}')
+            if not isinstance(data, dict):
+                raise ValueError()
+        except ValueError:
+            return _error("The body must be a JSON object", 400)
+        privileges = data.get('privileges')
+        if privileges is None and request.api_token is not None:
+            privileges = request.api_token.privileges
+        try:
+            expiry = {'expires_at': _parse_expiry(data['expires_at'])} if 'expires_at' in data else {}
+            token, secret = api_tokens.create_token(request.user, data.get('name'), privileges or [],
+                                                    created_by_token=request.api_token, **expiry)
+        except api_tokens.TokenError as e:
+            return _error(str(e), 400)
+        return JsonResponse({"success": True, "token": secret, "data": api_tokens.token_to_dict(token)},
+                            status=201)
+
+
+@method_decorator(api_token_required, name="dispatch")
+@method_decorator(csrf_exempt, name='dispatch')
+class ApiTokenView(View):
+    """``GET``: one own token (``account:read``); ``DELETE``: revoke it and the tokens it created
+    (``account:tokens``)."""
+
+    def get(self, request, token_id):
+        def action():
+            api_tokens.require_account(request.api_grant, api_tokens.ACCOUNT_READ)
+            return api_tokens.token_to_dict(_own_tokens(request).get(pk=token_id))
+        return _action_response(action)
+
+    def delete(self, request, token_id):
+        def action():
+            api_tokens.require_account(request.api_grant, api_tokens.ACCOUNT_TOKENS)
+            token = _own_tokens(request).get(pk=token_id)
+            token.revoke(by=request.user)
+            return api_tokens.token_to_dict(token)
+        return _action_response(action)
+
+
+@csrf_exempt
+@api_token_required
+def current_token(request):
+    """``GET``: the calling token (no privilege needed)."""
+    if request.method != 'GET':
+        return _error("GET required", 405)
+    if request.api_token is None:
+        return _error("The request was not made with an API token", 404)
+    return JsonResponse({"success": True, "data": api_tokens.token_to_dict(request.api_token)})
+
+
+# ------------------------------------------------------------------ account
+
+@method_decorator(api_token_required, name="dispatch")
+@method_decorator(csrf_exempt, name='dispatch')
+class AccountView(View):
+    """``GET``: the own user record (``account:read``); ``PATCH``: change the own profile (``account:write``;
+    never ``ACCOUNT_PROTECTED_FIELDS`` such as password, e-mail or username). The user model's own rules apply
+    as well."""
+
+    def get(self, request):
+        def action():
+            api_tokens.require_account(request.api_grant, api_tokens.ACCOUNT_READ)
+            return model_actions.get(request.user, User.__name__, request.user.pk)
+        return _action_response(action)
+
+    def patch(self, request):
+        try:
+            data, files = _parse_body(request)
+        except ValueError as e:
+            return _error(f"Invalid request body: {e}", 400)
+
+        return _action_response(lambda: api_tokens.update_account(request.user, request.api_grant, data, files))

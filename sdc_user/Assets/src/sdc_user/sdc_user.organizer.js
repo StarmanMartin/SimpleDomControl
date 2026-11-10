@@ -1,3 +1,4 @@
+import {} from "./controller/sdc_api_tokens/sdc_api_tokens.js";
 import {} from "./controller/register/register.js";
 import {} from "./controller/sdc_reset_password/sdc_reset_password.js";
 import {} from "./controller/sdc_password_forgotten/sdc_password_forgotten.js";

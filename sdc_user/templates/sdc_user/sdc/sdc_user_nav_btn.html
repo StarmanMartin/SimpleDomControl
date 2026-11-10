@@ -3,6 +3,7 @@
     {% if user.is_authenticated %}
     <a class="nav-link navigation-links" href="/sdc-model-form?model=SdcUser&pk={{user.pk}}">{% trans 'Edit' %}
         {{user.username}}</a>
+    <a class="nav-link navigation-links" href="/sdc-api-tokens">{% trans 'API tokens' %}</a>
     <sdc-logout></sdc-logout>
     {% else %}
     <a class="nav-link navigation-links" href="/{{ login_controller }}">{% trans 'Login' %}</a>
