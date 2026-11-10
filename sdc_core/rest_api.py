@@ -2,21 +2,19 @@ import json
 
 import jwt
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import update_last_login
-from django.forms.models import model_to_dict
-from django.http import Http404, JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponseNotFound, QueryDict
 from django.utils.datastructures import MultiValueDict
 from django.views import View
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import get_user_model
 
-from sdc_core.consumers import ALL_MODELS
 from sdc_core.jwt_utils import jwt_required, generate_jwt, get_auth_token_from_request, \
     verify_refresh_jwt
-from sdc_core.sdc_extentions.models import SDCSerializer, sanitize_filter_query, resolve_form
+from sdc_core.sdc_extentions import model_actions
 
 User = get_user_model()
 
@@ -99,12 +97,6 @@ def get_api_token(request):
         )
 
 
-def _serialize_instance(instance):
-    # Same format as GET on a single object; never echo the submitted form data
-    # (it may contain passwords and non-JSON values such as model instances).
-    return json.loads(SDCSerializer().serialize([instance]))[0]
-
-
 def _parse_body(request):
     """
     Returns ``(data, files)`` of a POST, PUT or PATCH request. Supported bodies:
@@ -124,23 +116,27 @@ def _parse_body(request):
     return QueryDict(request.body), MultiValueDict()
 
 
-def _patch_data(form_class, instance, data):
-    """Form data for a partial update: the current values, overwritten by the submitted ones."""
-    field_names = list(form_class(instance=instance).fields.keys())
-    current = model_to_dict(instance, fields=field_names)
-    if isinstance(data, QueryDict):
-        merged = QueryDict(mutable=True)
-        for key, value in current.items():
-            values = value if isinstance(value, list) else [value]
-            merged.setlist(key, ['' if v is None else v for v in values])
-        for key in data.keys():
-            merged.setlist(key, data.getlist(key))
-        return merged
-    return current | dict(data)
-
-
 def _error(message, status):
     return JsonResponse({"success": False, "error": message}, status=status)
+
+
+def _action_response(action):
+    """
+    Runs ``action`` (a call of ``model_actions``) and maps its result and errors to the responses of the API:
+    ``{"success": true, "data": ...}``, 400 with the form errors, 403, and 404 for records the user cannot reach.
+    An unknown model raises ``Http404``.
+    """
+    try:
+        result = action()
+    except PermissionDenied as e:
+        return HttpResponseForbidden(str(e))
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+    except model_actions.FormValidationError as e:
+        return JsonResponse({"success": False, "errors": e.errors}, status=400)
+    if result is None:
+        return JsonResponse({"success": True})
+    return JsonResponse({"success": True, "data": result})
 
 
 @method_decorator(jwt_required, name="dispatch")
@@ -148,67 +144,21 @@ def _error(message, status):
 class AdcApi(View):
     @staticmethod
     def get_element(model_name):
-        model = ALL_MODELS.get(model_name)
-        if model is None:
-            raise Http404(f"Model: {model_name} not found")
-        return model
+        return model_actions.get_model(model_name)
 
     def get(self, request, model, id=None):
-        model_class = self.get_element(model)
         if id is not None:
-            qs = {'pk': id}
-            is_single_result = True
-        else:
-            try:
-                qs = sanitize_filter_query(model_class, request.GET or {})
-            except PermissionDenied as e:
-                return HttpResponseForbidden(str(e))
-            is_single_result = False
-        if not model_class.is_authorised(request.user, 'load', qs):
-            return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'load', qs)
-        if is_single_result:
-            try:
-                model_obj = model_qs.get(**qs)
-            except model_class.DoesNotExist:
-                return HttpResponseNotFound()
-            return JsonResponse({
-                "success": True,
-                "data": json.loads(SDCSerializer().serialize([model_obj]))[0]
-            },
-                status=200
-            )
-        data = json.loads(SDCSerializer().serialize(model_qs.filter(**qs)))
-        return JsonResponse({
-            "success": True,
-            "data": data
-        },
-            status=200
-        )
+            return _action_response(lambda: model_actions.get(request.user, model, id))
+        return _action_response(lambda: model_actions.load(request.user, model, request.GET))
 
     def post(self, request, model, id=None):
         if id is not None:
             return _error("Create with POST on the list URL (without id)", 405)
-        model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'create', {}):
-            return HttpResponseForbidden()
         try:
             data, files = _parse_body(request)
         except ValueError as e:
             return _error(f"Invalid request body: {e}", 400)
-        Form = resolve_form(model_class.SdcMeta.create_form)
-        form = Form(instance=None, data=data, files=files)
-        if not form.is_valid():
-            return JsonResponse({
-                "success": False,
-                "errors": form.errors,
-            }, status=400)
-
-        instance = form.save()
-        return JsonResponse({
-            "success": True,
-            "data": _serialize_instance(instance),
-        })
+        return _action_response(lambda: model_actions.create(request.user, model, data, files))
 
     def put(self, request, model, id=None):
         return self._update(request, model, id, partial=False)
@@ -219,47 +169,13 @@ class AdcApi(View):
     def _update(self, request, model, id, partial):
         if id is None:
             return _error("Update with PUT or PATCH on the object URL (with id)", 405)
-        qs = {'pk': id}
-        model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'save', {}):
-            return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'save', qs)
-        try:
-            model_obj = model_qs.get(**qs)
-        except model_class.DoesNotExist:
-            return HttpResponseNotFound()
-
         try:
             data, files = _parse_body(request)
         except ValueError as e:
             return _error(f"Invalid request body: {e}", 400)
-        Form = resolve_form(model_class.SdcMeta.edit_form)
-        if partial:
-            data = _patch_data(Form, model_obj, data)
-        form = Form(instance=model_obj, data=data, files=files)
-        if not form.is_valid():
-            return JsonResponse({
-                "success": False,
-                "errors": form.errors,
-            }, status=400)
-
-        instance = form.save()
-        return JsonResponse({
-            "success": True,
-            "data": _serialize_instance(instance),
-        })
+        return _action_response(lambda: model_actions.update(request.user, model, id, data, files, partial=partial))
 
     def delete(self, request, model, id=None):
         if id is None:
             return _error("Delete with DELETE on the object URL (with id)", 405)
-        qs = {'pk': id}
-        model_class = self.get_element(model)
-        if not model_class.is_authorised(request.user, 'delete', qs):
-            return HttpResponseForbidden()
-        model_qs = model_class.get_queryset(request.user, 'delete', qs)
-        try:
-            model_obj = model_qs.get(**qs)
-        except model_class.DoesNotExist:
-            return HttpResponseNotFound()
-        model_obj.delete()
-        return JsonResponse({"success": True})
+        return _action_response(lambda: model_actions.delete(request.user, model, id))

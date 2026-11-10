@@ -34,6 +34,7 @@ from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_fact
 from sdc_core.sdc_extentions.import_manager import import_function
 from sdc_core.sdc_extentions.search import handle_search_form
 from sdc_core.sdc_extentions.views import SdcAccessMixin, is_valid_server_call
+from sdc_core import skill_data
 
 import logging
 
@@ -1369,21 +1370,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     @staticmethod
     def _read_skill_data_file():
-        """
-        ``(data, None)`` with the content of ``SDC_AI_SKILL_DATA_FILE`` (default ``SDC_SKILL.data.json`` next to
-        manage.py), or ``(None, problem)`` if it is missing, unreadable or has another format.
-        """
-        path = os.path.join(str(getattr(settings, 'BASE_DIR', '')),
-                            os.fspath(getattr(settings, 'SDC_AI_SKILL_DATA_FILE', None) or 'SDC_SKILL.data.json'))
-        try:
-            with open(path, encoding='utf-8') as f:
-                data = json.load(f)
-        except (OSError, ValueError) as e:
-            return None, f'cannot read {path} ({e})'
-        from sdc_core.management.commands.utils.teach_data import FORMAT
-        if not isinstance(data, dict) or data.get('format') != FORMAT:
-            return None, f'{path} has another format (run sdc_teach again)'
-        return data, None
+        """``(data, problem)`` of the skill data file (``skill_data.read_skill_data_file``)."""
+        return skill_data.read_skill_data_file()
 
     @classmethod
     def _cached_view_paths(cls):
@@ -1419,12 +1407,11 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     def _server_tool(self, name, tool_input):
         """Answers a server tool (describe) from the skill data."""
-        from sdc_core.management.commands.utils.teach_markdown import describe
-        data = self._cached_skill_data()
-        if data is None:
+        result = skill_data.describe(tool_input.get('name'), data=self._cached_skill_data())
+        if result is None:
             return {'content': 'describe is not available: there is no skill data', 'is_error': True}
-        text = describe(data, tool_input.get('name'))
-        return {'content': text, 'is_error': text.startswith('Unknown name')}
+        text, is_error = result
+        return {'content': text, 'is_error': is_error}
 
     def _append_tool_results(self, cancelled=None):
         """
@@ -1712,19 +1699,8 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
 
     @staticmethod
     def _additional_skills():
-        """Contents of the files in ``SDC_AI_ADDITIONAL_SKILL_FILE``; missing files are logged and skipped."""
-        paths = getattr(settings, 'SDC_AI_ADDITIONAL_SKILL_FILE', None) or []
-        if isinstance(paths, (str, os.PathLike)):
-            paths = [paths]
-        contents = []
-        for path in paths:
-            path = os.path.join(str(getattr(settings, 'BASE_DIR', '')), os.fspath(path))
-            try:
-                with open(path, encoding='utf-8') as f:
-                    contents.append(f.read().strip())
-            except OSError as e:
-                logger.warning(f'SDC_AI_ADDITIONAL_SKILL_FILE: cannot read {path}: {e}')
-        return contents
+        """Contents of the files in ``SDC_AI_ADDITIONAL_SKILL_FILE`` (``skill_data.additional_skills``)."""
+        return skill_data.additional_skills()
 
     @staticmethod
     def _skill_source():
@@ -1744,35 +1720,18 @@ class SDCAiConsumer(AsyncWebsocketConsumer):
             return ''
         data = SDCAiConsumer._skill_data()
         if data is not None:
-            from sdc_core.management.commands.utils.teach_markdown import render_index
-            return render_index(data)
+            return skill_data.skill_index(data)
         if source in ('auto', 'full'):
-            path = SDCAiConsumer._skill_file()
-            if os.path.isfile(path):
-                with open(path, encoding='utf-8') as f:
-                    return f.read()
+            markdown = skill_data.skill_markdown()
+            if markdown is not None:
+                return markdown
             if source == 'full':
-                raise ImproperlyConfigured(f'SDC_AI_SKILL_SOURCE is "full" but the skill file {path} does not exist '
-                                           f'(run manage.py sdc_teach)')
-        from sdc_core.management.commands.utils.teach_apps import load_app_skills
-        skills = load_app_skills()
-        # @ai-hidden controllers have nothing to operate for the assistant
-        for skill in skills.values():
-            controllers = skill.get('controllers')
-            if isinstance(controllers, dict):
-                skill['controllers'] = {t: c for t, c in controllers.items()
-                                        if not (isinstance(c, dict) and c.get('hidden'))}
+                raise ImproperlyConfigured(f'SDC_AI_SKILL_SOURCE is "full" but the skill file '
+                                           f'{skill_data.skill_file_path()} does not exist (run manage.py sdc_teach)')
+        skills = skill_data.app_skills()
         return json.dumps(skills, indent=1, ensure_ascii=False) if skills else ''
 
     @staticmethod
     def _skill_file():
-        """
-        ``SDC_AI_SKILL_FILE`` relative to ``BASE_DIR``; by default ``SDC_SKILL.assistant.md`` (written by
-        ``sdc_teach`` for the assistant) if it exists, else ``SDC_SKILL.md``.
-        """
-        base = str(getattr(settings, 'BASE_DIR', ''))
-        configured = getattr(settings, 'SDC_AI_SKILL_FILE', None)
-        if configured:
-            return os.path.join(base, os.fspath(configured))
-        assistant = os.path.join(base, 'SDC_SKILL.assistant.md')
-        return assistant if os.path.isfile(assistant) else os.path.join(base, 'SDC_SKILL.md')
+        """The path of the skill file (``skill_data.skill_file_path``)."""
+        return skill_data.skill_file_path()

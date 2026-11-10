@@ -1,0 +1,1312 @@
+openapi: 3.0.3
+info:
+  title: Auto Generated API
+  version: 1.0.0
+paths:
+  /sdc_api/login/:
+    get:
+      summary: Refresh JWT token (send the refresh token as Bearer token)
+      responses:
+        '200':
+          description: JWT tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+        '401':
+          description: Invalid credentials or token
+    post:
+      summary: Login and receive JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - username
+              - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          description: JWT tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  token_type:
+                    type: string
+        '401':
+          description: Invalid credentials or token
+        '400':
+          description: Missing credentials or invalid JSON
+  /sdc_api/author/:
+    get:
+      summary: Get list of Author
+      parameters:
+      - in: query
+        name: filter
+        description: Django field lookups on the exposed fields, e.g. ?title=Dune
+          or ?age__gte=18.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Author'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    post:
+      summary: Create Author
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthorCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthorCreate'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Author'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/author/{id}/:
+    get:
+      summary: Get instance Author
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Author'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    delete:
+      summary: Delete Author
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    put:
+      summary: Replace Author
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthorEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthorEdit'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Author'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    patch:
+      summary: Partial update Author
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthorPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AuthorPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AuthorPatch'
+      responses:
+        '200':
+          description: Patched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Author'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/book/:
+    get:
+      summary: Get list of Book
+      parameters:
+      - in: query
+        name: filter
+        description: Django field lookups on the exposed fields, e.g. ?title=Dune
+          or ?age__gte=18.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Book'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    post:
+      summary: Create Book
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookCreate'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Book'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/book/{id}/:
+    get:
+      summary: Get instance Book
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Book'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    delete:
+      summary: Delete Book
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    put:
+      summary: Replace Book
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookEdit'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Book'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    patch:
+      summary: Partial update Book
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/BookPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookPatch'
+      responses:
+        '200':
+          description: Patched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Book'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/bookcontent/:
+    get:
+      summary: Get list of BookContent
+      parameters:
+      - in: query
+        name: filter
+        description: Django field lookups on the exposed fields, e.g. ?title=Dune
+          or ?age__gte=18.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BookContent'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    post:
+      summary: Create BookContent
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookContentCreate'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BookContent'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/bookcontent/{id}/:
+    get:
+      summary: Get instance BookContent
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BookContent'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    delete:
+      summary: Delete BookContent
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    put:
+      summary: Replace BookContent
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookContentEdit'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BookContent'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    patch:
+      summary: Partial update BookContent
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/BookContentPatch'
+      responses:
+        '200':
+          description: Patched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BookContent'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/sdcuser/:
+    get:
+      summary: Get list of SdcUser
+      parameters:
+      - in: query
+        name: filter
+        description: Django field lookups on the exposed fields, e.g. ?title=Dune
+          or ?age__gte=18.
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: object
+          additionalProperties:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SdcUser'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    post:
+      summary: Create SdcUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SdcUserCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SdcUserCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SdcUserCreate'
+      responses:
+        '200':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SdcUser'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+  /sdc_api/sdcuser/{id}/:
+    get:
+      summary: Get instance SdcUser
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SdcUser'
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    delete:
+      summary: Delete SdcUser
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    put:
+      summary: Replace SdcUser
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SdcUserEdit'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SdcUserEdit'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SdcUserEdit'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SdcUser'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+    patch:
+      summary: Partial update SdcUser
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SdcUserPatch'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/SdcUserPatch'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/SdcUserPatch'
+      responses:
+        '200':
+          description: Patched
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/SdcUser'
+        '400':
+          description: Validation errors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  errors:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: string
+        '401':
+          description: Missing, invalid or expired token
+        '403':
+          description: Not authorised
+        '404':
+          description: Not found
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Author:
+      type: object
+      required:
+      - model
+      - pk
+      - fields
+      properties:
+        model:
+          type: string
+          description: app_label.modelname
+        pk:
+          type: integer
+        fields:
+          $ref: '#/components/schemas/AuthorFields'
+    AuthorFields:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        age:
+          type: integer
+    AuthorCreate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        age:
+          type: integer
+      required:
+      - name
+      - age
+    AuthorEdit:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        age:
+          type: integer
+      required:
+      - name
+      - age
+    AuthorPatch:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        age:
+          type: integer
+    Book:
+      type: object
+      required:
+      - model
+      - pk
+      - fields
+      properties:
+        model:
+          type: string
+          description: app_label.modelname
+        pk:
+          type: integer
+        fields:
+          $ref: '#/components/schemas/BookFields'
+    BookFields:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        author:
+          type: integer
+          nullable: true
+    BookCreate:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        author:
+          type: integer
+          description: A Author id.
+      required:
+      - title
+      - author
+    BookEdit:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        author:
+          type: integer
+          description: A Author id.
+      required:
+      - title
+      - author
+    BookPatch:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 255
+        author:
+          type: integer
+          description: A Author id.
+    BookContent:
+      type: object
+      required:
+      - model
+      - pk
+      - fields
+      properties:
+        model:
+          type: string
+          description: app_label.modelname
+        pk:
+          type: integer
+        fields:
+          $ref: '#/components/schemas/BookContentFields'
+    BookContentFields:
+      type: object
+      properties:
+        user:
+          type: integer
+          nullable: true
+        text:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            url:
+              type: string
+    BookContentCreate:
+      type: object
+      properties:
+        user:
+          type: integer
+          description: A SdcUser id.
+        text:
+          type: string
+          format: binary
+          maxLength: 100
+      required:
+      - text
+    BookContentEdit:
+      type: object
+      properties:
+        user:
+          type: integer
+          description: A SdcUser id.
+        text:
+          type: string
+          format: binary
+          maxLength: 100
+      required:
+      - text
+    BookContentPatch:
+      type: object
+      properties:
+        user:
+          type: integer
+          description: A SdcUser id.
+        text:
+          type: string
+          format: binary
+          maxLength: 100
+    SdcUser:
+      type: object
+      required:
+      - model
+      - pk
+      - fields
+      properties:
+        model:
+          type: string
+          description: app_label.modelname
+        pk:
+          type: integer
+        fields:
+          $ref: '#/components/schemas/SdcUserFields'
+    SdcUserFields:
+      type: object
+      properties:
+        last_login:
+          type: string
+          format: date-time
+          nullable: true
+        is_superuser:
+          type: boolean
+          description: Designates that this user has all permissions without explicitly
+            assigning them.
+        username:
+          type: string
+          maxLength: 150
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        is_staff:
+          type: boolean
+          description: Designates whether the user can log into this admin site.
+        is_active:
+          type: boolean
+          description: Designates whether this user should be treated as active. Unselect
+            this instead of deleting accounts.
+        date_joined:
+          type: string
+          format: date-time
+        email_confirmed:
+          type: boolean
+        groups:
+          type: array
+          items:
+            type: integer
+          description: The groups this user belongs to. A user will get all permissions
+            granted to each of their groups.
+        user_permissions:
+          type: array
+          items:
+            type: integer
+          description: Specific permissions for this user.
+    SdcUserCreate:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password1:
+          type: string
+          description: <ul><li>Your password can’t be too similar to your other personal
+            information.</li><li>Your password must contain at least 8 characters.</li><li>Your
+            password can’t be a commonly used password.</li><li>Your password can’t
+            be entirely numeric.</li></ul>
+        password2:
+          type: string
+      required:
+      - username
+      - password1
+      - password2
+    SdcUserEdit:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+      required:
+      - username
+    SdcUserPatch:
+      type: object
+      properties:
+        username:
+          type: string
+          maxLength: 150
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        password:
+          type: string
+security:
+- BearerAuth: []
