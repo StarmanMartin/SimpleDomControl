@@ -77,7 +77,7 @@ parameter names of ``onInit`` as ``_on_init_params`` on the class prototype.
 
 .. note::
 
-   The ``sdc_client`` 0.162.0 runtime does not read ``_on_init_params``. Tag
+   The ``sdc_client`` 0.163.0 runtime does not read ``_on_init_params``. Tag
    attributes reach the controller through ``this.params``.
 
 What ``npm run develop`` does
@@ -298,7 +298,7 @@ The app declares the npm packages it takes from the project in
 
    {
      "peerDependencies": {
-       "sdc_client": "^0.162.0",
+       "sdc_client": "^0.163.0",
        "jquery": "^3.7.0",
        "chart.js": "^4.4.0"
      }

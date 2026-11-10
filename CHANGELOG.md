@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.163.0
 
 ### Added
 - API tokens for the REST API (`sdc_core.ApiToken`, new migration `sdc_core.0001_initial`): users list, create and
