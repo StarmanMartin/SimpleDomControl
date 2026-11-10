@@ -176,7 +176,7 @@ def test_deprecated_jwt_is_refused(user):
 
 def test_tools_depend_on_the_privileges(user):
     assert _tool_names(_secret(user, 'account:read')) == ['account_get']
-    assert _tool_names(_secret(user, 'model:Author:write')) == []
+    assert _tool_names(_secret(user, 'model:Author:write')) == ['author_create', 'author_update']
     assert _tool_names(_secret(user, 'model:Author:read')) == ['model_get', 'model_load']
     tools = _result(_secret(user, 'model:Author:read', 'model:book:read'), 'tools/list')['tools']
     load = next(t for t in tools if t['name'] == 'model_load')
@@ -298,3 +298,122 @@ def test_resources(user, tmp_path):
     assert '/sdc_api/tokens/' in content['text']
     assert _rpc(secret, 'resources/read', {'uri': 'sdc://nothing'})['error']['code'] == -32002
     assert _result(secret, 'resources/templates/list') == {'resourceTemplates': []}
+
+
+# ------------------------------------------------------------------ write and delete tools (M4)
+
+def _tool(secret, name):
+    return next(t for t in _result(secret, 'tools/list')['tools'] if t['name'] == name)
+
+
+def test_write_tools_follow_the_privileges(user):
+    assert _tool_names(_secret(user, 'model:Author:delete')) == ['author_delete']
+    names = _tool_names(_secret(user, 'model:*:write', 'model:*:delete'))
+    assert {'author_create', 'author_update', 'author_delete', 'book_create', 'book_update', 'book_delete',
+            'book_content_update', 'book_content_delete'} <= set(names)
+    # BookContent needs a file to be created, which MCP cannot send
+    assert 'book_content_create' not in names
+    with override_settings(SDC_MCP={'enabled': True, 'models': ['Book']}):
+        assert _tool_names(_secret(user, 'model:*:write')) == ['book_create', 'book_update']
+
+
+def test_write_tool_schemas(user):
+    secret = _secret(user, 'model:*:write', 'model:*:delete')
+    create = _tool(secret, 'author_create')
+    assert create['inputSchema']['required'] == ['name', 'age']
+    assert create['inputSchema']['properties']['age'] == {'type': 'integer'}
+    assert create['annotations'] == {'readOnlyHint': False, 'destructiveHint': False, 'idempotentHint': False,
+                                     'openWorldHint': False}
+    update = _tool(secret, 'author_update')
+    assert update['inputSchema']['required'] == ['id'] and set(update['inputSchema']['properties']) == {
+        'id', 'name', 'age'}
+    assert update['annotations']['destructiveHint'] is True
+    assert _tool(secret, 'author_delete')['annotations']['destructiveHint'] is True
+    assert 'text' not in _tool(secret, 'book_content_update')['inputSchema']['properties']
+
+
+def test_write_tool_schemas_match_the_openapi_description(user):
+    from sdc_core.management.commands.sdc_open_api import build_openapi
+    schemas = build_openapi()['components']['schemas']
+    secret = _secret(user, 'model:*:write')
+    for model in ('Author', 'Book'):
+        create = _tool(secret, f'{model.lower()}_create')['inputSchema']
+        assert create['properties'] == schemas[f'{model}Create']['properties']
+        assert create['required'] == schemas[f'{model}Create']['required']
+        update = _tool(secret, f'{model.lower()}_update')['inputSchema']
+        assert {k: v for k, v in update['properties'].items() if k != 'id'} == schemas[f'{model}Patch']['properties']
+
+
+def test_create(user):
+    secret = _secret(user, 'model:Author:write')
+    result = _call(secret, 'author_create', name='Jane', age=40)
+    assert result['isError'] is False
+    jane = Author.objects.get(name='Jane')
+    assert result['structuredContent'] == {'model': 'main_test.author', 'pk': jane.pk,
+                                           'fields': {'name': 'Jane', 'age': 40}}
+
+
+def test_create_with_invalid_values(user):
+    secret = _secret(user, 'model:Author:write')
+    result = _call(secret, 'author_create', name='Jane', age='old')
+    assert result['isError'] and 'Invalid values' in result['content'][0]['text']
+    assert '"age"' in result['content'][0]['text']
+    result = _call(secret, 'author_create', name='Jane')
+    assert result['isError'] and 'Missing arguments: age' in result['content'][0]['text']
+    result = _call(secret, 'author_create', name='Jane', age=1, extra=2)
+    assert result['isError'] and 'Unknown arguments: extra' in result['content'][0]['text']
+    assert not Author.objects.exists()
+
+
+def test_update_is_partial(user):
+    jane = Author.objects.create(name='Jane', age=40)
+    result = _call(_secret(user, 'model:Author:write'), 'author_update', id=jane.pk, age=41)
+    assert result['structuredContent']['fields'] == {'name': 'Jane', 'age': 41}
+    jane.refresh_from_db()
+    assert (jane.name, jane.age) == ('Jane', 41)
+    result = _call(_secret(user, 'model:Author:write'), 'author_update', id=99999, age=1)
+    assert result['isError'] and 'Not found' in result['content'][0]['text']
+    result = _call(_secret(user, 'model:Author:write'), 'author_update', id='1', age=1)
+    assert result['isError'] and 'id must be of type integer' in result['content'][0]['text']
+
+
+def test_delete(user):
+    jane = Author.objects.create(name='Jane', age=40)
+    result = _call(_secret(user, 'model:Author:delete'), 'author_delete', id=jane.pk)
+    assert result['structuredContent'] == {'deleted': True, 'model': 'Author', 'pk': jane.pk}
+    assert not Author.objects.filter(pk=jane.pk).exists()
+    assert _call(_secret(user, 'model:Author:delete'), 'author_delete', id=jane.pk)['isError']
+
+
+def test_write_tools_respect_the_user(user, monkeypatch):
+    other = User.objects.create_user(username='other', password='x')
+    foreign = BookContent.objects.create(user=other, text='other.txt')
+    secret = _secret(user, 'model:*:write', 'model:*:delete')
+    assert _call(secret, 'book_content_update', id=foreign.pk)['isError']
+    assert _call(secret, 'book_content_delete', id=foreign.pk)['isError']
+    assert BookContent.objects.filter(pk=foreign.pk).exists()
+    monkeypatch.setattr(Author, 'is_authorised', classmethod(lambda cls, u, action, obj: False))
+    result = _call(secret, 'author_create', name='Jane', age=40)
+    assert result['isError'] and not Author.objects.exists()
+
+
+def test_write_tools_are_unavailable_without_privilege(user):
+    jane = Author.objects.create(name='Jane', age=40)
+    secret = _secret(user, 'model:Author:read', 'model:Author:write')
+    body = _rpc(secret, 'tools/call', {'name': 'author_delete', 'arguments': {'id': jane.pk}})
+    assert body['error']['code'] == -32602
+    assert Author.objects.filter(pk=jane.pk).exists()
+
+
+def test_account_update(user):
+    assert 'account_update' not in _tool_names(_secret(user, 'account:read'))
+    secret = _secret(user, 'account:write')
+    tool = _tool(secret, 'account_update')
+    assert set(tool['inputSchema']['properties']) == {'first_name', 'last_name'}
+    result = _call(secret, 'account_update', first_name='Janet')
+    assert result['isError'] is False and result['structuredContent']['fields']['first_name'] == 'Janet'
+    for field, value in (('email', 'evil@example.com'), ('username', 'evil'), ('password', 'x')):
+        result = _call(secret, 'account_update', **{field: value})
+        assert result['isError'] and f'Unknown arguments: {field}' in result['content'][0]['text']
+    user.refresh_from_db()
+    assert user.first_name == 'Janet' and user.username == 'jane'

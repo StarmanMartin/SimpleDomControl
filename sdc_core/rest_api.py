@@ -296,11 +296,4 @@ class AccountView(View):
         except ValueError as e:
             return _error(f"Invalid request body: {e}", 400)
 
-        def action():
-            api_tokens.require_account(request.api_grant, api_tokens.ACCOUNT_WRITE)
-            protected = sorted(set(data.keys()) & api_tokens.ACCOUNT_PROTECTED_FIELDS)
-            if protected or files:
-                raise PermissionDenied(f"These fields cannot be changed with an API token: "
-                                       f"{', '.join(protected or files.keys())}")
-            return model_actions.update(request.user, User.__name__, request.user.pk, data, partial=True)
-        return _action_response(action)
+        return _action_response(lambda: api_tokens.update_account(request.user, request.api_grant, data, files))

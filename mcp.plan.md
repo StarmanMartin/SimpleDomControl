@@ -310,7 +310,17 @@ lists only the tools its token allows and answers questions from `SdcTest` data;
 
 ---
 
-## M4 — Write and delete tools
+## M4 — Write and delete tools — **done**
+
+Status: WP4.1–WP4.2 implemented in `sdc_core/mcp/tools.py` (tools now carry their handler; write tools are built
+from the models' forms), `api_tokens.update_account` shared by `sdc_api/account/` and `account_update`, tests in
+`pytests/test_mcp.py` (incl. the schema parity with the OpenAPI description). Checked with the official MCP Python
+SDK: create, invalid values, update and delete. Details that differ from the text below:
+- Tool names are the model name in snake case: `BookContent` → `book_content_create`.
+- `<model>_update` is marked `destructiveHint` (it overwrites values) as well as `idempotentHint`.
+- A model whose create form has a required file field gets no create tool (MCP cannot send files).
+- Values of write tools are not type-checked against the schema: the form validates them and returns its errors,
+  which tells the model more than a type error. Required and unknown argument names are checked first.
 
 Prerequisite: decision D1 = yes. Exit criterion: create / update / delete through MCP for an `SdcTest` model
 behave exactly like the REST API, including form validation; tools appear only for tokens with the privilege.

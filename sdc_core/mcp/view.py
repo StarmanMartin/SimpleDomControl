@@ -71,7 +71,10 @@ def _instructions():
     name = server_name()
     text = (f'MCP server of the website "{name}", built with SimpleDomControl. It gives access to the data models '
             f'(SdcModels) of the website with the rights of the user who created the API token: use model_load '
-            f'and model_get to read records, describe for the documentation of a view or model.')
+            f'and model_get to read records, describe for the documentation of a view or model. Depending on the '
+            f'token there are also tools to create, change and delete records (<model>_create, <model>_update, '
+            f'<model>_delete); they check the values like the forms of the web app. Ask the user before you '
+            f'change or delete data.')
     index = skill_data.skill_index()
     return f'{text}\n\n{index}' if index else text
 

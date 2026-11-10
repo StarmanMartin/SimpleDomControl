@@ -28,6 +28,12 @@ The server and the client are released with the same version number.
   Resources: the skill file, the apps' `SDC_SKILL.json` and the OpenAPI description. The tools a client sees
   follow its token's privileges and `SDC_MCP['models']`; `SdcMeta.mcp = False` hides a model. Streamable HTTP
   transport (stateless, JSON responses, protocol versions 2025-03-26 to 2025-11-25), no new dependency.
+- MCP write tools: `<model>_create` and `<model>_update` (`model:<Model>:write`), `<model>_delete`
+  (`model:<Model>:delete`) and `account_update` (`account:write`; never password, e-mail or username). Their input
+  schemas come from the model's `create_form` / `edit_form` (the same as in the OpenAPI description), the forms
+  validate the values and their errors go back to the client per field. Updates are partial. File fields cannot
+  be set over MCP; models whose create form needs a file get no create tool. Update and delete tools are marked
+  `destructiveHint`, so clients ask before they run them.
 
 ### Changed
 - **Breaking for API clients:** `POST sdc_api/login/` returns a login token (`access_token`, `token_id`,

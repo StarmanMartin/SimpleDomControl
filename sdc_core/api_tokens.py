@@ -147,6 +147,23 @@ def require_account(grant, privilege):
         raise MissingPrivilege(privilege)
 
 
+def update_account(user, grant, data, files=None):
+    """
+    Changes the own user record with the user model's ``edit_form`` (partial update, ``account:write``). Fields in
+    ``ACCOUNT_PROTECTED_FIELDS`` (password, e-mail, username, ...) and file uploads are refused with
+    ``PermissionDenied``; the user model's own rules apply as well. Returns the serialized record.
+    """
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import PermissionDenied
+    from sdc_core.sdc_extentions import model_actions
+    require_account(grant, ACCOUNT_WRITE)
+    protected = sorted(set(data.keys()) & ACCOUNT_PROTECTED_FIELDS)
+    if protected or files:
+        raise PermissionDenied(f"These fields cannot be changed with an API token: "
+                               f"{', '.join(protected or files.keys())}")
+    return model_actions.update(user, get_user_model().__name__, user.pk, data, partial=True)
+
+
 # ------------------------------------------------------------------ tokens
 
 def hash_token(secret):
