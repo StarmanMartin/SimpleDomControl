@@ -120,6 +120,15 @@ MODEL_FORM_TEMPLATE = "elements/form.html"
 LOGIN_CONTROLLER = 'sdc-login'
 LOGIN_SUCCESS = '/'
 
+# REST API (sdc_api/) and MCP: API tokens with privileges, created by the users (<sdc-api-tokens>) or with
+# username and password at sdc_api/login/. Lifetimes in days (None: no limit / no expiry).
+SDC_API_TOKENS = {
+    'max_lifetime_days': 365,
+    'default_lifetime_days': 90,
+    'login_lifetime_seconds': 3600,
+    # Deprecated: still accept the JSON web tokens of SDC <= 0.162 (signed with JWT below); will be removed
+    'accept_jwt': True,
+}
 JWT = {'secret': SECRET_KEY, 'algorithm': 'HS256' , 'exp_delta_seconds': 3600}
 
 AUTH_USER_MODEL = "sdc_user.SdcUser"

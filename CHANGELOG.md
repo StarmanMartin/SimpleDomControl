@@ -5,6 +5,43 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- API tokens for the REST API (`sdc_core.ApiToken`, new migration `sdc_core.0001_initial`): users list, create and
+  revoke their tokens in `<sdc-api-tokens>` (linked from `<sdc-user-nav-btn>`), over the API
+  (`sdc_api/tokens/`, `sdc_api/tokens/current/`, `sdc_api/tokens/<id>/`) or with `manage.py sdc_tokens`; admins
+  in the Django admin. Only a SHA-256 hash is stored; the token is shown once. Tokens expire
+  (`SDC_API_TOKENS`: `max_lifetime_days`, `default_lifetime_days`), revoking a token also revokes the tokens it
+  created.
+- Privileges per token: `model:<Model>:read|write|delete` (or `model:*:…` for all models), `account:read`,
+  `account:write`, `account:tokens`. A token never has more rights than its user; a missing privilege is
+  answered with 403 and `WWW-Authenticate: Bearer error="insufficient_scope"`.
+- `sdc_api/account/`: read (`GET`) and change (`PATCH`) the own user record; password, e-mail and username cannot
+  be changed with a token.
+- `sdc_core/api_urls.py` with all REST routes; new projects include it with
+  `path('sdc_api/', include('sdc_core.api_urls'))`.
+
+### Changed
+- **Breaking for API clients:** `POST sdc_api/login/` returns a login token (`access_token`, `token_id`,
+  `expires_at`, `privileges`; valid for `SDC_API_TOKENS['login_lifetime_seconds']`) instead of JWTs; there is no
+  `refresh_token` any more – log in again or use a personal token. The body may narrow the token with
+  `privileges` and name it with `name`.
+- The OpenAPI description (`sdc_open_api`) documents the token endpoints, the account endpoint and the privilege of
+  every operation.
+
+### Deprecated
+- JSON web tokens of earlier versions are still accepted for one release (full rights of the user, answered with a
+  `Deprecation: true` header), also the refresh flow (`GET sdc_api/login/` with a refresh JWT returns a login
+  token). Switch it off with `SDC_API_TOKENS['accept_jwt'] = False`; `JWT` and `jwt_utils` will be removed.
+
+### Upgrade
+- Run `python manage.py migrate`.
+- Existing projects route `sdc_api/` with three explicit paths: replace them with
+  `path('sdc_api/', include('sdc_core.api_urls'))` to get the token and account endpoints (the old routes keep
+  working for login and the models). SdcModels named `Login`, `Tokens` or `Account` are not reachable through the
+  REST API.
+
 ## 0.162.0
 
 ### Changed

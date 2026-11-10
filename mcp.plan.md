@@ -46,7 +46,7 @@ version(s) live in one constant.
   that token fails with a 500 in `jwt.decode`. `get_api_token` sets `last_login` first, so the login flow is not
   affected, but tokens made with `generate_jwt` elsewhere are (found by WP1.1).
 
-## Decisions to make before M2 (owner: maintainer)
+## Decisions (accepted as proposed on 2026-11-10)
 
 | # | Question | Proposal |
 |---|---|---|
@@ -123,7 +123,21 @@ Acceptance: `pytests/test_ai_consumer.py` green; the consumer keeps its settings
 
 ---
 
-## M2 — Revocable API tokens with privileges
+## M2 — Revocable API tokens with privileges — **done**
+
+Status: WP2.1–WP2.7 implemented: `sdc_core/models.py` (`ApiToken`, migration `0001_initial`), `sdc_core/api_tokens.py`,
+`sdc_core/api_urls.py`, `sdc_core/rest_api.py` (login, tokens, account), `sdc_core/admin.py`,
+`manage.py sdc_tokens`, `<sdc-api-tokens>` in `sdc_user` (bundle rebuilt), OpenAPI and snapshots updated, tests in
+`pytests/test_api_tokens.py` and `pytests/test_rest_api.py`. Details that differ from the text below:
+- The token is looked up by its hash (unique index); no separate `compare_digest`.
+- Login tokens get all privileges unless the login request narrows them; a token created through the API without
+  `privileges` gets those of its creator, and its default lifetime ends with its creator's.
+- `sdc_api/account/` (`GET`/`PATCH`) and `GET sdc_api/tokens/<id>/` were added to the token API.
+- Deprecation (WP2.6): JWTs and the refresh flow (`GET sdc_api/login/` with a refresh JWT → login token) keep
+  working for one release with `Deprecation: true`; `SDC_API_TOKENS['accept_jwt'] = False` switches them off.
+  Removing `jwt_utils.py` / `JWT` is left for the release after.
+- Existing projects keep their explicit `sdc_api/` routes until they switch to `include('sdc_core.api_urls')`
+  (see CHANGELOG, "Upgrade").
 
 Exit criterion: REST API works only with `ApiToken`s; a user lists and revokes their tokens in the web UI and over
 the API; a revoked or expired token is refused at the next request; every model action checks the token

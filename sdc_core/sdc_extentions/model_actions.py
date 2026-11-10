@@ -30,11 +30,29 @@ class FormValidationError(Exception):
         self.errors = errors
 
 
+class MissingPrivilege(PermissionDenied):
+    """The caller's grant (API token) lacks ``privilege``, e.g. ``model:Book:write`` or ``account:tokens``."""
+
+    def __init__(self, privilege):
+        super().__init__(f"The token lacks the privilege {privilege}")
+        self.privilege = privilege
+
+
 class _FullGrant:
-    """Allows every privilege on every model: the rights of the user, not narrowed by a token."""
+    """
+    Allows every privilege: the rights of the user, not narrowed by a token (web session, WebSocket). Grants of
+    API tokens are ``sdc_core.api_tokens.Grant``.
+    """
+    is_full = True
 
     def allows(self, model_name, privilege):
         return True
+
+    def allows_account(self, privilege):
+        return True
+
+    def models(self, privilege):
+        return set(all_models().keys())
 
 
 FULL = _FullGrant()
@@ -50,7 +68,7 @@ def get_model(model_name):
 
 def _check_grant(grant, model, privilege):
     if not grant.allows(model.__name__, privilege):
-        raise PermissionDenied(f"Missing privilege model:{model.__name__}:{privilege}")
+        raise MissingPrivilege(f"model:{model.__name__}:{privilege}")
 
 
 def _check_authorised(model, user, action, query):

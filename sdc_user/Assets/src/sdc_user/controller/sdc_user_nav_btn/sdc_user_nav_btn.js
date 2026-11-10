@@ -2,7 +2,7 @@ import {AbstractSDC, app, on} from 'sdc_client';
 
 
 /**
- * User area for the navigation bar: shows "Login" and "Register" links when nobody is logged in, and an "Edit <username>" link (opens the user's own `SdcUser` in `<sdc-model-form>`) plus `<sdc-logout>` when a user is logged in. It refreshes itself after login and logout.
+ * User area for the navigation bar: shows "Login" and "Register" links when nobody is logged in, and an "Edit <username>" link (opens the user's own `SdcUser` in `<sdc-model-form>`) an "API tokens" link (opens `<sdc-api-tokens>`) and `<sdc-logout>` when a user is logged in. It refreshes itself after login and logout.
  */
 class SdcUserNavBtnController extends AbstractSDC {
 

@@ -240,3 +240,68 @@ class Register(SDCView):
 
     def get_content(self, request, *args, **kwargs):
         return render(request, self.template_name)
+
+
+class SdcApiTokens(SdcLoginRequiredMixin, SDCView):
+    """The API tokens of the logged-in user (REST API and MCP): list, create and revoke them."""
+    template_name = 'sdc_user/sdc/sdc_api_tokens.html'
+
+    def get_content(self, request, *args, **kwargs):
+        from sdc_core import api_tokens
+        from sdc_core.models import ApiToken
+        from sdc_core.sdc_extentions.models import all_models
+        config = api_tokens.token_settings()
+        max_days, default_days = config['max_lifetime_days'], config['default_lifetime_days']
+        lifetimes = [days for days in (7, 30, 90, 365) if not max_days or days <= max_days]
+        if default_days and default_days not in lifetimes:
+            lifetimes = sorted(lifetimes + [default_days])
+        return render(request, self.template_name, {
+            'tokens': ApiToken.objects.filter(user=request.user),
+            'models': sorted(all_models().keys(), key=str.lower),
+            'model_privileges': api_tokens.MODEL_PRIVILEGES,
+            'account_privileges': api_tokens.ACCOUNT_PRIVILEGES,
+            'lifetimes': lifetimes,
+            'default_lifetime': default_days,
+            'allow_no_expiry': not max_days,
+        })
+
+    def create_token(self, channel, name=None, privileges=None, days=None, **kwargs):
+        """Creates a token for the user; returns the token, which is shown only once."""
+        import datetime
+        from django.utils import timezone
+        from sdc_core import api_tokens
+        user = _channel_user(channel)
+        if user is None or not user.is_authenticated:
+            return _call_error(channel, _('Please log in.'))
+        expiry = {}
+        if days == 'never':
+            expiry['expires_at'] = None
+        elif days not in (None, ''):
+            try:
+                expiry['expires_at'] = timezone.now() + datetime.timedelta(days=int(days))
+            except (TypeError, ValueError):
+                return _call_error(channel, _('Invalid lifetime'))
+        if isinstance(privileges, str):
+            privileges = list(api_tokens.PRESETS.get(privileges, [privileges]))
+        try:
+            token, secret = api_tokens.create_token(user, name, privileges or [], **expiry)
+        except api_tokens.TokenError as e:
+            return _call_error(channel, str(e))
+        return {'token': secret, 'id': str(token.id), 'msg': _('The token was created. Copy it now: it is not shown '
+                                                              'again.')}
+
+    def revoke_token(self, channel, token_id=None, **kwargs):
+        """Revokes one of the user's tokens and the tokens created with it."""
+        from django.core.exceptions import ValidationError
+        from sdc_core.models import ApiToken
+        user = _channel_user(channel)
+        if user is None or not user.is_authenticated:
+            return _call_error(channel, _('Please log in.'))
+        try:
+            token = ApiToken.objects.filter(user=user, pk=token_id).first()
+        except (ValidationError, ValueError):
+            token = None
+        if token is None:
+            return _call_error(channel, _('Token not found'))
+        token.revoke(by=user)
+        return {'msg': _('The token was revoked.')}

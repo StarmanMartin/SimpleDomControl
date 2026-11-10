@@ -14,17 +14,15 @@ def add_sdc_to_main_urls(main_urls_path):
     for line in fin:
         if 'from django.urls import path' in line:
             line = re.sub(r'path',
-                          'path, re_path, include\nfrom django.shortcuts import render\nfrom django.conf import settings\nfrom django.views.i18n import JavaScriptCatalog\nfrom sdc_core.rest_api import AdcApi, get_api_token',
+                          'path, re_path, include\nfrom django.shortcuts import render\nfrom django.conf import settings\nfrom django.views.i18n import JavaScriptCatalog',
                           line)
 
         if "urlpatterns = [" in line:
             new_apps = "%sre_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),\n" % options.SEP
             new_apps += "%sre_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),\n" % options.SEP
 
-            # The login route must come before sdc_api/<str:model>/, which would match "login" as well.
-            new_apps += f"{options.SEP}path('sdc_api/login/', get_api_token),\n"
-            new_apps += f"{options.SEP}path('sdc_api/<str:model>/<int:id>/', AdcApi.as_view()),\n"
-            new_apps += f"{options.SEP}path('sdc_api/<str:model>/', AdcApi.as_view()),\n"
+            # REST API: login, tokens, account and the SdcModels (sdc_core/api_urls.py)
+            new_apps += f"{options.SEP}path('sdc_api/', include('sdc_core.api_urls')),\n"
 
             line = re.sub(r'urlpatterns = \[',
                           "urlpatterns = [\n%s%s# scd view below\n" % (new_apps, options.SEP), line)
