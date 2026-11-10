@@ -237,7 +237,17 @@ Privileges are stored as a list of strings; a token **only narrows** the rights 
 
 ---
 
-## M3 — Read-only MCP endpoint
+## M3 — Read-only MCP endpoint — **done**
+
+Status: WP3.1–WP3.6 implemented in `sdc_core/mcp/` (`settings.py`, `view.py`, `tools.py`, `resources.py`,
+`urls.py`), `model_actions.load_page`, routes in `SdcTest/urls.py` and new projects, `SDC_MCP` in the settings
+template, tests in `pytests/test_mcp.py`. Checked against the official MCP Python SDK (2.3.0, protocol 2025-11-25):
+initialize, tools, resources and ping work. Details that differ from the text below:
+- The view is a synchronous Django view (runs under ASGI and WSGI); no `sync_to_async` needed.
+- `describe` is listed only when skill data (`SDC_SKILL.data.json`) exists, like in the AI assistant.
+- Deprecated JWTs are refused on MCP (API tokens only); invalid tool arguments and filters are tool results with
+  `isError` (so the model can correct them), unknown or unavailable tools are JSON-RPC errors (-32602).
+- `DELETE` is answered with 405 (no sessions); `resources/templates/list` returns an empty list.
 
 Exit criterion: Claude Code connects with `claude mcp add --transport http … --header "Authorization: Bearer …"`,
 lists only the tools its token allows and answers questions from `SdcTest` data; all M3 tests green.

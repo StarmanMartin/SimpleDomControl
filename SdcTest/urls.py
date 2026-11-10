@@ -25,6 +25,7 @@ urlpatterns = [
     re_path('sdc_view/sdc_tools/', include('sdc_tools.sdc_urls')),
     re_path('sdc_view/sdc_user/', include('sdc_user.sdc_urls')),
     path('sdc_api/', include('sdc_core.api_urls')),
+    path('sdc_mcp/', include('sdc_core.mcp.urls')),
     # scd view below
     path('sdc_view/main_test/', include('main_test.sdc_urls')),
 

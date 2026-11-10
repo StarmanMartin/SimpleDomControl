@@ -21,6 +21,13 @@ The server and the client are released with the same version number.
   be changed with a token.
 - `sdc_core/api_urls.py` with all REST routes; new projects include it with
   `path('sdc_api/', include('sdc_core.api_urls'))`.
+- MCP endpoint `sdc_mcp/` (`sdc_core/mcp/`, off until `SDC_MCP['enabled'] = True`): AI clients such as Claude Code
+  connect with an API token (`claude mcp add --transport http <name> https://<host>/sdc_mcp/ --header
+  "Authorization: Bearer sdc_…"`). Read-only tools `model_load` (filters, `limit`, `total`), `model_get`,
+  `account_get` and, with `sdc_teach` skill data, `describe`; the server instructions carry the skill index.
+  Resources: the skill file, the apps' `SDC_SKILL.json` and the OpenAPI description. The tools a client sees
+  follow its token's privileges and `SDC_MCP['models']`; `SdcMeta.mcp = False` hides a model. Streamable HTTP
+  transport (stateless, JSON responses, protocol versions 2025-03-26 to 2025-11-25), no new dependency.
 
 ### Changed
 - **Breaking for API clients:** `POST sdc_api/login/` returns a login token (`access_token`, `token_id`,
@@ -41,6 +48,7 @@ The server and the client are released with the same version number.
   `path('sdc_api/', include('sdc_core.api_urls'))` to get the token and account endpoints (the old routes keep
   working for login and the models). SdcModels named `Login`, `Tokens` or `Account` are not reachable through the
   REST API.
+- For MCP add `path('sdc_mcp/', include('sdc_core.mcp.urls'))` and set `SDC_MCP = {'enabled': True}`.
 
 ## 0.162.0
 

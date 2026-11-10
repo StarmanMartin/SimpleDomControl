@@ -80,19 +80,32 @@ def serialize(instances):
     return json.loads(SDCSerializer().serialize(instances))
 
 
+def _load_queryset(user, model_name, query, grant):
+    model = get_model(model_name)
+    query = sanitize_filter_query(model, query or {})
+    _check_grant(grant, model, READ)
+    _check_authorised(model, user, 'load', query)
+    return model.get_queryset(user, 'load', query).filter(**query)
+
+
 def load(user, model_name, query=None, limit=None, grant=FULL):
     """
     The records of the model that match ``query`` (Django field lookups on the exposed fields) and that
     ``get_queryset`` gives the user; at most ``limit`` records if it is set.
     """
-    model = get_model(model_name)
-    query = sanitize_filter_query(model, query or {})
-    _check_grant(grant, model, READ)
-    _check_authorised(model, user, 'load', query)
-    records = model.get_queryset(user, 'load', query).filter(**query)
+    records = _load_queryset(user, model_name, query, grant)
     if limit is not None:
         records = records[:limit]
     return serialize(records)
+
+
+def load_page(user, model_name, query=None, limit=None, grant=FULL):
+    """Like ``load``, returns ``(records, total)``: ``total`` is the number of matching records without limit."""
+    records = _load_queryset(user, model_name, query, grant)
+    total = records.count()
+    if limit is not None:
+        records = records[:limit]
+    return serialize(records), total
 
 
 def get(user, model_name, pk, grant=FULL):

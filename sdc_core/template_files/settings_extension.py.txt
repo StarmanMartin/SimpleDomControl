@@ -131,6 +131,15 @@ SDC_API_TOKENS = {
 }
 JWT = {'secret': SECRET_KEY, 'algorithm': 'HS256' , 'exp_delta_seconds': 3600}
 
+# MCP endpoint (sdc_mcp/) for AI clients such as Claude Code: tools to read the data models with the rights of
+# an API token (see SDC_API_TOKENS). 'models': '__all__' or a list of SdcModel names; models with
+# SdcMeta.mcp = False are never exposed.
+SDC_MCP = {
+    'enabled': False,
+    'models': '__all__',
+    'max_records': 50,
+}
+
 AUTH_USER_MODEL = "sdc_user.SdcUser"
 
 # Access rules of the SdcUser model. Both settings are dotted paths to functions:

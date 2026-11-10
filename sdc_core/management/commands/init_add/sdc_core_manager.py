@@ -23,6 +23,8 @@ def add_sdc_to_main_urls(main_urls_path):
 
             # REST API: login, tokens, account and the SdcModels (sdc_core/api_urls.py)
             new_apps += f"{options.SEP}path('sdc_api/', include('sdc_core.api_urls')),\n"
+            # MCP endpoint (off until SDC_MCP['enabled'] is True; sdc_core/mcp/)
+            new_apps += f"{options.SEP}path('sdc_mcp/', include('sdc_core.mcp.urls')),\n"
 
             line = re.sub(r'urlpatterns = \[',
                           "urlpatterns = [\n%s%s# scd view below\n" % (new_apps, options.SEP), line)
