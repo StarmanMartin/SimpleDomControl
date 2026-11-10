@@ -34,6 +34,10 @@ The server and the client are released with the same version number.
   validate the values and their errors go back to the client per field. Updates are partial. File fields cannot
   be set over MCP; models whose create form needs a file get no create tool. Update and delete tools are marked
   `destructiveHint`, so clients ask before they run them.
+- `manage.py sdc_mcp_config`: prints a `claude mcp add` command and an `.mcp.json` entry for the MCP endpoint;
+  `--user` also creates the token.
+- Documentation: new page *MCP endpoint* (`docs/mcp.rst`); *REST API* rewritten for API tokens and privileges;
+  `sdc_tokens`, `sdc_mcp_config`, `SDC_API_TOKENS`, `SDC_MCP` and `<sdc-api-tokens>` documented.
 
 ### Changed
 - **Breaking for API clients:** `POST sdc_api/login/` returns a login token (`access_token`, `token_id`,

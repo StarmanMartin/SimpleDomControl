@@ -417,3 +417,30 @@ def test_account_update(user):
         assert result['isError'] and f'Unknown arguments: {field}' in result['content'][0]['text']
     user.refresh_from_db()
     assert user.first_name == 'Janet' and user.username == 'jane'
+
+
+# ------------------------------------------------------------------ manage.py sdc_mcp_config (M5)
+
+def test_sdc_mcp_config(user):
+    import io
+    from django.core.management import call_command
+    from sdc_core.api_tokens import hash_token
+    out, err = io.StringIO(), io.StringIO()
+    call_command('sdc_mcp_config', '--url', 'https://example.org/', stdout=out, stderr=err)
+    text = out.getvalue()
+    assert 'claude mcp add --transport http SimpleDomControl https://example.org/sdc_mcp/' in text
+    assert '"Authorization": "Bearer ${SDC_MCP_TOKEN}"' in text and 'sdc_...' in text
+    assert not ApiToken.objects.exists() and err.getvalue() == ''
+
+    out = io.StringIO()
+    call_command('sdc_mcp_config', '--user', 'jane', '--privileges', 'model:Author:read', '--name', 'my app',
+                 stdout=out)
+    token = ApiToken.objects.get()
+    secret = next(word for word in out.getvalue().split() if word.startswith('SDC_MCP_TOKEN=')).split('=', 1)[1]
+    assert token.secret_hash == hash_token(secret) and token.privileges == ['model:Author:read']
+    assert 'claude mcp add --transport http my-app' in out.getvalue()
+
+    err = io.StringIO()
+    with override_settings(SDC_MCP={'enabled': False}):
+        call_command('sdc_mcp_config', stdout=io.StringIO(), stderr=err)
+    assert "SDC_MCP['enabled'] is False" in err.getvalue()

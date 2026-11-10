@@ -84,7 +84,7 @@ What *sdc_init* creates or changes (paths relative to the project root):
     ``DEBUG``, Redis otherwise), a *jest* SQLite database selectable with the
     environment variable *DJANGO_DATABASE*, template settings,
     ``SERVER_CALL_VIA_WEB_SOCKET = False``, ``LOGIN_CONTROLLER = 'sdc-login'``,
-    ``LOGIN_SUCCESS``, ``JWT``, ``AUTH_USER_MODEL = "sdc_user.SdcUser"`` and the
+    ``LOGIN_SUCCESS``, ``SDC_API_TOKENS``, ``JWT``, ``SDC_MCP``, ``AUTH_USER_MODEL = "sdc_user.SdcUser"`` and the
     ``SDC_USER_*`` settings. With ``-u`` the existing *settings.py* is only
     replaced if you answer *yes*.
 *<main app>/asgi.py*
@@ -96,9 +96,9 @@ What *sdc_init* creates or changes (paths relative to the project root):
     (``SDCModelConsumer``).
 *ROOT_URLCONF file (e.g. <main app>/urls.py)*
     Only without ``-u``. Extends the ``from django.urls import path`` import,
-    adds the URL includes for *sdc_tools* and *sdc_user*, the REST API routes
-    ``sdc_api/<model>/<id>/``, ``sdc_api/<model>/`` and ``sdc_api/login/``
-    (see :doc:`rest_api`) and the marker comment ``# scd view below``, which
+    adds the URL includes for *sdc_tools* and *sdc_user*, the REST API
+    (``sdc_api/``, see :doc:`rest_api`), the MCP endpoint (``sdc_mcp/``, see
+    :doc:`mcp`) and the marker comment ``# scd view below``, which
     *sdc_cc* uses later. At the end of the file it appends an ``index`` view
     (renders *index.html*), the ``jsi18n/`` catalog, the root path ``''``
     (name ``sdc_index``) and a catch-all ``~.*`` path for client-side
@@ -425,8 +425,8 @@ See :ref:`sdc-model-label`.
 
 Writes an OpenAPI 3.0.3 description of the REST API to
 *openapi.generated.yaml* in the current directory (no options). It contains
-``/sdc_api/login/`` (``GET`` refreshes, ``POST`` logs in and returns JWT
-tokens) and for every SDC model ``/sdc_api/<model>/`` (``GET`` list,
+the login, token and account endpoints, the privilege of every operation and
+for every SDC model ``/sdc_api/<model>/`` (``GET`` list,
 ``POST`` create) and ``/sdc_api/<model>/{id}/`` (``GET``, ``PUT``,
 ``PATCH``, ``DELETE``). The model name in the path is lowercase. The schemas
 ``<Model>``, ``<Model>Fields``, ``<Model>Create``, ``<Model>Edit`` and
@@ -534,7 +534,33 @@ followed by the undocumented models and controllers with ``file:line``.
 
 See :ref:`sdc-teaching-label`.
 
-17 - Creating a new project (``sdc new``)
+17 - sdc_tokens
+***************
+
+Lists, creates and revokes API tokens of the REST API and the MCP endpoint.
+
+.. code-block:: sh
+
+    $ python manage.py sdc_tokens list [--user jane] [--all]
+    $ python manage.py sdc_tokens create --user jane --name "script" --privileges read [--days 30]
+    $ python manage.py sdc_tokens revoke <prefix or id>
+
+See :doc:`rest_api`.
+
+18 - sdc_mcp_config
+*******************
+
+Prints a ``claude mcp add`` command and an *.mcp.json* entry for the MCP
+endpoint of the project; with ``--user`` (and ``--privileges``, ``--days``) it
+also creates the token. ``--url`` sets the site URL (default ``HOME_URL``).
+
+.. code-block:: sh
+
+    $ python manage.py sdc_mcp_config --user jane --privileges read
+
+See :doc:`mcp`.
+
+19 - Creating a new project (``sdc new``)
 *****************************************
 
 The package installs the command line tool ``sdc`` (also ``python -m sdc``). It
@@ -567,8 +593,8 @@ SDC extensions
 
 The package *sdc_core.sdc_extentions* contains the server-side API that you use
 in your *sdc_views.py* files. The model mixin (``SdcModel``, ``SdcMeta``,
-search forms) is described in :ref:`sdc-model-label`. The REST API and JWT
-login are described in :doc:`rest_api`.
+search forms) is described in :ref:`sdc-model-label`. The REST API and its
+API tokens are described in :doc:`rest_api`, the MCP endpoint in :doc:`mcp`.
 
 SDCView
 *******

@@ -343,7 +343,12 @@ schema parity test: tool input schemas equal the OpenAPI request schemas of the 
 
 ---
 
-## M5 — Developer experience, docs, release
+## M5 — Developer experience, docs, release — **WP5.1, WP5.2 done; WP5.3 (release) open**
+
+Status: `manage.py sdc_mcp_config` (WP5.1, test in `pytests/test_mcp.py`); docs (WP5.2): `docs/mcp.rst` (new),
+`docs/rest_api.rst` (rewritten for tokens), `docs/settings.rst`, `docs/core.rst`, `docs/sdc_user.rst`, root
+`DOCUMENTATION.md` §5/§10/§11/§12 and `AGENTS.md`. The Sphinx build has no warnings for these pages. The release
+(version bump in both repos, CHANGELOG "Unreleased" → version) waits for the maintainer.
 
 Exit criterion: a fresh `sdc_init` project gets a working MCP endpoint by setting `SDC_MCP['enabled'] = True`,
 creating a token in the web UI and following the docs; released in lockstep.
