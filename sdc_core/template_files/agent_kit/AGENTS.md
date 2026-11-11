@@ -37,7 +37,8 @@ python manage.py sdc_agent build                     # asset build (needs node_m
 - Server calls are view methods `def name(self, channel, **kwargs)`, called with `this.serverCall('name', {...})`.
 - Model changes: `python manage.py makemigrations && python manage.py migrate`.
 - Do not start servers that keep running (`runserver`, `yarn develop`) unless asked.
-- Finish with `python manage.py sdc_agent check` (no errors) and the relevant tests.
+- Finish with `python manage.py sdc_agent check` (no errors) and run the existing tests (`sdc_agent test`). Jest
+  tests and the asset build need `node_modules`; `sdc_agent` says so when they are missing.
 
 ## Skills (read the one that matches the task)
 

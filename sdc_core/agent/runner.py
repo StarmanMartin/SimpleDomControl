@@ -20,6 +20,7 @@ class RunResult:
     log: str
     summary: str = ''
     failures: list = field(default_factory=list)
+    skipped: bool = False
 
     @property
     def ok(self):
@@ -124,11 +125,29 @@ def run_python_tests(root, args=()):
     return summarize_django(result, output)
 
 
+def missing_node_modules(root, name):
+    """A not-run result when the npm packages are not installed (Jest and the asset build need them)."""
+    if os.path.isdir(os.path.join(root, 'node_modules')):
+        return None
+    install = 'yarn install' if package_manager(root) == 'yarn' else 'npm install'
+    result = RunResult(name, [], 2, '-', summary=f'not run: no node_modules (install the npm packages first: '
+                                                    f'`{install}`). Without them rely on `sdc_agent check` and the '
+                                                    f'Django tests.')
+    result.skipped = True
+    return result
+
+
 def run_js_tests(root, args=()):
+    skipped = missing_node_modules(root, 'test-js')
+    if skipped:
+        return skipped
     result, output = run('test-js', script_command(root, 'sdc_test') + list(args), root)
     return summarize_jest(result, output)
 
 
 def run_build(root, mode='build'):
+    skipped = missing_node_modules(root, 'build')
+    if skipped:
+        return skipped
     result, output = run('build', script_command(root, mode), root)
     return summarize_build(result, output)

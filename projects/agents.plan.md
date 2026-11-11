@@ -193,13 +193,14 @@ snapshots", "add a REST/MCP feature", so agents working on SDC itself also stop 
 
 ---
 
-## M3 — Measure and tune — **WP3.1 done (target met); WP3.2 open**
+## M3 — Measure and tune — **done**
 
 Status (2026-11-11): kit run by the maintainer: 18/18 passed, input tokens −63 % (10.38M → 3.83M), turns −56 %,
 cost −50 % (7.65 → 3.81 USD) against the baseline; every task cheaper. A second baseline with the new commands but
 without the kit gained only −15 %: the kit (AGENTS.md naming the commands) is what makes agents use them. Report:
-[agents-bench/2026-11-11-kit.md](agents-bench/2026-11-11-kit.md). Tuning (WP3.2) needs transcripts: the harness
-records only totals so far.
+[agents-bench/2026-11-11-kit.md](agents-bench/2026-11-11-kit.md). Tuning (WP3.2): `bench.py run --transcripts` and
+`bench.py analyze`; one round with 12 runs found a bug in `sdc_new_model` (missing imports), JS tests attempted
+without `node_modules` and unrequested tests caused by the wording of `AGENTS.md`; all three fixed (same report).
 
 Exit criterion: the M0 benchmark with the kit shows the gain per task; changes without effect are removed.
 

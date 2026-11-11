@@ -27,7 +27,13 @@ The server and the client are released with the same version number.
   of each record are returned (unknown or hidden names are refused).
 - `SDC_MCP['instructions']`: `'models'` (new default), `'index'` (the previous behaviour) or `'none'`.
 
+### Fixed
+- `sdc_new_model` added none of the imports the generated model needs (`AbstractSearchForm`, `render_to_string`,
+  `handle_search_form`) when `models.py` already imported `SdcModel`, so the app failed with a `NameError`; each
+  missing import is now added.
+
 ### Changed
+- `sdc_agent test --js` and `sdc_agent build` report "not run: no node_modules" instead of failing.
 - MCP server instructions carry only the exposed data models of the `sdc_teach` index instead of the whole index
   with URL guide and views (≈ 80 % shorter for the test project); `describe` refuses models that are not exposed.
 - `sdc_cc`, `sdc_new_model` and `sdc_init` do not wait for input outside a terminal: a missing argument fails with

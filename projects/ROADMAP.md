@@ -10,7 +10,7 @@ implementation differs from the text. Small fixes go to `ISSUES.md` (workspace r
 | Project | Plan | Status | Version |
 |---|---|---|---|
 | API tokens with privileges and MCP endpoint | [mcp.plan.md](mcp.plan.md) | M1–M5 done; M6 open (optional) | 0.163.0 |
-| Fewer tokens for AI agents (scripts, skills, benchmark) | [agents.plan.md](agents.plan.md), [agents.architecture.md](agents.architecture.md) | M0–M2 done; M3: kit −63 % input tokens, −50 % cost at 18/18; tuning open | — |
+| Fewer tokens for AI agents (scripts, skills, benchmark) | [agents.plan.md](agents.plan.md), [agents.architecture.md](agents.architecture.md) | M0–M4 done (kit: −63 % input tokens, −50 % cost at 18/18); M5 (docs, release) next | — |
 
 ## Next steps (in order)
 
@@ -21,8 +21,9 @@ implementation differs from the text. Small fixes go to `ISSUES.md` (workspace r
    - M0 baseline benchmark: done ([report](agents-bench/2026-11-11-baseline.md))
    - M1 `manage.py sdc_agent` scripts: done
    - M2 agent kit (`AGENTS.md` + skills in every project): done
-   - M3 measure: done ([report](agents-bench/2026-11-11-kit.md)); tuning (WP3.2) needs transcripts
-   - M4 runtime follow-ups, M5 release
+   - M3 measure and tune: done ([report](agents-bench/2026-11-11-kit.md))
+   - M4 runtime follow-ups: done (WP4.3, assistant evaluation, open)
+   - M5 docs and release 0.164.0
 3. **Remove the deprecated JWTs** (release after 0.163.0) — `SDC_API_TOKENS['accept_jwt']`, the JWT path of
    `api_tokens.authenticate` and the refresh flow of `sdc_api/login/`; `jwt_utils.py` stays for the e-mail links of
    `sdc_user` (or moves there). See mcp.plan.md, WP2.6.

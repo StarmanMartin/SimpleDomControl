@@ -247,3 +247,31 @@ def test_sdc_init_without_agent_kit(tmp_path):
     shutil.copytree('./pytests/test_django_project(DUMMY)', path)
     assert _manage(path, 'sdc_init', '--no-agent-kit').returncode == 0
     assert not (path / 'AGENTS.md').exists() and not (path / '.claude').exists()
+
+
+# ------------------------------------------------------------------ M3 tuning (transcripts of the kit run)
+
+def test_js_tests_and_build_say_when_node_modules_are_missing(project):
+    assert not os.path.isdir(os.path.join(project, 'node_modules'))
+    for args in (['test', '--js'], ['build']):
+        result = _manage(project, 'sdc_agent', *args)
+        assert result.returncode == 0, result.stderr
+        assert 'not run: no node_modules' in result.stdout and len(result.stdout.splitlines()) == 1
+
+
+def test_new_model_adds_missing_imports(project):
+    """models.py that imports SdcModel already got none of the other imports the generated model needs."""
+    models = os.path.join(project, 'test_app_two', 'models.py')
+    original = open(models).read()
+    try:
+        with open(models, 'w') as f:
+            f.write('from django.db import models\nfrom sdc_core.sdc_extentions.models import SdcModel\n')
+        result = _manage(project, 'sdc_agent', 'new-model', 'test_app_two', 'Crate')
+        assert result.returncode == 0, result.stderr
+        text = open(models).read()
+        for name in ('AbstractSearchForm', 'render_to_string', 'handle_search_form'):
+            assert f'import {name}' in text
+        assert text.count('import SdcModel') == 1
+        assert _manage(project, 'check').returncode == 0
+    finally:
+        open(models, 'w').write(original)

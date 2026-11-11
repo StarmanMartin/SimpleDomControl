@@ -190,6 +190,9 @@ class Command(BaseCommand):
 
     # ------------------------------------------------------------------ tests and build
     def _write_result(self, result):
+        if result.skipped:
+            self.stdout.write(f'{result.name}: {result.summary}')
+            return
         lines = [f'{result.name}: {"ok" if result.ok else "FAILED"}  {result.summary}']
         for failure in result.failures[:runner.MAX_FAILURES]:
             lines.append('  ' + failure)
@@ -208,14 +211,14 @@ class Command(BaseCommand):
             results.append(runner.run_js_tests(root, opts['test_args'] if opts['js'] and not opts['all'] else ()))
         for result in results:
             self._write_result(result)
-        if not all(r.ok for r in results):
+        if not all(r.ok or r.skipped for r in results):
             raise SystemExit(1)
 
     def _build(self, opts):
         from django.conf import settings
         result = runner.run_build(str(settings.BASE_DIR), 'develop' if opts['develop'] else 'build')
         self._write_result(result)
-        if not result.ok:
+        if not (result.ok or result.skipped):
             raise SystemExit(1)
 
     # ------------------------------------------------------------------ agent kit
