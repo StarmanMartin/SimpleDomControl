@@ -195,5 +195,11 @@ def run_checks(project):
     for model in project.models:
         if model.editable:
             problems += check_model(model, project)
+    from sdc_core.agent import kit
+    state = kit.status(project.root)
+    if state['installed'] and (state['outdated'] or state['missing']):
+        problems.append(Problem('warning', None, None,
+                                'the agent kit (AGENTS.md, .claude/skills) is older than the installed SDC version',
+                                'python manage.py sdc_agent kit update'))
     order = {'error': 0, 'warning': 1, 'doc': 2}
     return sorted(problems, key=lambda p: (order[p.severity], p.file or '', p.line or 0))

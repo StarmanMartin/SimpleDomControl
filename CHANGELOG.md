@@ -16,6 +16,13 @@ The server and the client are released with the same version number.
   `sdc_new_model` that list the created and changed files and the next steps), `test` / `build` (run Django or Jest
   tests or the asset build and print only the summary and the failures; full log in `.sdc_agent/logs/`).
 
+- Agent kit for AI coding agents: `sdc_init` writes `AGENTS.md` (≈ 800 tokens: how SDC projects are built, the
+  `sdc_agent` commands, rules, a generated block with the project's apps and models), `CLAUDE.md` (`@AGENTS.md`)
+  and five skills in `.claude/skills/` (`sdc-controller`, `sdc-model`, `sdc-api-mcp`, `sdc-testing`,
+  `sdc-ai-knowledge`) that agents load only when a task needs them. `manage.py sdc_agent kit install|update|check`
+  installs, refreshes (edited files are kept) and checks it; `sdc_agent check` warns when it is outdated;
+  `sdc_init --no-agent-kit` skips it. Existing `AGENTS.md` / `CLAUDE.md` files are kept and extended.
+
 ### Changed
 - `sdc_cc`, `sdc_new_model` and `sdc_init` do not wait for input outside a terminal: a missing argument fails with
   the flag to pass (`sdc_cc` without `-m` uses no mixins, `sdc_init` answers *no* unless `-y`).

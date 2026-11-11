@@ -5,7 +5,7 @@ from dataclasses import asdict
 from django.core.management import call_command
 from django.core.management.base import BaseCommand, CommandError
 
-from sdc_core.agent import checks, project_map, runner
+from sdc_core.agent import checks, kit, project_map, runner
 
 # Directories that never hold project code (for the list of changed files)
 _SKIP_DIRS = {'.git', 'node_modules', '__pycache__', '.sdc_agent', 'static', 'www', 'media', '.idea', '.venv'}
@@ -13,8 +13,10 @@ _SKIP_DIRS = {'.git', 'node_modules', '__pycache__', '.sdc_agent', 'static', 'ww
 
 class Command(BaseCommand):
     help = ('Compact project information and safe shortcuts for AI coding agents and scripts: overview, where, '
-            'check, new-controller, new-model, test, build. Never asks for input; paths are relative to the '
+            'check, new-controller, new-model, test, build, kit. Never asks for input; paths are relative to the '
             'project.')
+    # Django's system check warnings (e.g. a missing node_modules) would precede every answer; `check` covers SDC
+    requires_system_checks = []
 
     def add_arguments(self, parser):
         sub = parser.add_subparsers(dest='action', required=True, metavar='ACTION')
@@ -41,6 +43,9 @@ class Command(BaseCommand):
         p.add_argument('test_args', nargs='*', metavar='ARG', help='passed to the test runner, e.g. a test label')
         p = sub.add_parser('build', help='build the assets and print only errors (full log in .sdc_agent/logs)')
         p.add_argument('--develop', action='store_true', help='development build (default: production)')
+        p = sub.add_parser('kit', help='AGENTS.md and the skills for AI agents: install, update or check them')
+        p.add_argument('kit_action', choices=['install', 'update', 'check'])
+        p.add_argument('--force', action='store_true', help='install: overwrite existing files')
 
     def handle(self, *args, **opts):
         action = opts['action'].replace('-', '_')
@@ -212,3 +217,36 @@ class Command(BaseCommand):
         self._write_result(result)
         if not result.ok:
             raise SystemExit(1)
+
+    # ------------------------------------------------------------------ agent kit
+    def _kit(self, opts):
+        from django.conf import settings
+        root = str(settings.BASE_DIR)
+        action = opts['kit_action']
+        if action == 'check':
+            state = kit.status(root)
+            if not state['installed']:
+                self.stdout.write('agent kit: not installed (python manage.py sdc_agent kit install)')
+                raise SystemExit(1)
+            problems = [f'outdated: {f}' for f in state['outdated']] + [f'missing: {f}' for f in state['missing']]
+            for line in problems + [f'edited (kept on update): {f}' for f in state['edited']]:
+                self.stdout.write(line)
+            self.stdout.write('agent kit: ' + ('run python manage.py sdc_agent kit update' if problems
+                                               else 'up to date'))
+            if problems:
+                raise SystemExit(1)
+            return
+        project = self._map()
+        if action == 'install':
+            if kit.load_manifest(root) is not None and not opts['force']:
+                raise CommandError('The agent kit is installed already: use `sdc_agent kit update` '
+                                   '(or `kit install --force` to overwrite edited files)')
+            result = kit.install(root, project, force=opts['force'])
+        else:
+            result = kit.update(root, project)
+        for name in result.written:
+            self.stdout.write(f'  wrote {name}')
+        for name in result.kept:
+            self.stdout.write(f'  kept  {name} (edited in the project)')
+        self.stdout.write(f'agent kit {action}: {len(result.written)} written, {len(result.kept)} kept, '
+                          f'{len(result.unchanged)} unchanged')

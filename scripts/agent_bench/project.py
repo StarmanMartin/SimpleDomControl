@@ -124,7 +124,8 @@ def create_project(task=None, condition='baseline', parent=None):
     project = root / 'library_site'
     shutil.copytree(DUMMY, project)
     (project / 'db.sqlite3').unlink(missing_ok=True)
-    manage(project, 'sdc_init')
+    # The agent kit is part of the condition, not of the seed (sdc_init would install it by default)
+    manage(project, 'sdc_init', '--no-agent-kit')
 
     manage(project, 'startapp', 'library')
     base_settings = project / MAIN_APP / 'base_settings.py'

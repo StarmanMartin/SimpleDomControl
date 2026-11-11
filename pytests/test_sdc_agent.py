@@ -223,3 +223,27 @@ def test_python_tests_are_summarized(project):
     assert 'AssertionError: 1 != 2' in result.stdout
     assert 'full log: .sdc_agent/logs/test-python.log' in result.stdout
     assert len(result.stdout.splitlines()) < 10
+
+
+# ------------------------------------------------------------------ M2: agent kit in generated projects
+
+def test_sdc_init_writes_the_agent_kit(project):
+    for name in ('AGENTS.md', 'CLAUDE.md', '.claude/skills/sdc-controller/SKILL.md', '.claude/skills/.sdc-kit.json'):
+        assert os.path.isfile(os.path.join(project, name)), name
+    result = _manage(project, 'sdc_agent', 'kit', 'check')
+    assert result.returncode == 0 and 'up to date' in result.stdout
+
+
+def test_kit_update_fills_the_project_block(project):
+    result = _manage(project, 'sdc_agent', 'kit', 'update')
+    assert result.returncode == 0, result.stderr
+    agents = open(os.path.join(project, 'AGENTS.md')).read()
+    assert f'- `{APP}`:' in agents and 'controller(s)' in agents
+    assert _manage(project, 'sdc_agent', 'kit', 'install').returncode != 0   # already installed
+
+
+def test_sdc_init_without_agent_kit(tmp_path):
+    path = tmp_path / 'project'
+    shutil.copytree('./pytests/test_django_project(DUMMY)', path)
+    assert _manage(path, 'sdc_init', '--no-agent-kit').returncode == 0
+    assert not (path / 'AGENTS.md').exists() and not (path / '.claude').exists()

@@ -141,7 +141,22 @@ with the first relevant lines of each error, build errors. Full log written to a
 
 ---
 
-## M2 — Agent kit: `AGENTS.md` and skills in every project
+## M2 — Agent kit: `AGENTS.md` and skills in every project — **done**
+
+Status (2026-11-11): templates in `sdc_core/template_files/agent_kit/` (`AGENTS.md` ≈ 780 tokens, `CLAUDE.md`,
+five skills, one reference file), installer `sdc_core/agent/kit.py`, `manage.py sdc_agent kit install|update|check`,
+`sdc_init` installs the kit (`--no-agent-kit`), `sdc_agent check` warns about an outdated kit; tests in
+`pytests/test_agent_kit.py` (incl. every `manage.py` line of the kit parsed by the real parsers) and
+`pytests/test_sdc_agent.py`. Benchmark: baseline projects use `sdc_init --no-agent-kit`, the `kit` condition
+installs the kit after seeding. Differences from the text below:
+- WP2.4: no extraction from the Sphinx docs. The kit texts are written for agents (shorter, task-shaped) and
+  checked by tests instead (commands parse, referenced files exist, sizes). While writing them, two errors in the
+  root `DOCUMENTATION.md` were found and fixed: event handlers shown as arrow functions `(self, $el, e) => …`, and
+  server calls described as `call_<name>` methods (the method is called by its exact name).
+- WP2.5 (skills for developing SDC itself) is postponed until M3 shows the effect of the project kit.
+- Outdated detection compares template hashes (the manifest stores the hash of the template each file came
+  from), not version numbers: the install metadata of editable installs is unreliable.
+- `sdc_agent` skips Django's system checks (their warnings preceded every answer).
 
 Exit criterion: `sdc_init` creates the kit; `sdc_agent kit --update` refreshes it without losing edits; a test
 verifies every command, flag and path the kit mentions.
