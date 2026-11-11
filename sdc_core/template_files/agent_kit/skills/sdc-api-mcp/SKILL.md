@@ -31,7 +31,8 @@ Lifetimes: `SDC_API_TOKENS` in `settings.py` (`max_lifetime_days`, `default_life
 ## REST API (`/sdc_api/`)
 
 `Authorization: Bearer sdc_…` on every request. `GET|POST /sdc_api/<model>/`, `GET|PUT|PATCH|DELETE
-/sdc_api/<model>/<id>/` (forms of `SdcMeta`; list filters as query string), `/sdc_api/account/`,
+/sdc_api/<model>/<id>/` (forms of `SdcMeta`; list filters as query string, `?_fields=a,b` for fewer fields),
+`/sdc_api/account/`,
 `/sdc_api/tokens/`, `POST /sdc_api/login/` (username + password → short-lived token). Missing privilege → 403 with
 `privilege`. Description: `python manage.py sdc_open_api` → `openapi.generated.yaml`.
 
@@ -48,7 +49,8 @@ SDC_MCP = {
 ```
 
 `python manage.py sdc_mcp_config --user admin --privileges read` prints the `claude mcp add …` command and an
-`.mcp.json` entry and creates the token. Tools per token: `model_load`, `model_get` (read privilege),
+`.mcp.json` entry and creates the token. Tools per token: `model_load`, `model_get` (read privilege; both take
+`fields`),
 `<model>_create` / `<model>_update` (write), `<model>_delete` (delete), `account_get` / `account_update`,
 `describe` (with `sdc_teach` data). Resources: `sdc://skill`, `sdc://skill/<app>`, `sdc://openapi`.
 

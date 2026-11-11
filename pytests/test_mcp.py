@@ -444,3 +444,42 @@ def test_sdc_mcp_config(user):
     with override_settings(SDC_MCP={'enabled': False}):
         call_command('sdc_mcp_config', stdout=io.StringIO(), stderr=err)
     assert "SDC_MCP['enabled'] is False" in err.getvalue()
+
+
+# ------------------------------------------------------------------ M4 of agents.plan.md: smaller answers
+
+def test_instructions_carry_only_the_exposed_data_models(user, tmp_path):
+    _write_skill_data(tmp_path / 'SDC_SKILL.data.json')
+    secret = _secret(user, 'model:*:read')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_DATA_FILE=None):
+        text = _result(secret, 'initialize', {'protocolVersion': '2025-06-18'})['instructions']
+        assert '## Data models of this website' in text and '- `Author` — An author of books.' in text
+        assert 'How to read SDC URLs' not in text and 'sdc-login' not in text
+        with override_settings(SDC_MCP={'enabled': True, 'models': ['Book']}):
+            text = _result(secret, 'initialize', {})['instructions']
+            assert '`Author`' not in text
+        with override_settings(SDC_MCP={'enabled': True, 'instructions': 'index'}):
+            assert 'How to read SDC URLs' in _result(secret, 'initialize', {})['instructions']
+        with override_settings(SDC_MCP={'enabled': True, 'instructions': 'none'}):
+            assert 'Data models' not in _result(secret, 'initialize', {})['instructions']
+
+
+def test_describe_does_not_reveal_hidden_models(user, tmp_path):
+    _write_skill_data(tmp_path / 'SDC_SKILL.data.json')
+    with override_settings(BASE_DIR=tmp_path, SDC_AI_SKILL_DATA_FILE=None,
+                           SDC_MCP={'enabled': True, 'models': ['Book']}):
+        result = _call(_secret(user, 'account:read'), 'describe', name='Author')
+    assert result['isError'] and 'Unknown name' in result['content'][0]['text']
+
+
+def test_field_selection(user):
+    jane = Author.objects.create(name='Jane', age=40)
+    secret = _secret(user, 'model:Author:read')
+    records = _call(secret, 'model_load', model='Author', fields=['name'])['structuredContent']['records']
+    assert records == [{'model': 'main_test.author', 'pk': jane.pk, 'fields': {'name': 'Jane'}}]
+    record = _call(secret, 'model_get', model='Author', id=jane.pk, fields=['age'])['structuredContent']
+    assert record['fields'] == {'age': 40}
+    result = _call(secret, 'model_load', model='Author', fields=['salary'])
+    assert result['isError'] and 'Unknown fields: salary (fields of Author: name, age)' in result['content'][0]['text']
+    result = _call(secret, 'model_load', model='Author', fields=[1])
+    assert result['isError'] and 'fields must be a list of strings' in result['content'][0]['text']

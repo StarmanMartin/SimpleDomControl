@@ -213,7 +213,13 @@ Shorten or split; re-run.
 
 ---
 
-## M4 — Runtime agents (assistant and MCP), smaller follow-ups
+## M4 — Runtime agents (assistant and MCP), smaller follow-ups — **WP4.1, WP4.2 done; WP4.3 open**
+
+Status (2026-11-11): `SDC_MCP['instructions']` (`models` default, `index`, `none`) — the default keeps only the
+exposed models of the index (test project: 6 528 → 1 289 characters per MCP session); `describe` refuses hidden
+models. Field selection in `model_actions` (`fields`), MCP `model_load` / `model_get` (`fields`) and REST
+(`?_fields=`), documented in OpenAPI. Tests in `pytests/test_mcp.py`, `pytests/test_rest_api.py`. WP4.3 needs paid
+`sdc_eval_ai` runs (maintainer). Difference: no character cap; the cut is by content (models only).
 
 ### WP4.1 — MCP instructions
 Put at most N lines of the index into `initialize` (e.g. models and top-level views); the rest through `describe`

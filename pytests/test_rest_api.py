@@ -426,3 +426,13 @@ def test_delete_outside_get_queryset(api):
 
 def test_delete_on_the_list_url(api):
     assert api.delete('/sdc_api/Author/').status_code == 405
+
+
+def test_field_selection(api):
+    jane = Author.objects.create(name='Jane', age=40)
+    Author.objects.create(name='John', age=50)
+    data = _json(api.get('/sdc_api/Author/', {'_fields': 'name', 'age': 40}))['data']
+    assert data == [{'model': 'main_test.author', 'pk': jane.pk, 'fields': {'name': 'Jane'}}]
+    assert _json(api.get(f'/sdc_api/Author/{jane.pk}/', {'_fields': 'age'}))['data']['fields'] == {'age': 40}
+    response = api.get('/sdc_api/Author/', {'_fields': 'name,salary'})
+    assert response.status_code == 400 and 'Unknown fields: salary' in _json(response)['error']

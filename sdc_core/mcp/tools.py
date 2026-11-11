@@ -67,6 +67,11 @@ def _model_schema(models):
     return {'type': 'string', 'enum': models, 'description': 'Name of the data model (SdcModel)'}
 
 
+def _fields_schema():
+    return {'type': 'array', 'items': {'type': 'string'},
+            'description': 'Only these fields of each record (default: all); keeps answers small'}
+
+
 def _id_schema():
     return {'type': 'integer', 'description': 'Primary key (id) of the record'}
 
@@ -127,7 +132,8 @@ def available_tools(grant):
             'description': 'Read one record of a data model by its id, if the user is allowed to see it. Returns '
                            '{"model", "pk", "fields"}.',
             'inputSchema': {'type': 'object', 'additionalProperties': False, 'required': ['model', 'id'],
-                            'properties': {'model': _model_schema(models), 'id': _id_schema()}},
+                            'properties': {'model': _model_schema(models), 'id': _id_schema(),
+                                           'fields': _fields_schema()}},
             'annotations': READ_ONLY,
         }, _model_get))
         tools.append(Tool({
@@ -144,6 +150,7 @@ def available_tools(grant):
                                            '{"author__name__icontains": "tolk"}; omit to load all records'},
                                 'limit': {'type': 'integer', 'minimum': 1, 'maximum': max_records,
                                           'description': f'Maximum number of records (default {max_records})'},
+                                'fields': _fields_schema(),
                             }},
             'annotations': READ_ONLY,
         }, _model_load))
@@ -236,7 +243,7 @@ def list_tools(grant):
 
 # ------------------------------------------------------------------ calls
 
-_JSON_TYPES = {'string': str, 'integer': int, 'object': dict}
+_JSON_TYPES = {'string': str, 'integer': int, 'object': dict, 'array': list}
 
 
 def _validate(tool, arguments):
@@ -263,6 +270,8 @@ def _validate(tool, arguments):
         expected = _JSON_TYPES[prop['type']]
         if isinstance(value, bool) or not isinstance(value, expected):
             raise ToolError(f'{name} must be of type {prop["type"]}')
+        if prop['type'] == 'array' and not all(isinstance(item, str) for item in value):
+            raise ToolError(f'{name} must be a list of strings')
         if 'enum' in prop and value not in prop['enum']:
             raise ToolError(f'{name} must be one of: {", ".join(prop["enum"])}')
         if 'minimum' in prop and value < prop['minimum'] or 'maximum' in prop and value > prop['maximum']:
@@ -286,6 +295,8 @@ def call_tool(name, arguments, user, grant):
     except model_actions.FormValidationError as e:
         return _error('Invalid values: ' + json.dumps({field: list(messages) for field, messages in e.errors.items()},
                                                       ensure_ascii=False))
+    except model_actions.FieldSelectionError as e:
+        return _error(str(e))
     except model_actions.MissingPrivilege as e:
         return _error(str(e))
     except PermissionDenied as e:
@@ -306,6 +317,9 @@ def _error(message):
 
 
 def _describe(arguments, user, grant):
+    model = all_models().get(arguments['name'].strip())
+    if model is not None and model.__name__ not in exposed_models():
+        raise ToolError(f"Unknown name: {arguments['name']}")
     result = skill_data.describe(arguments['name'])
     if result is None:
         raise ToolError('There is no skill data (run manage.py sdc_teach)')
@@ -316,14 +330,17 @@ def _describe(arguments, user, grant):
 
 
 def _model_get(arguments, user, grant):
-    return model_actions.get(user, arguments['model'], arguments['id'], grant=grant)
+    return model_actions.get(user, arguments['model'], arguments['id'], grant=grant, fields=arguments.get('fields'))
 
 
 def _model_load(arguments, user, grant):
     limit = arguments.get('limit') or mcp_settings()['max_records']
     query = arguments.get('filter') or {}
     try:
-        records, total = model_actions.load_page(user, arguments['model'], query, limit=limit, grant=grant)
+        records, total = model_actions.load_page(user, arguments['model'], query, limit=limit, grant=grant,
+                                                 fields=arguments.get('fields'))
+    except model_actions.FieldSelectionError:
+        raise
     except (FieldError, ValidationError, ValueError, TypeError) as e:
         raise ToolError(f'Invalid filter: {e}')
     return {'records': records, 'total': total, 'truncated': total > len(records)}

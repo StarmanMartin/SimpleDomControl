@@ -96,6 +96,13 @@ Settings
    The server name shown to clients (default: the name of the project
    directory).
 
+``instructions``
+   What of the ``sdc_teach`` knowledge goes into the server instructions:
+   ``'models'`` (default) only the exposed data models of the index — views
+   and the URL guide matter only for the browser assistant —, ``'index'`` the
+   whole index, ``'none'`` nothing. Details are always available through
+   ``describe`` and the resources.
+
 Tools
 -----
 
@@ -114,11 +121,11 @@ privileges are checked first, then the model's ``is_authorised()`` and
    * - ``model_load``
      - ``model:<Model>:read`` for any model
      - Load records of a model, with Django field lookups as ``filter``
-       (``{"age__gte": 18}``) and ``limit``. Returns ``records``, ``total``
-       and ``truncated``.
+       (``{"age__gte": 18}``), ``limit`` and ``fields`` (only these fields of
+       each record). Returns ``records``, ``total`` and ``truncated``.
    * - ``model_get``
      - ``model:<Model>:read`` for any model
-     - One record by its id.
+     - One record by its id (optionally only ``fields``).
    * - ``describe``
      - (always, if there is skill data)
      - The documentation of a view, controller or model from

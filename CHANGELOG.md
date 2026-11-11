@@ -23,7 +23,13 @@ The server and the client are released with the same version number.
   installs, refreshes (edited files are kept) and checks it; `sdc_agent check` warns when it is outdated;
   `sdc_init --no-agent-kit` skips it. Existing `AGENTS.md` / `CLAUDE.md` files are kept and extended.
 
+- Field selection: MCP `model_load` / `model_get` take `fields`, the REST API `?_fields=a,b`; only these fields
+  of each record are returned (unknown or hidden names are refused).
+- `SDC_MCP['instructions']`: `'models'` (new default), `'index'` (the previous behaviour) or `'none'`.
+
 ### Changed
+- MCP server instructions carry only the exposed data models of the `sdc_teach` index instead of the whole index
+  with URL guide and views (≈ 80 % shorter for the test project); `describe` refuses models that are not exposed.
 - `sdc_cc`, `sdc_new_model` and `sdc_init` do not wait for input outside a terminal: a missing argument fails with
   the flag to pass (`sdc_cc` without `-m` uses no mixins, `sdc_init` answers *no* unless `-y`).
 - `manage.py` no longer rewrites `Assets/.sdc_env` and `Assets/.sdc_python_env` on every start: missing keys are

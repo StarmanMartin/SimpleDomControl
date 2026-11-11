@@ -4,7 +4,8 @@ The REST API of the SdcModels (``sdc_api/``), authenticated with API tokens (``s
 - ``login/``: username and password → a short-lived login token
 - ``tokens/``, ``tokens/current/``, ``tokens/<id>/``: list, create and revoke the own tokens
 - ``account/``: the own user record
-- ``<model>/`` and ``<model>/<id>/``: read, create, change and delete records
+- ``<model>/`` and ``<model>/<id>/``: read (``?_fields=a,b`` returns only these fields), create, change and delete
+  records
 
 Routes: ``sdc_core.api_urls`` (``path('sdc_api/', include('sdc_core.api_urls'))``).
 """
@@ -135,6 +136,8 @@ def _action_response(action):
         return HttpResponseNotFound()
     except model_actions.FormValidationError as e:
         return JsonResponse({"success": False, "errors": e.errors}, status=400)
+    except model_actions.FieldSelectionError as e:
+        return _error(str(e), 400)
     if result is None:
         return JsonResponse({"success": True})
     return JsonResponse({"success": True, "data": result})
@@ -149,9 +152,11 @@ class AdcApi(View):
 
     def get(self, request, model, id=None):
         grant = request.api_grant
+        query = request.GET.copy()
+        fields = [f.strip() for f in query.pop('_fields', [''])[-1].split(',') if f.strip()] or None
         if id is not None:
-            return _action_response(lambda: model_actions.get(request.user, model, id, grant=grant))
-        return _action_response(lambda: model_actions.load(request.user, model, request.GET, grant=grant))
+            return _action_response(lambda: model_actions.get(request.user, model, id, grant=grant, fields=fields))
+        return _action_response(lambda: model_actions.load(request.user, model, query, grant=grant, fields=fields))
 
     def post(self, request, model, id=None):
         if id is not None:
