@@ -7,6 +7,7 @@ Benchmark: how many tokens and turns does an AI coding agent need for typical SD
     python scripts/agent_bench/bench.py seed --task ID              # build one project to look at
     python scripts/agent_bench/bench.py run --condition baseline --runs 3 [--task ID …] [--model M]
     python scripts/agent_bench/bench.py summarize RESULTS.jsonl …
+    python scripts/agent_bench/bench.py analyze RESULTS.jsonl …     # runs made with --transcripts
 
 Run it with the Python of the SimpleDomControl development environment (``poetry run``). ``run`` starts
 ``claude -p`` in temporary projects (by default with an allow-list of tools, see agent.py) and costs API usage
@@ -23,7 +24,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-from agent import run_claude, total_input  # noqa: E402
+from agent import run_claude, summarize_steps, total_input  # noqa: E402
 from project import REPO, changed_files, create_project, python, remove_project, env_for  # noqa: E402
 from tasks import BY_ID, TASKS  # noqa: E402
 
@@ -103,7 +104,7 @@ def cmd_run(args):
             project = create_project(task, condition=args.condition)
             try:
                 agent = run_claude(project, task.full_prompt, args.model, args.budget, timeout_s=args.timeout,
-                                   permissions=args.permissions)
+                                   permissions=args.permissions, transcript=args.transcripts)
                 check = run_check(task, project)
                 files = changed_files(project)
             finally:
@@ -115,8 +116,15 @@ def cmd_run(args):
                 'permissions': args.permissions,
                 'sdc_version': _sdc_version(), 'date': datetime.datetime.now().isoformat(timespec='seconds'),
                 'passed': check['passed'], 'checks': check['details'], 'changed_files': files,
-                'agent': agent, 'total_input_tokens': total_input(agent),
+                'agent': {k: v for k, v in agent.items() if k != 'steps'}, 'total_input_tokens': total_input(agent),
             }
+            if 'steps' in agent:
+                record['activity'] = summarize_steps(agent['steps'])
+                transcript_dir = out.parent.parent / 'transcripts' / out.stem
+                transcript_dir.mkdir(parents=True, exist_ok=True)
+                path = transcript_dir / f'{task.id}-run{run}.jsonl'
+                path.write_text(''.join(json.dumps(step, ensure_ascii=False) + '\n' for step in agent['steps']))
+                record['transcript'] = str(path.relative_to(REPO))
             with out.open('a') as f:
                 f.write(json.dumps(record, default=str) + '\n')
             print(f"run {run} {task.id:<16} passed={check['passed']!s:<5} turns={agent.get('turns')} "
@@ -160,6 +168,35 @@ def cmd_summarize(args):
     return 0
 
 
+def cmd_analyze(args):
+    """Where the turns and tokens go: tools, files, skills and commands per task (runs with --transcripts)."""
+    from collections import Counter
+    records = [json.loads(line) for path in args.files for line in Path(path).read_text().splitlines()
+               if line.strip()]
+    records = [r for r in records if 'activity' in r]
+    if not records:
+        sys.exit('No runs with transcripts (run with --transcripts)')
+    for task in sorted({r['task'] for r in records}):
+        runs = [r for r in records if r['task'] == task]
+        print(f"\n## {task} ({len(runs)} runs, median turns {_median([r['agent'].get('turns') for r in runs])})")
+        tools = Counter()
+        for r in runs:
+            tools.update(r['activity']['tools'])
+        print('tools:', ', '.join(f'{t} {n / len(runs):.1f}' for t, n in tools.most_common()))
+        skills = Counter(s for r in runs for s in set(r['activity']['skills_read']))
+        print('skills read (runs):', ', '.join(f'{s} {n}' for s, n in skills.most_common()) or '-')
+        files = Counter(f.rsplit('library_site/', 1)[-1] for r in runs for f in r['activity']['files_read'])
+        print('files read:', ', '.join(f'{f} ×{n}' for f, n in files.most_common(args.top)))
+        commands = Counter(' '.join(c.split()[:4]) for r in runs for c in r['activity']['bash'])
+        print('commands:', ', '.join(f'{c} ×{n}' for c, n in commands.most_common(args.top)))
+        big = []
+        for r in runs:
+            steps = [json.loads(line) for line in (REPO / r['transcript']).read_text().splitlines()]
+            big += [(s.get('result_chars', 0), s.get('tool'), s.get('input', '')[:80]) for s in steps if s.get('tool')]
+        print('largest tool results:', '; '.join(f'{c} chars {t} {i}' for c, t, i in sorted(big, reverse=True)[:3]))
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest='command', required=True)
@@ -179,13 +216,20 @@ def main():
     p.add_argument('--out', help='results file (default projects/agents-bench/results/<date>-<condition>.jsonl)')
     p.add_argument('--keep', action='store_true', help='keep the projects')
     p.add_argument('--keep-failed', action='store_true', help='keep the projects of failed runs for inspection')
+    p.add_argument('--transcripts', action='store_true',
+                   help='record tool calls and context size per turn (projects/agents-bench/transcripts/; no file '
+                        'contents)')
     p.add_argument('--permissions', default='restricted', choices=['restricted', 'bypass'],
                    help='restricted (default): file tools + python/ls/cat/git status|diff; bypass: no permission '
                         'checks, only in a container or VM')
     p = sub.add_parser('summarize', help='median tokens, turns, cost and success per task and condition')
     p.add_argument('files', nargs='+')
+    p = sub.add_parser('analyze', help='tools, files, skills and commands per task (runs with --transcripts)')
+    p.add_argument('files', nargs='+')
+    p.add_argument('--top', type=int, default=8)
     args = parser.parse_args()
-    return {'selftest': cmd_selftest, 'seed': cmd_seed, 'run': cmd_run, 'summarize': cmd_summarize}[
+    return {'selftest': cmd_selftest, 'seed': cmd_seed, 'run': cmd_run, 'summarize': cmd_summarize,
+            'analyze': cmd_analyze}[
         args.command](args)
 
 
