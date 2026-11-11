@@ -236,7 +236,11 @@ and make the cheaper one the default if success holds.
 
 ---
 
-## M5 — Docs and release
+## M5 — Docs and release — **done**
+
+Status (2026-11-11): Sphinx page `docs/ai_agents.rst` (kit, skills, `sdc_agent`), `docs/core.rst` (`sdc_agent`, kit
+files of `sdc_init`), root `DOCUMENTATION.md` and `AGENTS.md`, CHANGELOG; released as 0.164.0 (server and client in
+lockstep; the client has no code change).
 - Sphinx page "Working with AI coding agents" (kit, skills, `sdc_agent`), CHANGELOG, `AGENTS.md` of this workspace.
 - Release in lockstep (server only; client unchanged unless M1 touches the build output).
 

@@ -87,6 +87,9 @@ What *sdc_init* creates or changes (paths relative to the project root):
     ``LOGIN_SUCCESS``, ``SDC_API_TOKENS``, ``JWT``, ``SDC_MCP``, ``AUTH_USER_MODEL = "sdc_user.SdcUser"`` and the
     ``SDC_USER_*`` settings. With ``-u`` the existing *settings.py* is only
     replaced if you answer *yes*.
+*AGENTS.md, CLAUDE.md, .claude/skills/*
+    The agent kit for AI coding agents (see :doc:`ai_agents`); not written with
+    ``--no-agent-kit``.
 *<main app>/asgi.py*
     Always deleted and written again (no question). It routes websockets to
     *routing.py* through ``AuthMiddlewareStack``.
@@ -560,7 +563,21 @@ also creates the token. ``--url`` sets the site URL (default ``HOME_URL``).
 
 See :doc:`mcp`.
 
-19 - Creating a new project (``sdc new``)
+19 - sdc_agent
+**************
+
+Compact project information and shortcuts for AI coding agents and scripts:
+``overview``, ``where``, ``check``, ``new-controller``, ``new-model``,
+``test``, ``build`` and ``kit`` (the agent kit written by ``sdc_init``).
+
+.. code-block:: sh
+
+    $ python manage.py sdc_agent overview
+    $ python manage.py sdc_agent check
+
+See :doc:`ai_agents`.
+
+20 - Creating a new project (``sdc new``)
 *****************************************
 
 The package installs the command line tool ``sdc`` (also ``python -m sdc``). It

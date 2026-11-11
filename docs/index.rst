@@ -34,6 +34,7 @@ This documentation now covers both parts of the system:
    settings
    teaching
    ai_assistant
+   ai_agents
    intellij
 
 .. toctree::
