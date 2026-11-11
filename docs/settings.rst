@@ -113,7 +113,7 @@ the setting.
        ``sdc_user`` and the deprecated JSON web tokens of the REST API
        (accepted for one more release, see :doc:`rest_api`).
    * - ``SDC_MCP``
-     - ``{'enabled': False, 'models': '__all__', 'max_records': 50}``
+     - ``{'enabled': False, 'models': '__all__', 'max_records': 50}`` (also ``'instructions'``)
      - The MCP endpoint ``sdc_mcp/``: switch, exposed models and the most
        records per ``model_load``. See :doc:`mcp`.
    * - ``AUTH_USER_MODEL``

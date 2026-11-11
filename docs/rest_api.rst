@@ -350,6 +350,13 @@ allowed). Other keys return ``403`` with the text
 ``Filtering on '<key>' is not allowed``. All values arrive as strings; if a
 parameter is repeated, the last value is used.
 
+Selecting fields
+^^^^^^^^^^^^^^^^
+
+``?_fields=title,author`` returns only these fields of each record (list and
+detail requests); ``_fields`` is not a filter. Unknown or hidden field names
+return ``400``.
+
 Request bodies
 ^^^^^^^^^^^^^^
 

@@ -6,6 +6,9 @@ Settings of the MCP endpoint (``SDC_MCP``, a dict; missing keys use ``DEFAULTS``
   ``SdcMeta.mcp = False`` is never exposed. Which of them a client really reaches depends on its token.
 - ``max_records``: the most records ``model_load`` returns per call
 - ``name``: the server name shown to MCP clients (default: the name of the project directory)
+- ``instructions``: knowledge of ``sdc_teach`` in the server instructions: ``'models'`` (default: only the data
+  models of the index; views matter only for the browser assistant), ``'index'`` (the whole index incl. the URL
+  guide and the views) or ``'none'``. Details are always available through ``describe`` and the resources.
 """
 from django.conf import settings
 
@@ -16,6 +19,7 @@ DEFAULTS = {
     'models': '__all__',
     'max_records': 50,
     'name': None,
+    'instructions': 'models',
 }
 
 

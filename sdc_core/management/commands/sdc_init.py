@@ -21,6 +21,8 @@ class Command(BaseCommand):
         parser.add_argument('-y', '--assume-yes',
                             action='store_true',
                             help="Automatically assume 'yes' for all prompts.")
+        parser.add_argument('--no-agent-kit', action='store_true',
+                            help='Do not write AGENTS.md, CLAUDE.md and .claude/skills (guidance for AI agents)')
         parser.add_argument('-n', '--assume-no',
                             action='store_true',
                             help="Automatically assume 'no' for all prompts.")
@@ -30,6 +32,10 @@ class Command(BaseCommand):
         if self._assume_yes:
             return True
         if self._assume_no:
+            return False
+
+        if not sys.stdin.isatty():
+            self.stdout.write("Not a terminal: answering 'no' (pass -y to answer 'yes').")
             return False
 
         # Get user input
@@ -107,5 +113,13 @@ class Command(BaseCommand):
 
         make_app_links('sdc_tools')
         make_app_links('sdc_user')
+
+        if not ops.get('no_agent_kit'):
+            # Guidance for AI coding agents; the project block of AGENTS.md is filled by `sdc_agent kit update`
+            from sdc_core.agent import kit
+            if kit.load_manifest(options.PROJECT_ROOT) is None:
+                kit.install(options.PROJECT_ROOT)
+                self.stdout.write('Wrote AGENTS.md, CLAUDE.md and .claude/skills for AI agents '
+                                  '(skip with --no-agent-kit)')
 
 

@@ -25,6 +25,14 @@ FILTER_PARAMETER = {
     "schema": {"type": "object", "additionalProperties": {"type": "string"}},
 }
 
+FIELDS_PARAMETER = {
+    "in": "query",
+    "name": "_fields",
+    "description": "Comma-separated field names: return only these fields of each record (default: all).",
+    "required": False,
+    "schema": {"type": "string"},
+}
+
 ERROR_RESPONSES = {
     "401": {"description": "Missing, invalid or expired token"},
     "403": {"description": "Not authorised"},
@@ -99,7 +107,7 @@ def _add_model(openapi, model_name, model, model_name_lower):
     list_path = {
         "get": {
             "summary": f"Get list of {model_name}. Privilege: model:{model_name}:read.",
-            "parameters": [copy.deepcopy(FILTER_PARAMETER)],
+            "parameters": [copy.deepcopy(FILTER_PARAMETER), copy.deepcopy(FIELDS_PARAMETER)],
             "responses": {
                 "200": {"description": "Successful response", "content": list_response},
                 **copy.deepcopy(ERROR_RESPONSES),
@@ -109,7 +117,7 @@ def _add_model(openapi, model_name, model, model_name_lower):
     instance_path = {
         "get": {
             "summary": f"Get instance {model_name}. Privilege: model:{model_name}:read.",
-            "parameters": [copy.deepcopy(ID_PARAMETER)],
+            "parameters": [copy.deepcopy(ID_PARAMETER), copy.deepcopy(FIELDS_PARAMETER)],
             "responses": {
                 "200": {"description": "Successful response", "content": copy.deepcopy(instance_response)},
                 **copy.deepcopy(ERROR_RESPONSES),

@@ -91,18 +91,20 @@ class AddModelManager():
             if not os.path.exists(dst_path):
                 copy(src_path, dst_path, self.reps)
 
+    # Names the generated model class uses, with their imports
+    MODEL_IMPORTS = (
+        ('SdcModel', 'from sdc_core.sdc_extentions.models import SdcModel'),
+        ('AbstractSearchForm', 'from sdc_core.sdc_extentions.forms import AbstractSearchForm'),
+        ('render_to_string', 'from django.template.loader import render_to_string'),
+        ('handle_search_form', 'from sdc_core.sdc_extentions.search import handle_search_form'),
+    )
+
     def _check_if_sdcmodel_imported(self, file_path):
-        fin = open(file_path, 'rt')
-        data = ""
-        new_url_line = 'from sdc_core.sdc_extentions.models import SdcModel\nfrom sdc_core.sdc_extentions.forms import AbstractSearchForm\nfrom django.template.loader import render_to_string\nfrom sdc_core.sdc_extentions.search import handle_search_form'.format(
-            self.reps['§PROJECT§'])
-        regexp = re.compile(r'import SdcModel')
-        for line in fin:
-            match = regexp.search(line)
-            data += line
-            if match:
-                return
-        fin.close()
-        with open(file_path, 'w') as modified:
-            modified.write("%s\n%s" % (new_url_line, data))
-            modified.close()
+        """Adds each import the generated model needs that models.py does not have yet (one line per name)."""
+        with open(file_path, 'rt') as fin:
+            data = fin.read()
+        missing = [line for name, line in self.MODEL_IMPORTS
+                   if not re.search(rf'^\s*from\s+\S+\s+import\s+.*\b{name}\b', data, re.M)]
+        if missing:
+            with open(file_path, 'w') as modified:
+                modified.write('\n'.join(missing) + '\n' + data)

@@ -9,6 +9,7 @@ client sees and can call. Requests from browser pages of other sites are refused
 """
 import json
 import logging
+import re
 from urllib.parse import urlsplit
 
 from django.conf import settings
@@ -20,7 +21,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from sdc_core import api_tokens, skill_data
 from sdc_core.mcp import resources, tools
-from sdc_core.mcp.settings import mcp_settings, server_name
+from sdc_core.mcp.settings import exposed_models, mcp_settings, server_name
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,31 @@ def _instructions():
             f'token there are also tools to create, change and delete records (<model>_create, <model>_update, '
             f'<model>_delete); they check the values like the forms of the web app. Ask the user before you '
             f'change or delete data.')
-    index = skill_data.skill_index()
+    mode = mcp_settings()['instructions']
+    index = skill_data.skill_index() if mode in ('models', 'index') else None
+    if index and mode == 'models':
+        index = _models_section(index)
     return f'{text}\n\n{index}' if index else text
+
+
+def _models_section(index):
+    """The 'Data models' section of the skill index (one line per model); None if there is none."""
+    exposed = set(exposed_models())
+    lines, inside = [], False
+    for line in index.splitlines():
+        if line.startswith('#'):
+            inside = line.lstrip('#').strip().lower() == 'data models'
+            if inside:
+                lines.append('## Data models of this website')
+            continue
+        if inside:
+            match = re.match(r'- `(\w+)`', line)
+            if match and match.group(1) not in exposed:
+                continue
+            lines.append(line)
+    text = '\n'.join(lines).strip()
+    return text + '\n\nViews and controllers: `describe` with a tag; the full index: resource `sdc://skill`.' \
+        if text else None
 
 
 @method_decorator(csrf_exempt, name='dispatch')

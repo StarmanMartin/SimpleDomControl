@@ -5,10 +5,25 @@ from django.core.management import CommandError
 from sdc_core.sdc_extentions.models import filter_model_fields
 
 
-def multi_cli_select(prompt, options):
+def can_prompt():
+    """Commands ask questions only in a terminal; scripts and AI agents get an error that names the flag instead."""
+    return sys.stdin.isatty()
+
+
+def missing_argument(flag, what, options=None):
+    """The ``CommandError`` for a value that would be asked for in a terminal."""
+    message = f"Missing {what}: pass {flag}"
+    if options:
+        message += f" (one of: {', '.join(options)})"
+    return CommandError(message, 2)
+
+
+def multi_cli_select(prompt, options, flag=None):
     if len(options) == 0:
         print(prompt)
         raise CommandError("No options selectable")
+    if not can_prompt() and flag:
+        raise missing_argument(flag, prompt.rstrip(':'), options)
     if sys.stdin.isatty():
         from InquirerPy import inquirer
         selected = inquirer.checkbox(
@@ -32,10 +47,12 @@ def multi_cli_select(prompt, options):
     return selected
 
 
-def cli_select(prompt, options):
+def cli_select(prompt, options, flag=None):
     if len(options) == 0:
         print(prompt)
         raise CommandError("No options selectable")
+    if not can_prompt() and flag:
+        raise missing_argument(flag, prompt.rstrip(':'), options)
     if sys.stdin.isatty():
         from InquirerPy import inquirer
         choice = inquirer.select(

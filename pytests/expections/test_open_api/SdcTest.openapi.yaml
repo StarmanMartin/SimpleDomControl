@@ -262,6 +262,13 @@ paths:
           type: object
           additionalProperties:
             type: string
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -338,6 +345,13 @@ paths:
         required: true
         schema:
           type: integer
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -501,6 +515,13 @@ paths:
           type: object
           additionalProperties:
             type: string
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -577,6 +598,13 @@ paths:
         required: true
         schema:
           type: integer
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -740,6 +768,13 @@ paths:
           type: object
           additionalProperties:
             type: string
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -810,6 +845,13 @@ paths:
         required: true
         schema:
           type: integer
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -961,6 +1003,13 @@ paths:
           type: object
           additionalProperties:
             type: string
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
@@ -1037,6 +1086,13 @@ paths:
         required: true
         schema:
           type: integer
+      - in: query
+        name: _fields
+        description: 'Comma-separated field names: return only these fields of each
+          record (default: all).'
+        required: false
+        schema:
+          type: string
       responses:
         '200':
           description: Successful response
