@@ -3,4 +3,4 @@
 * esm = ^3.2.25
 * jquery = ^3.7.0
 * lodash = ^4.17.23
-* sdc_client = ^0.163.0
+* sdc_client = ^0.164.0

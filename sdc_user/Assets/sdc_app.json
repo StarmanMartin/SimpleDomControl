@@ -1,7 +1,7 @@
 {
   "description": "npm packages the sdc_user bundle takes from the project (checked by sdc_client's build); everything else is bundled.",
   "peerDependencies": {
-    "sdc_client": "^0.163.0",
+    "sdc_client": "^0.164.0",
     "jquery": "^3.7.0",
     "lodash": "^4.17.23",
     "bootstrap": "^5.3.3"

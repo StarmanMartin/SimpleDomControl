@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.164.0
 
 ### Added
 - `manage.py sdc_agent` for AI coding agents and scripts (never asks for input, paths relative to the project,
