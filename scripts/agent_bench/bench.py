@@ -6,6 +6,9 @@ Benchmark: how many tokens and turns does an AI coding agent need for typical SD
     python scripts/agent_bench/bench.py selftest [--task ID]       # no agent, no API costs
     python scripts/agent_bench/bench.py seed --task ID              # build one project to look at
     python scripts/agent_bench/bench.py run --condition baseline --runs 3 [--task ID …] [--model M]
+
+Conditions: ``baseline`` (SDC project, no agent kit), ``kit`` (SDC project with the agent kit), ``free`` (the same
+app in plain Django; the agent may use any framework except SDC — tasks in tasks_free.py).
     python scripts/agent_bench/bench.py summarize RESULTS.jsonl …
     python scripts/agent_bench/bench.py analyze RESULTS.jsonl …     # runs made with --transcripts
 
@@ -26,14 +29,15 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 from agent import run_claude, summarize_steps, total_input  # noqa: E402
-from project import REPO, changed_files, create_project, python, remove_project, env_for  # noqa: E402
-from tasks import BY_ID, TASKS  # noqa: E402
+from project import REPO, changed_files, create_project, env_for, project_python, remove_project  # noqa: E402
+from tasks import tasks_for  # noqa: E402
 
 RESULTS = REPO / 'projects' / 'agents-bench' / 'results'
 
 
-def run_check(task, project):
-    result = subprocess.run([python(), str(HERE / 'run_check.py'), task.id, str(project)], cwd=project,
+def run_check(task, project, condition='baseline'):
+    result = subprocess.run([project_python(project), str(HERE / 'run_check.py'), task.id, str(project), condition],
+                            cwd=project,
                             env=env_for(project), capture_output=True, text=True, timeout=600)
     line = next((l for l in result.stdout.splitlines() if l.startswith('RESULT ')), None)
     if line is None:
@@ -41,13 +45,14 @@ def run_check(task, project):
     return json.loads(line[len('RESULT '):])
 
 
-def _tasks(ids):
+def _tasks(ids, condition='baseline'):
+    by_id = tasks_for(condition)
     if not ids:
-        return TASKS
-    unknown = [i for i in ids if i not in BY_ID]
+        return list(by_id.values())
+    unknown = [i for i in ids if i not in by_id]
     if unknown:
-        sys.exit(f"Unknown task(s): {', '.join(unknown)}. Known: {', '.join(BY_ID)}")
-    return [BY_ID[i] for i in ids]
+        sys.exit(f"Unknown task(s): {', '.join(unknown)}. Known: {', '.join(by_id)}")
+    return [by_id[i] for i in ids]
 
 
 def _sdc_version():
@@ -61,12 +66,12 @@ def _sdc_version():
 def cmd_selftest(args):
     """Every check must fail on the seeded project and pass after the reference solution."""
     ok = True
-    for task in _tasks(args.task):
-        project = create_project(task)
+    for task in _tasks(args.task, args.condition):
+        project = create_project(task, condition=args.condition)
         try:
-            before = run_check(task, project)
+            before = run_check(task, project, args.condition)
             task.solve(project)
-            after = run_check(task, project)
+            after = run_check(task, project, args.condition)
         finally:
             if not args.keep:
                 remove_project(project)
@@ -81,7 +86,7 @@ def cmd_selftest(args):
 
 
 def cmd_seed(args):
-    task = BY_ID[args.task] if args.task else None
+    task = tasks_for(args.condition)[args.task] if args.task else None
     project = create_project(task, condition=args.condition)
     print(project)
     if task:
@@ -97,7 +102,7 @@ def cmd_run(args):
         if conditions - {args.condition}:
             sys.exit(f'{out} already holds runs of condition(s) {", ".join(sorted(conditions))}; use another --out '
                      f'for condition {args.condition}')
-    tasks = _tasks(args.task)
+    tasks = _tasks(args.task, args.condition)
     print(f'{len(tasks)} task(s) x {args.runs} run(s), condition {args.condition}, model {args.model or "default"}'
           f' -> {out}')
     for run in range(1, args.runs + 1):
@@ -106,7 +111,7 @@ def cmd_run(args):
             try:
                 agent = run_claude(project, task.full_prompt, args.model, args.budget, timeout_s=args.timeout,
                                    permissions=args.permissions, transcript=args.transcripts)
-                check = run_check(task, project)
+                check = run_check(task, project, args.condition)
                 files = changed_files(project)
             finally:
                 keep = args.keep or (args.keep_failed and not locals().get('check', {}).get('passed', False))
@@ -203,12 +208,13 @@ def main():
     sub = parser.add_subparsers(dest='command', required=True)
     p = sub.add_parser('selftest', help='check every task with its reference solution (no agent)')
     p.add_argument('--task', action='append')
+    p.add_argument('--condition', default='baseline', choices=['baseline', 'kit', 'free'])
     p.add_argument('--keep', action='store_true', help='keep the projects')
     p = sub.add_parser('seed', help='build one seeded project and print its path')
     p.add_argument('--task')
-    p.add_argument('--condition', default='baseline', choices=['baseline', 'kit'])
+    p.add_argument('--condition', default='baseline', choices=['baseline', 'kit', 'free'])
     p = sub.add_parser('run', help='run the agent on the tasks (costs API usage)')
-    p.add_argument('--condition', default='baseline', choices=['baseline', 'kit'])
+    p.add_argument('--condition', default='baseline', choices=['baseline', 'kit', 'free'])
     p.add_argument('--task', action='append')
     p.add_argument('--runs', type=int, default=3)
     p.add_argument('--model', help='claude --model (default: the CLI default)')

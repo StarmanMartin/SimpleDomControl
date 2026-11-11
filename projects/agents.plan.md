@@ -236,6 +236,14 @@ and make the cheaper one the default if success holds.
 
 ---
 
+## M6 — Comparison with other stacks (condition `free`) — **harness done; run open**
+
+Added 2026-11-11 on request: the same six tasks where the agent may use any framework except SDC, starting from a
+plain Django seed of the same app, with framework-neutral equivalents of the SDC-specific tasks (decisions of the
+maintainer). Design: [agents.architecture.md](agents.architecture.md), "Condition `free`". `selftest --condition
+free` passes. Open: the run (`bench.py run --condition free --runs 3`) and the comparison with `kit` and
+`baseline`.
+
 ## M5 — Docs and release — **done**
 
 Status (2026-11-11): Sphinx page `docs/ai_agents.rst` (kit, skills, `sdc_agent`), `docs/core.rst` (`sdc_agent`, kit

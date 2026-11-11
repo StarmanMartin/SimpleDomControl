@@ -119,6 +119,31 @@ run, model, SDC version, kit version, usage, turns, cost, duration, check result
 prints medians per task × condition and the change between conditions; it also writes a Markdown table for the
 plan.
 
+### Condition `free`: any framework except SDC
+
+Compares the cost of SDC with other stacks. `project_free.py` builds the same library app (`Author`, `Book`, user
+`admin`, three books, book detail page `/books/<id>/`) in **plain Django** with templates, no SDC; the agent may add
+any framework or library except SDC (CDN scripts, or Python packages with `python -m pip install` — npm is not in
+the allowed tools of `--permissions restricted`). Each project has its own `.venv` that sees the benchmark's
+packages through a `.pth` file but installs new ones locally, so the benchmark environment is never changed.
+
+`tasks_free.py` holds the same six goals with framework-neutral prompts and black-box checks (HTTP through the
+Django test client, database, files) that fix only the externally visible contract (URLs such as `/books/`,
+`/reviews/new/`, `/api/book-count/`, `/mcp/`, form field names, CSS classes):
+
+| Task | `free` version |
+|---|---|
+| `controller_list` | page `/books/` with one `<li>` per title in its HTML |
+| `model_review` | model + create/edit pages `/reviews/new/`, `/reviews/<id>/edit/` that only accept ratings 1–5 |
+| `server_call` | button on the detail page, endpoint `/api/book-count/` → `{"count": n}`, element `.book-count` |
+| `fix_counter` | planted bugs of the same kind in plain JS: script not included, handler without `this` |
+| `mcp_token` | build an MCP endpoint `/mcp/` with a read-only tool and bearer token (SDC has it built in) |
+| `document` | documentation of models and pages in docstrings or Markdown |
+
+Every `free` check also fails when the project uses SDC (`sdc_core`, `sdc_client`, `SimpleDomControl` in project
+files or SDC apps in `INSTALLED_APPS`). `selftest --condition free` verifies all six checks; partial solutions
+(unbound handler, MCP without token, SDC import) were verified to fail.
+
 ## 4. Runtime follow-ups (M4)
 
 - `SDC_MCP['instructions']` (`index` | `short` | `none`) in `sdc_core/mcp/view.py::_instructions`.

@@ -32,10 +32,11 @@ class Task:
     check: Callable
     solve: Callable
     seed: Optional[Callable] = None
+    suffix: Optional[str] = None
 
     @property
     def full_prompt(self):
-        return self.prompt + SUFFIX
+        return self.prompt + (self.suffix or SUFFIX)
 
 
 def _read(project, path):
@@ -414,3 +415,11 @@ TASKS = [
 ]
 
 BY_ID = {task.id: task for task in TASKS}
+
+
+def tasks_for(condition):
+    """``{id: Task}`` of a condition: ``free`` (any framework except SDC) has its own versions of the tasks."""
+    if condition == 'free':
+        from tasks_free import FREE_BY_ID
+        return FREE_BY_ID
+    return BY_ID

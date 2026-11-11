@@ -1,5 +1,6 @@
 """
-Runs the check of one task inside a benchmark project: ``python run_check.py <task id> <project dir>``.
+Runs the check of one task inside a benchmark project:
+``python run_check.py <task id> <project dir> [<condition>]``.
 Prints one line ``RESULT <json>`` with ``{"passed": bool, "details": {...}}``.
 """
 import json
@@ -11,7 +12,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 
 
-def main(task_id, project):
+def main(task_id, project, condition='baseline'):
     project = Path(project).resolve()
     sys.path.insert(0, str(HERE))
     sys.path.insert(0, str(project))
@@ -20,12 +21,12 @@ def main(task_id, project):
     try:
         import django
         django.setup()
-        from tasks import BY_ID
-        passed, details = BY_ID[task_id].check(project)
+        from tasks import tasks_for
+        passed, details = tasks_for(condition)[task_id].check(project)
     except Exception as e:  # noqa: BLE001 - a crash of the project is a failed check
         passed, details = False, {'error': {'ok': False, 'detail': f'{e!r}\n{traceback.format_exc()[-1500:]}'}}
     print('RESULT ' + json.dumps({'passed': passed, 'details': details}, default=str))
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(*sys.argv[1:4])

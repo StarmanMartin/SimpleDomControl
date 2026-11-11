@@ -97,17 +97,24 @@ def python():
     return sys.executable
 
 
+def project_python(project):
+    """The project's own ``.venv`` interpreter (condition ``free``), else the benchmark Python."""
+    venv = Path(project) / '.venv' / 'bin' / 'python'
+    return str(venv) if venv.exists() else python()
+
+
 def env_for(project):
     """Environment for commands in the project: its Python first on PATH, no settings module of the caller."""
     env = dict(os.environ)
     env.pop('DJANGO_SETTINGS_MODULE', None)
-    env['PATH'] = os.path.dirname(python()) + os.pathsep + env.get('PATH', '')
+    env.pop('VIRTUAL_ENV', None)
+    env['PATH'] = os.path.dirname(project_python(project)) + os.pathsep + env.get('PATH', '')
     env['PYTHONDONTWRITEBYTECODE'] = '1'
     return env
 
 
 def manage(project, *args, check=True):
-    result = subprocess.run([python(), 'manage.py', *args], cwd=project, env=env_for(project),
+    result = subprocess.run([project_python(project), 'manage.py', *args], cwd=project, env=env_for(project),
                             stdin=subprocess.DEVNULL, capture_output=True, text=True)
     if check and result.returncode != 0:
         raise RuntimeError(f'manage.py {" ".join(args)} failed:\n{result.stdout}\n{result.stderr}')
@@ -120,6 +127,9 @@ def git(project, *args):
 
 def create_project(task=None, condition='baseline', parent=None):
     """Creates a seeded project and returns its path. ``task.seed(project)`` adds the task's own seed."""
+    if condition == 'free':
+        from project_free import create_free_project
+        return create_free_project(task, parent)
     root = Path(tempfile.mkdtemp(prefix='sdc-agent-bench-', dir=parent))
     project = root / 'library_site'
     shutil.copytree(DUMMY, project)
