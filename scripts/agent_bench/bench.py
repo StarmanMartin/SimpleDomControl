@@ -49,11 +49,11 @@ def _tasks(ids):
 
 
 def _sdc_version():
-    try:
-        from importlib.metadata import version
-        return version('SimpleDomControl')
-    except Exception:  # noqa: BLE001
-        return 'unknown'
+    """The version in pyproject.toml of this checkout (the install metadata of an editable install can be stale)."""
+    import re
+    match = re.search(r'(?m)^version = "([^"]+)"', (REPO / 'pyproject.toml').read_text())
+    commit = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'], cwd=REPO, capture_output=True, text=True)
+    return f"{match.group(1) if match else 'unknown'}+{commit.stdout.strip() or 'nogit'}"
 
 
 def cmd_selftest(args):
@@ -102,7 +102,8 @@ def cmd_run(args):
                 check = run_check(task, project)
                 files = changed_files(project)
             finally:
-                if not args.keep:
+                keep = args.keep or (args.keep_failed and not locals().get('check', {}).get('passed', False))
+                if not keep:
                     remove_project(project)
             record = {
                 'task': task.id, 'condition': args.condition, 'run': run, 'model': args.model or 'default',
@@ -115,7 +116,8 @@ def cmd_run(args):
                 f.write(json.dumps(record, default=str) + '\n')
             print(f"run {run} {task.id:<16} passed={check['passed']!s:<5} turns={agent.get('turns')} "
                   f"input={record['total_input_tokens']} output={agent.get('output_tokens')} "
-                  f"cost={agent.get('cost_usd')} {agent.get('error', '')}")
+                  f"cost={agent.get('cost_usd')} {agent.get('error', '')}"
+                  + (f'  kept: {project}' if keep else ''))
     return 0
 
 
@@ -171,6 +173,7 @@ def main():
     p.add_argument('--timeout', type=int, default=1800, help='seconds per run')
     p.add_argument('--out', help='results file (default projects/agents-bench/results/<date>-<condition>.jsonl)')
     p.add_argument('--keep', action='store_true', help='keep the projects')
+    p.add_argument('--keep-failed', action='store_true', help='keep the projects of failed runs for inspection')
     p.add_argument('--permissions', default='restricted', choices=['restricted', 'bypass'],
                    help='restricted (default): file tools + python/ls/cat/git status|diff; bypass: no permission '
                         'checks, only in a container or VM')

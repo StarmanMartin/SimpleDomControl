@@ -278,12 +278,23 @@ def seed_fix_counter(project):
                                  if 'book_counter' not in line))
 
 
+def _enclosing_method(js, position):
+    """Name of the class method whose body contains ``position`` (the last method header before it)."""
+    headers = list(re.finditer(r'^\s{4}(?:async\s+)?(\w+)\s*\([^)]*\)\s*\{', js[:position], re.M))
+    return headers[-1].group(1) if headers else None
+
+
 def check_fix_counter(project):
     js = _read(project, CTRL_DIR / 'book_counter' / 'book_counter.js')
     template = _read(project, TEMPLATES / 'book_counter.html')
-    arrow_handler = re.search(r'''['"]\.more['"]\s*:\s*\([^)]*\)\s*=>\s*\{?\s*this\.''', js)
-    bound = re.search(r'''['"]\.more['"]\s*:\s*(function\b|this\.\w+\.bind\(this\)|this\.toggle\b)''', js) or \
-        re.search(r'sdc_click\s*=\s*"\w+"', template)
+    # SDC calls event handlers on the controller instance of the page; the constructor runs on another object, so
+    # an arrow function created there captures the wrong `this`. Arrow functions created in willShow/onLoad (the
+    # live instance; events are bound after willShow) work.
+    arrow = re.search(r'''['"]\.more['"]\s*:\s*\([^)]*\)\s*=>\s*\{?\s*this\.''', js)
+    arrow_in_constructor = arrow is not None and _enclosing_method(js, arrow.start()) == 'constructor'
+    bound = re.search(r'''['"]\.more['"]\s*:\s*(function\b|this\.\w+\.bind\(this\)|this\.\w+\b(?!\s*\())''', js) or \
+        re.search(r'sdc_click\s*=\s*"\w+"', template) or (arrow is not None and not arrow_in_constructor)
+    arrow_handler = arrow_in_constructor
     return _results(
         ('registered in the organizer', 'controller/book_counter/book_counter.js' in _read(project, ORGANIZER),
          None),

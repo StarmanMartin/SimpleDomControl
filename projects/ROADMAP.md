@@ -10,7 +10,7 @@ implementation differs from the text. Small fixes go to `ISSUES.md` (workspace r
 | Project | Plan | Status | Version |
 |---|---|---|---|
 | API tokens with privileges and MCP endpoint | [mcp.plan.md](mcp.plan.md) | M1–M5 done; M6 open (optional) | 0.163.0 |
-| Fewer tokens for AI agents (scripts, skills, benchmark) | [agents.plan.md](agents.plan.md), [agents.architecture.md](agents.architecture.md) | M0: harness done, baseline run open | — |
+| Fewer tokens for AI agents (scripts, skills, benchmark) | [agents.plan.md](agents.plan.md), [agents.architecture.md](agents.architecture.md) | M0 done (baseline 17/18, 10.4M input tokens, 7.65 USD); M1 next | — |
 
 ## Next steps (in order)
 
@@ -18,7 +18,7 @@ implementation differs from the text. Small fixes go to `ISSUES.md` (workspace r
    `SimpleDomControl` (the `yarn.lock` for 0.163.0 is not committed yet). Breaking for REST API clients:
    `POST sdc_api/login/` returns no `refresh_token` any more (see CHANGELOG, "Upgrade").
 2. **Fewer tokens for AI agents** — D1–D5 accepted as proposed:
-   - M0 baseline benchmark: harness ready; run `python scripts/agent_bench/bench.py run --condition baseline --runs 3`
+   - M0 baseline benchmark: done ([report](agents-bench/2026-11-11-baseline.md))
    - M1 `manage.py sdc_agent` scripts (start with WP1.1: no command prompts any more)
    - M2 agent kit (`AGENTS.md` + skills in every project), M3 measure and tune, M4 runtime follow-ups, M5 release
 3. **Remove the deprecated JWTs** (release after 0.163.0) — `SDC_API_TOKENS['accept_jwt']`, the JWT path of

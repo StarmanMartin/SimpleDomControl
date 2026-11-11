@@ -54,14 +54,15 @@ Typical expensive moments seen in practice: finding which files make up a contro
 
 ---
 
-## M0 — Baseline benchmark — **harness done; baseline run open**
+## M0 — Baseline benchmark — **done**
 
 Status (2026-11-11): decisions D1–D5 accepted as proposed. Harness in `scripts/agent_bench/` (`bench.py`
 `selftest|seed|run|summarize`, `project.py`, `tasks.py`, `agent.py`, `run_check.py`), design in
 [agents.architecture.md](agents.architecture.md). Six tasks (`controller_list`, `model_review`, `server_call`,
 `fix_counter`, `mcp_token`, `document`); `selftest` passes: every check fails on the seeded project and passes with
-the reference solution. Not done yet: the baseline run itself (WP0.3) — it starts Claude Code headless and costs
-API usage, so the maintainer starts it. Differences from the text below: no Jest task (checks need no Node
+the reference solution. Baseline (WP0.3, run by the maintainer): 17/18 passed (the failure was most likely a
+valid fix the check did not accept; check corrected), 10.4M input tokens, 7.65 USD for 18 runs; report with
+findings in [agents-bench/2026-11-11-baseline.md](agents-bench/2026-11-11-baseline.md). Differences from the text below: no Jest task (checks need no Node
 build); the agent runs with an allow-list of tools by default (`--permissions restricted`).
 
 Exit criterion: tokens, turns, time and success of every task are recorded for a fresh project without the kit.
@@ -89,6 +90,10 @@ Numbers per task: median input/output tokens, turns, success. Stored in `paper/`
 
 Exit criterion: every M0 task can be done with the scripts without reading framework source; all commands are
 non-interactive; outputs are ≤ ~40 lines for the test project.
+
+### WP1.0 — No changes to tracked files when `manage.py` runs (from the baseline)
+`SdcCoreConfig.ready()` rewrites `Assets/.sdc_env` and `Assets/.sdc_python_env` on every start in DEBUG; write
+them only when their content would change. Agents saw the diff and spent turns reverting it.
 
 ### WP1.1 — Never prompt
 `sdc_cc`, `sdc_new_model`, `sdc_init`, `sdc_teach`: when stdin is not a terminal (or with `--no-input`), missing
