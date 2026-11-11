@@ -90,6 +90,11 @@ def cmd_seed(args):
 def cmd_run(args):
     RESULTS.mkdir(parents=True, exist_ok=True)
     out = Path(args.out) if args.out else RESULTS / f'{datetime.date.today()}-{args.condition}.jsonl'
+    if out.exists():
+        conditions = {json.loads(line).get('condition') for line in out.read_text().splitlines() if line.strip()}
+        if conditions - {args.condition}:
+            sys.exit(f'{out} already holds runs of condition(s) {", ".join(sorted(conditions))}; use another --out '
+                     f'for condition {args.condition}')
     tasks = _tasks(args.task)
     print(f'{len(tasks)} task(s) x {args.runs} run(s), condition {args.condition}, model {args.model or "default"}'
           f' -> {out}')
