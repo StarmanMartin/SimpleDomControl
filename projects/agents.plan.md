@@ -86,7 +86,20 @@ Numbers per task: median input/output tokens, turns, success. Stored in `paper/`
 
 ---
 
-## M1 — Agent-friendly scripts (`manage.py sdc_agent`)
+## M1 — Agent-friendly scripts (`manage.py sdc_agent`) — **done**
+
+Status (2026-11-11): WP1.0–WP1.6 implemented. Library `sdc_core/agent/` (`project_map.py` on top of the
+`sdc_teach` discovery, `checks.py`, `runner.py`), command `manage.py sdc_agent overview|where|check|new-controller|
+new-model|test|build`, no prompts outside a terminal in `sdc_cc`, `sdc_new_model`, `sdc_init`
+(`utils.can_prompt` / `missing_argument`), env files in `sdc_core/apps.py::update_sdc_env_files`; tests in
+`pytests/test_sdc_agent.py`. Differences from the text below:
+- No `--no-input` flag: "not a terminal" is the switch (agents and scripts never have one).
+- JS controllers without server view are listed as *client-only* (mixins such as `sdc_auto_submit`); `check` only
+  reports them when their `contentUrl` has no view.
+- `new-controller` / `new-model` call `sdc_cc` / `sdc_new_model` only; `sdc_make_model_js` and `sdc_update_url`
+  are not needed for a new model (the generator links the templates).
+- The arrow-function check looks at the body of every arrow function in event registrations of the constructor;
+  arrow functions registered in `willShow` are fine (verified against the client lifecycle).
 
 Exit criterion: every M0 task can be done with the scripts without reading framework source; all commands are
 non-interactive; outputs are ≤ ~40 lines for the test project.

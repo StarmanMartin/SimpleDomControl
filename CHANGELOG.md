@@ -5,6 +5,25 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- `manage.py sdc_agent` for AI coding agents and scripts (never asks for input, paths relative to the project,
+  short output): `overview` (apps, controllers and models, one line each), `where <tag|Model>` (every file of a
+  controller pair or model), `check` (consistency problems with their fix: missing organizer import, wrong
+  `contentUrl`, missing template or registration, arrow functions as event handlers in the constructor, broken form
+  paths, missing documentation; exit code 1 on problems), `new-controller` / `new-model` (wrappers of `sdc_cc` /
+  `sdc_new_model` that list the created and changed files and the next steps), `test` / `build` (run Django or Jest
+  tests or the asset build and print only the summary and the failures; full log in `.sdc_agent/logs/`).
+
+### Changed
+- `sdc_cc`, `sdc_new_model` and `sdc_init` do not wait for input outside a terminal: a missing argument fails with
+  the flag to pass (`sdc_cc` without `-m` uses no mixins, `sdc_init` answers *no* unless `-y`).
+- `manage.py` no longer rewrites `Assets/.sdc_env` and `Assets/.sdc_python_env` on every start: missing keys are
+  appended (comments stay), the Python path is only written when the recorded interpreter does not exist, and the
+  files are looked up in `BASE_DIR` instead of the current directory.
+- Generated `.gitignore` files ignore `/.sdc_agent/`.
+
 ## 0.163.0
 
 ### Added

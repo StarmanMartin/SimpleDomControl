@@ -32,6 +32,10 @@ class Command(BaseCommand):
         if self._assume_no:
             return False
 
+        if not sys.stdin.isatty():
+            self.stdout.write("Not a terminal: answering 'no' (pass -y to answer 'yes').")
+            return False
+
         # Get user input
         while True:
             answer = input().strip().lower()
