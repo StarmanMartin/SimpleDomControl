@@ -1,5 +1,6 @@
 """Runs Claude Code headless in a benchmark project and returns its usage (see agents.architecture.md, 3)."""
 import json
+import re
 import subprocess
 import time
 
@@ -157,5 +158,8 @@ def summarize_steps(steps):
         elif tool == 'Skill':
             skills.append(data.get('skill') or data.get('name') or step['input'])
         elif tool == 'Bash':
-            commands.append(data.get('command') or step['input'])
+            command = data.get('command') or step['input']
+            commands.append(command)
+            # Skills read with cat/grep/sed instead of the Read tool
+            skills += sorted(set(re.findall(r'\.claude/skills/([\w-]+/[\w./-]+\.md)', command)))
     return {'tools': tools, 'files_read': files, 'skills_read': skills, 'bash': commands}

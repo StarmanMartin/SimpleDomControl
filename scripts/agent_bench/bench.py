@@ -16,6 +16,7 @@ Run it with the Python of the SimpleDomControl development environment (``poetry
 import argparse
 import datetime
 import json
+import os
 import statistics
 import subprocess
 import sys
@@ -90,7 +91,7 @@ def cmd_seed(args):
 
 def cmd_run(args):
     RESULTS.mkdir(parents=True, exist_ok=True)
-    out = Path(args.out) if args.out else RESULTS / f'{datetime.date.today()}-{args.condition}.jsonl'
+    out = (Path(args.out) if args.out else RESULTS / f'{datetime.date.today()}-{args.condition}.jsonl').resolve()
     if out.exists():
         conditions = {json.loads(line).get('condition') for line in out.read_text().splitlines() if line.strip()}
         if conditions - {args.condition}:
@@ -124,7 +125,7 @@ def cmd_run(args):
                 transcript_dir.mkdir(parents=True, exist_ok=True)
                 path = transcript_dir / f'{task.id}-run{run}.jsonl'
                 path.write_text(''.join(json.dumps(step, ensure_ascii=False) + '\n' for step in agent['steps']))
-                record['transcript'] = str(path.relative_to(REPO))
+                record['transcript'] = os.path.relpath(path, REPO)
             with out.open('a') as f:
                 f.write(json.dumps(record, default=str) + '\n')
             print(f"run {run} {task.id:<16} passed={check['passed']!s:<5} turns={agent.get('turns')} "
