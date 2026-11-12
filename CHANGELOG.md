@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.165.0
 
 ### Added
 - `sdc_agent where` takes several names and `--show`, which also prints the project code of the controllers and
