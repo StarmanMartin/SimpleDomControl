@@ -9,7 +9,7 @@ from sdc_core.management.commands.init_add import settings_manager
 from sdc_core.management.commands.init_add.add_controller_manager import AddControllerManager
 from sdc_core.management.commands.init_add.utils import convert_snake_case_to_tag_name
 from sdc_core.management.commands.sdc_update_links import make_link
-from sdc_core.management.commands.utils import cli_select, multi_cli_select
+from sdc_core.management.commands.utils import can_prompt, missing_argument, cli_select, multi_cli_select
 
 
 class Command(BaseCommand):
@@ -47,16 +47,20 @@ class Command(BaseCommand):
         all_apps = self.sdc_settings.get_apps()
         app_name = ops.get('app_name')
         if app_name is None or not app_name in all_apps:
-            app_name = cli_select("Select an django App:", all_apps)
+            app_name = cli_select("Select an django App:", all_apps, flag='-a/--app_name')
 
         controller_name = ops.get('controller_name')
         if controller_name is None:
+            if not can_prompt():
+                raise missing_argument('-c/--controller_name', 'controller name (snake_case)')
             text = "Enter the name of the new controller (use snake_case):"
             controller_name = str(input(text))
 
-        if not self.check_snake_name(controller_name):
-            exit(1)
+        self.check_snake_name(controller_name)
         mixin_apps = ops.get('mixin_apps')
+        if mixin_apps is None and not can_prompt():
+            # Not in a terminal: no mixins unless -m names them
+            mixin_apps = True
         if mixin_apps is True:
             mixin_apps = []
         else:

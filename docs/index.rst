@@ -34,6 +34,7 @@ This documentation now covers both parts of the system:
    settings
    teaching
    ai_assistant
+   ai_agents
    intellij
 
 .. toctree::
@@ -45,6 +46,7 @@ This documentation now covers both parts of the system:
    sdc_model
    sdc_user
    rest_api
+   mcp
 
 
 Indices and tables

@@ -5,6 +5,115 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- `sdc_agent where` takes several names and `--show`, which also prints the project code of the controllers and
+  models (view class, template, JS, SCSS; model and form classes; the imports of each Python file; parts over
+  120 lines are cut). `sdc_agent new-controller` / `new-model` print the generated code the same way. The agent kit
+  (`AGENTS.md`, skills `sdc-controller` / `sdc-model`) asks agents to read the skill and the code in one step: the
+  agent benchmark showed that SDC agents need more model calls than plain-Django agents, not more project code.
+- Skill `sdc-controller`: section "After `new-controller`" — the generated pair works as it is (a server-rendered
+  page needs no JS change), what the second argument of `app.register` means, that the template is edited in
+  `templates/<app>/sdc/` and not through the link next to the JS.
+
+### Changed
+- `sdc_agent new-controller` no longer lists the git-ignored template link that `sdc_cc` puts next to the JS, and
+  `sdc_cc` no longer prints Django's system check warnings of its URL lookup.
+
+## 0.164.0
+
+### Added
+- `manage.py sdc_agent` for AI coding agents and scripts (never asks for input, paths relative to the project,
+  short output): `overview` (apps, controllers and models, one line each), `where <tag|Model>` (every file of a
+  controller pair or model), `check` (consistency problems with their fix: missing organizer import, wrong
+  `contentUrl`, missing template or registration, arrow functions as event handlers in the constructor, broken form
+  paths, missing documentation; exit code 1 on problems), `new-controller` / `new-model` (wrappers of `sdc_cc` /
+  `sdc_new_model` that list the created and changed files and the next steps), `test` / `build` (run Django or Jest
+  tests or the asset build and print only the summary and the failures; full log in `.sdc_agent/logs/`).
+
+- Agent kit for AI coding agents: `sdc_init` writes `AGENTS.md` (≈ 800 tokens: how SDC projects are built, the
+  `sdc_agent` commands, rules, a generated block with the project's apps and models), `CLAUDE.md` (`@AGENTS.md`)
+  and five skills in `.claude/skills/` (`sdc-controller`, `sdc-model`, `sdc-api-mcp`, `sdc-testing`,
+  `sdc-ai-knowledge`) that agents load only when a task needs them. `manage.py sdc_agent kit install|update|check`
+  installs, refreshes (edited files are kept) and checks it; `sdc_agent check` warns when it is outdated;
+  `sdc_init --no-agent-kit` skips it. Existing `AGENTS.md` / `CLAUDE.md` files are kept and extended.
+
+- Field selection: MCP `model_load` / `model_get` take `fields`, the REST API `?_fields=a,b`; only these fields
+  of each record are returned (unknown or hidden names are refused).
+- `SDC_MCP['instructions']`: `'models'` (new default), `'index'` (the previous behaviour) or `'none'`.
+
+### Fixed
+- `sdc_new_model` added none of the imports the generated model needs (`AbstractSearchForm`, `render_to_string`,
+  `handle_search_form`) when `models.py` already imported `SdcModel`, so the app failed with a `NameError`; each
+  missing import is now added.
+
+### Changed
+- `sdc_agent test --js` and `sdc_agent build` report "not run: no node_modules" instead of failing.
+- MCP server instructions carry only the exposed data models of the `sdc_teach` index instead of the whole index
+  with URL guide and views (≈ 80 % shorter for the test project); `describe` refuses models that are not exposed.
+- `sdc_cc`, `sdc_new_model` and `sdc_init` do not wait for input outside a terminal: a missing argument fails with
+  the flag to pass (`sdc_cc` without `-m` uses no mixins, `sdc_init` answers *no* unless `-y`).
+- `manage.py` no longer rewrites `Assets/.sdc_env` and `Assets/.sdc_python_env` on every start: missing keys are
+  appended (comments stay), the Python path is only written when the recorded interpreter does not exist, and the
+  files are looked up in `BASE_DIR` instead of the current directory.
+- Generated `.gitignore` files ignore `/.sdc_agent/`.
+
+## 0.163.0
+
+### Added
+- API tokens for the REST API (`sdc_core.ApiToken`, new migration `sdc_core.0001_initial`): users list, create and
+  revoke their tokens in `<sdc-api-tokens>` (linked from `<sdc-user-nav-btn>`), over the API
+  (`sdc_api/tokens/`, `sdc_api/tokens/current/`, `sdc_api/tokens/<id>/`) or with `manage.py sdc_tokens`; admins
+  in the Django admin. Only a SHA-256 hash is stored; the token is shown once. Tokens expire
+  (`SDC_API_TOKENS`: `max_lifetime_days`, `default_lifetime_days`), revoking a token also revokes the tokens it
+  created.
+- Privileges per token: `model:<Model>:read|write|delete` (or `model:*:…` for all models), `account:read`,
+  `account:write`, `account:tokens`. A token never has more rights than its user; a missing privilege is
+  answered with 403 and `WWW-Authenticate: Bearer error="insufficient_scope"`.
+- `sdc_api/account/`: read (`GET`) and change (`PATCH`) the own user record; password, e-mail and username cannot
+  be changed with a token.
+- `sdc_core/api_urls.py` with all REST routes; new projects include it with
+  `path('sdc_api/', include('sdc_core.api_urls'))`.
+- MCP endpoint `sdc_mcp/` (`sdc_core/mcp/`, off until `SDC_MCP['enabled'] = True`): AI clients such as Claude Code
+  connect with an API token (`claude mcp add --transport http <name> https://<host>/sdc_mcp/ --header
+  "Authorization: Bearer sdc_…"`). Read-only tools `model_load` (filters, `limit`, `total`), `model_get`,
+  `account_get` and, with `sdc_teach` skill data, `describe`; the server instructions carry the skill index.
+  Resources: the skill file, the apps' `SDC_SKILL.json` and the OpenAPI description. The tools a client sees
+  follow its token's privileges and `SDC_MCP['models']`; `SdcMeta.mcp = False` hides a model. Streamable HTTP
+  transport (stateless, JSON responses, protocol versions 2025-03-26 to 2025-11-25), no new dependency.
+- MCP write tools: `<model>_create` and `<model>_update` (`model:<Model>:write`), `<model>_delete`
+  (`model:<Model>:delete`) and `account_update` (`account:write`; never password, e-mail or username). Their input
+  schemas come from the model's `create_form` / `edit_form` (the same as in the OpenAPI description), the forms
+  validate the values and their errors go back to the client per field. Updates are partial. File fields cannot
+  be set over MCP; models whose create form needs a file get no create tool. Update and delete tools are marked
+  `destructiveHint`, so clients ask before they run them.
+- `manage.py sdc_mcp_config`: prints a `claude mcp add` command and an `.mcp.json` entry for the MCP endpoint;
+  `--user` also creates the token.
+- Documentation: new page *MCP endpoint* (`docs/mcp.rst`); *REST API* rewritten for API tokens and privileges;
+  `sdc_tokens`, `sdc_mcp_config`, `SDC_API_TOKENS`, `SDC_MCP` and `<sdc-api-tokens>` documented.
+
+### Changed
+- **Breaking for API clients:** `POST sdc_api/login/` returns a login token (`access_token`, `token_id`,
+  `expires_at`, `privileges`; valid for `SDC_API_TOKENS['login_lifetime_seconds']`) instead of JWTs; there is no
+  `refresh_token` any more – log in again or use a personal token. The body may narrow the token with
+  `privileges` and name it with `name`.
+- The OpenAPI description (`sdc_open_api`) documents the token endpoints, the account endpoint and the privilege of
+  every operation.
+
+### Deprecated
+- JSON web tokens of earlier versions are still accepted for one release (full rights of the user, answered with a
+  `Deprecation: true` header), also the refresh flow (`GET sdc_api/login/` with a refresh JWT returns a login
+  token). Switch it off with `SDC_API_TOKENS['accept_jwt'] = False`; `JWT` and `jwt_utils` will be removed.
+
+### Upgrade
+- Run `python manage.py migrate`.
+- Existing projects route `sdc_api/` with three explicit paths: replace them with
+  `path('sdc_api/', include('sdc_core.api_urls'))` to get the token and account endpoints (the old routes keep
+  working for login and the models). SdcModels named `Login`, `Tokens` or `Account` are not reachable through the
+  REST API.
+- For MCP add `path('sdc_mcp/', include('sdc_core.mcp.urls'))` and set `SDC_MCP = {'enabled': True}`.
+
 ## 0.162.0
 
 ### Changed

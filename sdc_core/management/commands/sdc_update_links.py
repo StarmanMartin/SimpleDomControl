@@ -20,7 +20,7 @@ def make_git_ignore():
     else:
         lines = []
 
-    for to_ignore in ALL_LINKS + ['/node_modules/', '/static/', '/Assets/.sdc_python_env']:
+    for to_ignore in ALL_LINKS + ['/node_modules/', '/static/', '/Assets/.sdc_python_env', '/.sdc_agent/']:
         if to_ignore not in lines:
             lines.append(to_ignore)
     with open(gi_p, 'w') as f:

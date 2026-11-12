@@ -1,0 +1,152 @@
+{% load i18n %}
+<div class="container-fluid sdc-api-tokens">
+    <h4>{% trans 'API tokens' %}</h4>
+    <p>{% blocktrans %}A token lets a program or an AI assistant use this site with your account, through the REST API
+        (sdc_api/) or MCP. It can only do what its privileges allow, and never more than you can do yourself.
+        Revoke a token as soon as you no longer need it.{% endblocktrans %}</p>
+
+    <div class="alert alert-success new-token-secret d-none" role="status">
+        <p class="mb-2">{% trans 'Your new token. Copy it now: it is not shown again.' %}</p>
+        <div class="input-group">
+            <input type="text" readonly class="form-control font-monospace new-token-value"
+                   aria-label="{% trans 'New token' %}">
+            <button type="button" class="btn btn-outline-secondary" sdc_click="copy_token">{% trans 'Copy' %}</button>
+        </div>
+    </div>
+
+    <h5 class="mt-4">{% trans 'Your tokens' %}</h5>
+    {% if tokens %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle token-list">
+                <thead>
+                <tr>
+                    <th>{% trans 'Name' %}</th>
+                    <th>{% trans 'Token' %}</th>
+                    <th>{% trans 'Privileges' %}</th>
+                    <th>{% trans 'Created' %}</th>
+                    <th>{% trans 'Expires' %}</th>
+                    <th>{% trans 'Last used' %}</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for token in tokens %}
+                    <tr class="{% if not token.is_valid %}text-body-secondary{% endif %}" data-token-id="{{ token.id }}">
+                        <td>{{ token.name }}{% if token.kind == 'login' %}
+                            <span class="badge text-bg-secondary">{% trans 'login' %}</span>{% endif %}</td>
+                        <td><code>{{ token.prefix }}…</code></td>
+                        <td class="small">{{ token.privileges|join:", " }}</td>
+                        <td>{{ token.created_at|date:"SHORT_DATETIME_FORMAT" }}</td>
+                        <td>{% if token.expires_at %}{{ token.expires_at|date:"SHORT_DATETIME_FORMAT" }}{% else %}{% trans 'never' %}{% endif %}</td>
+                        <td>{% if token.last_used_at %}{{ token.last_used_at|date:"SHORT_DATETIME_FORMAT" }}{% else %}{% trans 'never' %}{% endif %}</td>
+                        <td class="text-end">
+                            {% if token.is_revoked %}{% trans 'revoked' %}
+                            {% elif token.is_expired %}{% trans 'expired' %}
+                            {% else %}
+                                <button type="button" class="btn btn-sm btn-outline-danger" sdc_click="revoke_token"
+                                        data-token-id="{{ token.id }}" data-token-name="{{ token.name }}">
+                                    {% trans 'Revoke' %}</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <p class="no-tokens">{% trans 'You have no tokens yet.' %}</p>
+    {% endif %}
+
+    <h5 class="mt-4">{% trans 'New token' %}</h5>
+    <div class="new-token-form">
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <label for="sdc-api-token-name" class="form-label">{% trans 'Name' %}</label>
+                <input type="text" id="sdc-api-token-name" class="form-control token-name" maxlength="100"
+                       placeholder="{% trans 'e.g. Claude Code on my laptop' %}">
+            </div>
+            <div class="col-md-6">
+                <label for="sdc-api-token-days" class="form-label">{% trans 'Valid for' %}</label>
+                <select id="sdc-api-token-days" class="form-select token-days">
+                    {% for days in lifetimes %}
+                        <option value="{{ days }}" {% if days == default_lifetime %}selected{% endif %}>
+                            {% blocktrans count days=days %}{{ days }} day{% plural %}{{ days }} days{% endblocktrans %}</option>
+                    {% endfor %}
+                    {% if allow_no_expiry %}
+                        <option value="never" {% if not default_lifetime %}selected{% endif %}>{% trans 'No expiry' %}</option>
+                    {% endif %}
+                </select>
+            </div>
+        </div>
+
+        <fieldset class="mb-3">
+            <legend class="form-label fs-6">{% trans 'Privileges' %}</legend>
+            <div class="form-check">
+                <input class="form-check-input token-preset" type="radio" name="sdc-api-token-preset" value="read"
+                       id="sdc-api-token-preset-read" checked>
+                <label class="form-check-label" for="sdc-api-token-preset-read">{% trans 'Read only: read all data and your account' %}</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input token-preset" type="radio" name="sdc-api-token-preset" value="read_write"
+                       id="sdc-api-token-preset-read-write">
+                <label class="form-check-label" for="sdc-api-token-preset-read-write">{% trans 'Read & write: also create and change data, but not delete' %}</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input token-preset" type="radio" name="sdc-api-token-preset" value="full"
+                       id="sdc-api-token-preset-full">
+                <label class="form-check-label" for="sdc-api-token-preset-full">{% trans 'Full access: also delete data, change your profile and manage tokens' %}</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input token-preset" type="radio" name="sdc-api-token-preset" value="custom"
+                       id="sdc-api-token-preset-custom">
+                <label class="form-check-label" for="sdc-api-token-preset-custom">{% trans 'Custom' %}</label>
+            </div>
+        </fieldset>
+
+        <div class="token-custom d-none mb-3">
+            <table class="table table-sm w-auto">
+                <thead>
+                <tr>
+                    <th>{% trans 'Data' %}</th>
+                    {% for privilege in model_privileges %}<th class="text-center">{{ privilege }}</th>{% endfor %}
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td><em>{% trans 'All data models' %}</em></td>
+                    {% for privilege in model_privileges %}
+                        <td class="text-center"><input type="checkbox" class="form-check-input token-privilege"
+                                                       value="model:*:{{ privilege }}"
+                                                       aria-label="{% trans 'All data models' %} {{ privilege }}"></td>
+                    {% endfor %}
+                </tr>
+                {% for model in models %}
+                    <tr>
+                        <td>{{ model }}</td>
+                        {% for privilege in model_privileges %}
+                            <td class="text-center"><input type="checkbox" class="form-check-input token-privilege"
+                                                           value="model:{{ model }}:{{ privilege }}"
+                                                           aria-label="{{ model }} {{ privilege }}"></td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            <p class="form-label">{% trans 'Account' %}</p>
+            <div class="form-check">
+                <input class="form-check-input token-privilege" type="checkbox" value="account:read" id="sdc-api-token-account-read">
+                <label class="form-check-label" for="sdc-api-token-account-read">{% trans 'Read your account and your token list' %}</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input token-privilege" type="checkbox" value="account:write" id="sdc-api-token-account-write">
+                <label class="form-check-label" for="sdc-api-token-account-write">{% trans 'Change your profile (never password, e-mail or username)' %}</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input token-privilege" type="checkbox" value="account:tokens" id="sdc-api-token-account-tokens">
+                <label class="form-check-label" for="sdc-api-token-account-tokens">{% trans 'Create and revoke tokens' %}</label>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-primary" sdc_click="create_token">{% trans 'Create token' %}</button>
+    </div>
+</div>

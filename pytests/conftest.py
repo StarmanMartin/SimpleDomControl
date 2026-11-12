@@ -15,6 +15,32 @@ def pytest_collection_finish(session):
     os.environ.pop('DJANGO_SETTINGS_MODULE', None)
 
 
+@pytest.fixture(scope='module')
+def django_test_db():
+    """
+    A fresh, migrated test database (in-memory SQLite of ``SdcTest.settings``) for the tests of one module that
+    use Django in-process; the module sets ``DJANGO_SETTINGS_MODULE`` and calls ``django.setup()`` when imported.
+    """
+    from django.db import connection
+    from django.test.utils import setup_test_environment, teardown_test_environment
+    setup_test_environment()
+    old_name = connection.creation.create_test_db(verbosity=0, autoclobber=True)
+    try:
+        yield
+    finally:
+        connection.creation.destroy_test_db(old_name, verbosity=0)
+        teardown_test_environment()
+
+
+@pytest.fixture
+def db(django_test_db):
+    """Runs the test in a transaction that is rolled back afterwards."""
+    from django.db import transaction
+    with transaction.atomic():
+        yield
+        transaction.set_rollback(True)
+
+
 @pytest.fixture(scope='session')
 def init_project():
     # Will be executed before the first test

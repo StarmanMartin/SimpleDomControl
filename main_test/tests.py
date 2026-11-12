@@ -642,11 +642,10 @@ class OpenApiHttpApiTest(TestCase):
 
         login_data = self.login()
         self.access_token = login_data["access_token"]
-        self.refresh_token = login_data["refresh_token"]
 
     def login(self):
         response = self.client.post(
-            "/sdc_api/login",
+            "/sdc_api/login/",
             data=json.dumps({"username": self.user.username, "password": self.password}),
             content_type="application/json",
         )
@@ -667,8 +666,8 @@ class OpenApiHttpApiTest(TestCase):
 
     def api_url(self, model_name, pk=None):
         if pk is None:
-            return f"/sdc_api/{model_name}"
-        return f"/sdc_api/{model_name}/{pk}"
+            return f"/sdc_api/{model_name}/"
+        return f"/sdc_api/{model_name}/{pk}/"
 
     def form_body(self, data):
         return urlencode(data)
@@ -679,26 +678,27 @@ class OpenApiHttpApiTest(TestCase):
     def test_login_and_refresh_tokens_match_openapi_description(self):
         self.assert_documented_response("/sdc_api/login/", "post", 200)
         self.assert_documented_response("/sdc_api/login/", "get", 200)
+        self.assert_documented_response("/sdc_api/login/", "get", 410)
         self.assert_documented_response("/sdc_api/login/", "post", 401)
 
         token_fields = self.openapi["paths"]["/sdc_api/login/"]["post"]["responses"]["200"][
             "content"
         ]["application/json"]["schema"]["properties"]
-        self.assertEqual(set(token_fields), {"access_token", "refresh_token", "token_type"})
+        self.assertEqual(set(token_fields), {"access_token", "token_type", "token_id", "expires_at", "privileges"})
 
         login_data = self.login()
         self.assertEqual(set(login_data), set(token_fields))
         self.assertEqual(login_data["token_type"], "bearer")
 
+        # Login tokens are not refreshed (only refresh JWTs of SDC <= 0.162 are): log in again instead
         refresh_response = self.client.get(
-            "/sdc_api/login",
-            **self.auth_headers(login_data["refresh_token"]),
+            "/sdc_api/login/",
+            **self.auth_headers(login_data["access_token"]),
         )
-        self.assertEqual(refresh_response.status_code, 200)
-        self.assertEqual(set(refresh_response.json()), set(token_fields))
+        self.assertEqual(refresh_response.status_code, 410)
 
         invalid_response = self.client.post(
-            "/sdc_api/login",
+            "/sdc_api/login/",
             data=json.dumps({"username": self.user.username, "password": "wrong"}),
             content_type="application/json",
         )
@@ -926,21 +926,19 @@ class SecurityDefaultsTest(TestCase):
         self.assertEqual(list(User.get_queryset(self.user, 'load', {})), [self.user])
 
     def test_inactive_user_token_is_rejected(self):
-        response = self.client.post(
-            "/sdc_api/login",
-            data=json.dumps({"username": self.user.username, "password": self.password}),
-            content_type="application/json",
-        )
+        login = {"data": json.dumps({"username": self.user.username, "password": self.password}),
+                 "content_type": "application/json"}
+        response = self.client.post("/sdc_api/login/", **login)
         self.assertEqual(response.status_code, 200)
         tokens = response.json()
         headers = {"HTTP_AUTHORIZATION": f"Bearer {tokens['access_token']}"}
-        self.assertEqual(self.client.get("/sdc_api/SdcUser", **headers).status_code, 200)
+        self.assertEqual(self.client.get("/sdc_api/SdcUser/", **headers).status_code, 200)
 
         self.user.is_active = False
         self.user.save()
-        self.assertEqual(self.client.get("/sdc_api/SdcUser", **headers).status_code, 401)
-        refresh_headers = {"HTTP_AUTHORIZATION": f"Bearer {tokens['refresh_token']}"}
-        self.assertEqual(self.client.get("/sdc_api/login", **refresh_headers).status_code, 401)
+        self.assertEqual(self.client.get("/sdc_api/SdcUser/", **headers).status_code, 401)
+        # An inactive user cannot log in again either
+        self.assertEqual(self.client.post("/sdc_api/login/", **login).status_code, 401)
 
 
 class ServerRuntimeTest(TestCase):

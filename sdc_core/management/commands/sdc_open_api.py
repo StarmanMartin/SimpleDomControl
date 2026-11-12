@@ -1,65 +1,12 @@
 import copy
 
-from django import forms
+from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
-from django.db import models
-from django.forms.models import ModelChoiceIterator
 
 import yaml
 
-from sdc_core.sdc_extentions.models import all_models, filter_model_fields, resolve_form
-
-# Looked up along the class hierarchy of a field (most specific class first), so e.g.
-# DateTimeField wins over DateField and EmailField over CharField.
-TYPE_MAPPING = {
-    models.AutoField: {"type": "integer"},
-    models.BigAutoField: {"type": "integer"},
-    models.SmallAutoField: {"type": "integer"},
-    models.IntegerField: {"type": "integer"},
-    models.BigIntegerField: {"type": "integer"},
-    models.SmallIntegerField: {"type": "integer"},
-    models.FloatField: {"type": "number", "format": "float"},
-    models.DecimalField: {"type": "string", "format": "decimal"},
-    models.BooleanField: {"type": "boolean"},
-    models.CharField: {"type": "string"},
-    models.TextField: {"type": "string"},
-    models.SlugField: {"type": "string"},
-    models.EmailField: {"type": "string", "format": "email"},
-    models.URLField: {"type": "string", "format": "uri"},
-    models.UUIDField: {"type": "string", "format": "uuid"},
-    models.DateField: {"type": "string", "format": "date"},
-    models.DateTimeField: {"type": "string", "format": "date-time"},
-    models.TimeField: {"type": "string", "format": "time"},
-    models.JSONField: {},
-    models.FileField: {
-        "type": "object",
-        "nullable": True,
-        "properties": {"name": {"type": "string"}, "url": {"type": "string"}},
-    },
-    models.ForeignKey: {"type": "integer", "nullable": True},
-    models.OneToOneField: {"type": "integer", "nullable": True},
-    models.ManyToManyField: {"type": "array", "items": {"type": "integer"}},
-    forms.CharField: {"type": "string"},
-    forms.EmailField: {"type": "string", "format": "email"},
-    forms.URLField: {"type": "string", "format": "uri"},
-    forms.SlugField: {"type": "string"},
-    forms.IntegerField: {"type": "integer"},
-    forms.FloatField: {"type": "number"},
-    forms.DecimalField: {"type": "number"},
-    forms.BooleanField: {"type": "boolean"},
-    forms.DateField: {"type": "string", "format": "date"},
-    forms.DateTimeField: {"type": "string", "format": "date-time"},
-    forms.TimeField: {"type": "string", "format": "time"},
-    forms.UUIDField: {"type": "string", "format": "uuid"},
-    forms.JSONField: {},
-    forms.ModelChoiceField: {"type": "integer"},
-    forms.ModelMultipleChoiceField: {"type": "array", "items": {"type": "integer"}},
-    forms.MultipleChoiceField: {"type": "array", "items": {"type": "string"}},
-    forms.FileField: {"type": "string", "format": "binary"},
-    forms.Field: {"type": "string"},
-}
-
-FILE_FIELDS = (forms.FileField, models.FileField)
+from sdc_core.sdc_extentions.models import all_models, resolve_form
+from sdc_core.sdc_extentions.schema import generate_fields_schema, generate_form_schema, generate_instance_schema
 
 ID_PARAMETER = {
     "in": "path",
@@ -76,6 +23,14 @@ FILTER_PARAMETER = {
     "style": "form",
     "explode": True,
     "schema": {"type": "object", "additionalProperties": {"type": "string"}},
+}
+
+FIELDS_PARAMETER = {
+    "in": "query",
+    "name": "_fields",
+    "description": "Comma-separated field names: return only these fields of each record (default: all).",
+    "required": False,
+    "schema": {"type": "string"},
 }
 
 ERROR_RESPONSES = {
@@ -103,70 +58,6 @@ VALIDATION_ERROR_RESPONSE = {
 }
 
 
-def plain_text(value):
-    """A plain ``str`` (lazy translations and SafeString would be dumped as Python objects)."""
-    return str(value).encode().decode()
-
-
-def schema_for(field):
-    for cls in type(field).__mro__:
-        if cls in TYPE_MAPPING:
-            return copy.deepcopy(TYPE_MAPPING[cls])
-    return {"type": "string"}
-
-
-def is_file_field(field):
-    return isinstance(field, FILE_FIELDS)
-
-
-def form_field_to_schema(field):
-    schema = schema_for(field)
-
-    if getattr(field, "max_length", None):
-        schema["maxLength"] = field.max_length
-    if getattr(field, "min_length", None):
-        schema["minLength"] = field.min_length
-    if field.help_text:
-        schema["description"] = plain_text(field.help_text)
-
-    choices = getattr(field, "choices", None)
-    if choices:
-        if isinstance(choices, ModelChoiceIterator):
-            model_name = choices.queryset.model.__name__
-            schema["description"] = plain_text(f"A {model_name} id. {schema.get('description', '')}".strip())
-        elif not isinstance(field, forms.MultipleChoiceField):
-            values = [value for value, _label in choices if value not in ("", None)]
-            if values:
-                schema["enum"] = values
-
-    return schema, is_file_field(field)
-
-
-def generate_form_schema(form_class, partial=False):
-    form = form_class()
-
-    properties = {}
-    required = []
-    has_files = False
-
-    for name, field in form.fields.items():
-        properties[name], is_file = form_field_to_schema(field)
-        has_files |= is_file
-
-        if field.required and not partial:
-            required.append(name)
-
-    schema = {
-        "type": "object",
-        "properties": properties,
-    }
-
-    if required:
-        schema["required"] = required
-
-    return schema, has_files
-
-
 def request_content(schema_name, has_files):
     ref = {"schema": {"$ref": f"#/components/schemas/{schema_name}"}}
     if has_files:
@@ -178,147 +69,309 @@ def request_content(schema_name, has_files):
     }
 
 
-def generate_fields_schema(model):
-    """Schema of the ``fields`` object of a serialized instance (without the pk)."""
-    all_fields = {}
-    for field in list(model._meta.concrete_fields) + list(model._meta.many_to_many):
-        if field.primary_key:
-            continue
-        all_fields[field.name] = field
-
-    properties = {}
-    for name, field in filter_model_fields(model, all_fields).items():
-        schema = schema_for(field)
-        if getattr(field, "max_length", None) and schema.get("type") == "string":
-            schema["maxLength"] = field.max_length
-        if field.help_text:
-            schema["description"] = plain_text(field.help_text)
-        if getattr(field, "null", False) and schema:
-            schema["nullable"] = True
-        properties[name] = schema
-
-    return {"type": "object", "properties": properties}
+def _form(model, key):
+    form_attr = getattr(model.SdcMeta, key, None)
+    if form_attr is None:
+        return None
+    return resolve_form(form_attr)
 
 
-def generate_instance_schema(model_name):
-    """Schema of one serialized instance: ``{"model": ..., "pk": ..., "fields": {...}}``."""
+def _add_model(openapi, model_name, model, model_name_lower):
+    schemas = openapi["components"]["schemas"]
+    schemas[model_name] = generate_instance_schema(model_name)
+    schemas[f"{model_name}Fields"] = generate_fields_schema(model)
+
+    instance_response = {
+        "application/json": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "data": {"$ref": f"#/components/schemas/{model_name}"},
+                },
+            }
+        }
+    }
+    list_response = {
+        "application/json": {
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "data": {"type": "array", "items": {"$ref": f"#/components/schemas/{model_name}"}},
+                },
+            }
+        }
+    }
+
+    list_path = {
+        "get": {
+            "summary": f"Get list of {model_name}. Privilege: model:{model_name}:read.",
+            "parameters": [copy.deepcopy(FILTER_PARAMETER), copy.deepcopy(FIELDS_PARAMETER)],
+            "responses": {
+                "200": {"description": "Successful response", "content": list_response},
+                **copy.deepcopy(ERROR_RESPONSES),
+            },
+        },
+    }
+    instance_path = {
+        "get": {
+            "summary": f"Get instance {model_name}. Privilege: model:{model_name}:read.",
+            "parameters": [copy.deepcopy(ID_PARAMETER), copy.deepcopy(FIELDS_PARAMETER)],
+            "responses": {
+                "200": {"description": "Successful response", "content": copy.deepcopy(instance_response)},
+                **copy.deepcopy(ERROR_RESPONSES),
+            },
+        },
+        "delete": {
+            "summary": f"Delete {model_name}. Privilege: model:{model_name}:delete.",
+            "parameters": [copy.deepcopy(ID_PARAMETER)],
+            "responses": {
+                "200": {
+                    "description": "Deleted",
+                    "content": {
+                        "application/json": {
+                            "schema": {"type": "object", "properties": {"success": {"type": "boolean"}}}
+                        }
+                    },
+                },
+                **copy.deepcopy(ERROR_RESPONSES),
+            },
+        },
+    }
+
+    create_form = _form(model, "create_form")
+    if create_form is not None:
+        schemas[f"{model_name}Create"], has_files = generate_form_schema(create_form)
+        list_path["post"] = {
+            "summary": f"Create {model_name}. Privilege: model:{model_name}:write.",
+            "requestBody": {"required": True, "content": request_content(f"{model_name}Create", has_files)},
+            "responses": {
+                "200": {"description": "Created", "content": copy.deepcopy(instance_response)},
+                "400": copy.deepcopy(VALIDATION_ERROR_RESPONSE),
+                **copy.deepcopy(ERROR_RESPONSES),
+            },
+        }
+
+    edit_form = _form(model, "edit_form")
+    if edit_form is not None:
+        schemas[f"{model_name}Edit"], has_files = generate_form_schema(edit_form)
+        schemas[f"{model_name}Patch"], _ = generate_form_schema(edit_form, partial=True)
+        for method, schema_name, summary, description in (
+                ("put", f"{model_name}Edit", f"Replace {model_name}", "Updated"),
+                ("patch", f"{model_name}Patch", f"Partial update {model_name}", "Patched"),
+        ):
+            instance_path[method] = {
+                "summary": f"{summary}. Privilege: model:{model_name}:write.",
+                "parameters": [copy.deepcopy(ID_PARAMETER)],
+                "requestBody": {"required": True, "content": request_content(schema_name, has_files)},
+                "responses": {
+                    "200": {"description": description, "content": copy.deepcopy(instance_response)},
+                    "400": copy.deepcopy(VALIDATION_ERROR_RESPONSE),
+                    **copy.deepcopy(ERROR_RESPONSES),
+                },
+            }
+
+    openapi["paths"][f"/sdc_api/{model_name_lower}/"] = list_path
+    openapi["paths"][f"/sdc_api/{model_name_lower}/{{id}}/"] = instance_path
+
+
+TOKEN_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "name": {"type": "string"},
+        "kind": {"type": "string", "enum": ["personal", "login"]},
+        "prefix": {"type": "string", "description": "First characters of the token, to recognize it"},
+        "privileges": {"type": "array", "items": {"type": "string"}},
+        "created_at": {"type": "string", "format": "date-time"},
+        "expires_at": {"type": "string", "format": "date-time", "nullable": True},
+        "last_used_at": {"type": "string", "format": "date-time", "nullable": True},
+        "revoked_at": {"type": "string", "format": "date-time", "nullable": True},
+        "created_by_token": {"type": "string", "format": "uuid", "nullable": True},
+        "is_valid": {"type": "boolean"},
+    },
+}
+
+PRIVILEGES_DESCRIPTION = (
+    "Privileges of a token: model:<Model>:read, model:<Model>:write (create and change), model:<Model>:delete, "
+    "model:*:<read|write|delete> for all models, account:read, account:write, account:tokens. A token never has "
+    "more rights than its user."
+)
+
+
+def _token_response(description, extra=None):
     return {
-        "type": "object",
-        "required": ["model", "pk", "fields"],
-        "properties": {
-            "model": {"type": "string", "description": "app_label.modelname"},
-            "pk": {"type": "integer"},
-            "fields": {"$ref": f"#/components/schemas/{model_name}Fields"},
+        "description": description,
+        "content": {"application/json": {"schema": {"type": "object", "properties": {
+            "success": {"type": "boolean"},
+            **(extra or {}),
+            "data": {"$ref": "#/components/schemas/ApiToken"},
+        }}}},
+    }
+
+
+def _privilege(text, privilege):
+    return f"{text} Privilege: {privilege}."
+
+
+def _auth_paths():
+    login_response = {
+        "200": {
+            "description": "A login token",
+            "content": {"application/json": {"schema": {"type": "object", "properties": {
+                "access_token": {"type": "string"},
+                "token_type": {"type": "string", "enum": ["bearer"]},
+                "token_id": {"type": "string", "format": "uuid"},
+                "expires_at": {"type": "string", "format": "date-time"},
+                "privileges": {"type": "array", "items": {"type": "string"}},
+            }}}},
+        },
+        "401": {"description": "Invalid credentials or token"},
+    }
+    token_id = {"in": "path", "name": "token_id", "required": True, "schema": {"type": "string", "format": "uuid"}}
+    return {
+        "/sdc_api/login/": {
+            "get": {
+                "summary": "Deprecated: exchange a refresh JWT of SDC <= 0.162 for a login token",
+                "deprecated": True,
+                "responses": copy.deepcopy(login_response) | {"410": {"description": "Not a JWT"}},
+            },
+            "post": {
+                "summary": "Log in with username and password and receive a short-lived login token",
+                "description": PRIVILEGES_DESCRIPTION + " Without privileges the token gets all of them.",
+                "security": [],
+                "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                    "type": "object",
+                    "required": ["username", "password"],
+                    "properties": {
+                        "username": {"type": "string"},
+                        "password": {"type": "string", "format": "password"},
+                        "name": {"type": "string"},
+                        "privileges": {"type": "array", "items": {"type": "string"}},
+                    },
+                }}}},
+                "responses": copy.deepcopy(login_response) | {
+                    "400": {"description": "Missing credentials, invalid JSON or unknown privileges"}},
+            },
+        },
+        "/sdc_api/tokens/": {
+            "get": {
+                "summary": _privilege("List the own API tokens (also revoked and expired ones).", "account:read"),
+                "responses": {"200": {"description": "The tokens", "content": {"application/json": {"schema": {
+                    "type": "object", "properties": {
+                        "success": {"type": "boolean"},
+                        "data": {"type": "array", "items": {"$ref": "#/components/schemas/ApiToken"}},
+                    }}}}}, **copy.deepcopy(ERROR_RESPONSES)},
+            },
+            "post": {
+                "summary": _privilege("Create an API token with at most the privileges of the calling token.",
+                                      "account:tokens"),
+                "description": PRIVILEGES_DESCRIPTION + " The token is returned only in this response.",
+                "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "privileges": {"type": "array", "items": {"type": "string"},
+                                       "description": "Default: the privileges of the calling token"},
+                        "expires_at": {"type": "string", "format": "date-time", "nullable": True,
+                                       "description": "Default: the default lifetime; null: no expiry"},
+                    },
+                }}}},
+                "responses": {
+                    "201": _token_response("The new token", {"token": {"type": "string"}}),
+                    "400": {"description": "Invalid name, privileges or expiry"},
+                    **copy.deepcopy(ERROR_RESPONSES),
+                },
+            },
+        },
+        "/sdc_api/tokens/current/": {
+            "get": {
+                "summary": "The calling token",
+                "responses": {"200": _token_response("The token"), **copy.deepcopy(ERROR_RESPONSES)},
+            },
+        },
+        "/sdc_api/tokens/{token_id}/": {
+            "get": {
+                "summary": _privilege("One own API token.", "account:read"),
+                "parameters": [copy.deepcopy(token_id)],
+                "responses": {"200": _token_response("The token"), **copy.deepcopy(ERROR_RESPONSES)},
+            },
+            "delete": {
+                "summary": _privilege("Revoke an own API token and the tokens created with it.", "account:tokens"),
+                "parameters": [copy.deepcopy(token_id)],
+                "responses": {"200": _token_response("The revoked token"), **copy.deepcopy(ERROR_RESPONSES)},
+            },
         },
     }
 
 
-def generate_schema(model):
-    """Backwards-compatible alias: the schema of the ``fields`` object."""
-    return generate_fields_schema(model)
+def _account_path():
+    user_model = get_user_model()
+    if all_models().get(user_model.__name__) is not user_model:
+        return {}
+    name = user_model.__name__
+    instance = {"application/json": {"schema": {"type": "object", "properties": {
+        "success": {"type": "boolean"}, "data": {"$ref": f"#/components/schemas/{name}"}}}}}
+    return {"/sdc_api/account/": {
+        "get": {
+            "summary": _privilege("The own user record.", "account:read"),
+            "responses": {"200": {"description": "The user", "content": instance}, **copy.deepcopy(ERROR_RESPONSES)},
+        },
+        "patch": {
+            "summary": _privilege("Change the own profile; password, e-mail and username cannot be changed with "
+                                  "a token.", "account:write"),
+            "requestBody": {"required": True, "content": {"application/json": {"schema": {
+                "type": "object", "additionalProperties": True}}}},
+            "responses": {
+                "200": {"description": "Changed", "content": copy.deepcopy(instance)},
+                "400": copy.deepcopy(VALIDATION_ERROR_RESPONSE),
+                **copy.deepcopy(ERROR_RESPONSES),
+            },
+        },
+    }}
+
+
+def build_openapi():
+    """The OpenAPI 3 description of the REST API (``sdc_core.api_urls``) as a dict."""
+    openapi = {
+        "openapi": "3.0.3",
+        "info": {
+            "title": "Auto Generated API",
+            "version": "1.0.0",
+            "description": "REST API of the SdcModels. Authenticate with an API token (Authorization: Bearer "
+                           "sdc_...), created by the user in the web app or with POST /sdc_api/login/. "
+                           + PRIVILEGES_DESCRIPTION,
+        },
+        "paths": _auth_paths(),
+        "components": {
+            "securitySchemes": {
+                "BearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "SDC API token",
+                }
+            },
+            "schemas": {"ApiToken": copy.deepcopy(TOKEN_SCHEMA)},
+        },
+        "security": [
+            {
+                "BearerAuth": []
+            }
+        ],
+    }
+    for model_name, model in all_models().items():
+        _add_model(openapi, model_name, model, model_name.lower())
+    openapi["paths"].update(_account_path())
+    return openapi
 
 
 class Command(BaseCommand):
     help = "Writes openapi.generated.yaml, an OpenAPI 3 description of the SDC REST API (sdc_api/...)."
 
     def handle(self, *args, **opts):
-        login_response = {
-            "200": {
-                "description": "JWT tokens",
-                "content": {
-                    "application/json": {
-                        "schema": {
-                            "type": "object",
-                            "properties": {
-                                "access_token": {
-                                    "type": "string"
-                                },
-                                "refresh_token": {
-                                    "type": "string"
-                                },
-                                "token_type": {
-                                    "type": "string"
-                                },
-                            },
-                        }
-                    }
-                },
-            },
-
-            "401": {
-                "description": "Invalid credentials or token"
-            },
-        }
-
-        openapi = {
-            "openapi": "3.0.3",
-            "info": {
-                "title": "Auto Generated API",
-                "version": "1.0.0",
-            },
-            "paths": {
-                "/sdc_api/login/": {
-                    "get": {
-                        "summary": "Refresh JWT token (send the refresh token as Bearer token)",
-                        "responses": copy.deepcopy(login_response)
-                    },
-                    "post": {
-                        "summary": "Login and receive JWT token",
-
-                        "security": [],
-
-                        "requestBody": {
-                            "required": True,
-                            "content": {
-                                "application/json": {
-                                    "schema": {
-                                        "type": "object",
-                                        "required": [
-                                            "username",
-                                            "password"
-                                        ],
-                                        "properties": {
-                                            "username": {
-                                                "type": "string"
-                                            },
-                                            "password": {
-                                                "type": "string",
-                                                "format": "password"
-                                            },
-                                        },
-                                    }
-                                }
-                            },
-                        },
-
-                        "responses": copy.deepcopy(login_response) | {
-                            "400": {"description": "Missing credentials or invalid JSON"}
-                        }
-                    }
-
-                },
-            },
-            "components": {
-                "securitySchemes": {
-                    "BearerAuth": {
-                        "type": "http",
-                        "scheme": "bearer",
-                        "bearerFormat": "JWT",
-                    }
-                },
-                "schemas": {
-                }
-            },
-            "security": [
-                {
-                    "BearerAuth": []
-                }
-            ]
-        }
-
-        for model_name, model in all_models().items():
-            self._add_model(openapi, model_name, model, model_name.lower())
-
+        openapi = build_openapi()
         with open("openapi.generated.yaml", "w") as f:
             yaml.safe_dump(
                 openapi,
@@ -329,109 +382,3 @@ class Command(BaseCommand):
             )
 
         self.stdout.write("Generated openapi.generated.yaml")
-
-    @staticmethod
-    def _form(model, key):
-        form_attr = getattr(model.SdcMeta, key, None)
-        if form_attr is None:
-            return None
-        return resolve_form(form_attr)
-
-    def _add_model(self, openapi, model_name, model, model_name_lower):
-        schemas = openapi["components"]["schemas"]
-        schemas[model_name] = generate_instance_schema(model_name)
-        schemas[f"{model_name}Fields"] = generate_fields_schema(model)
-
-        instance_response = {
-            "application/json": {
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "success": {"type": "boolean"},
-                        "data": {"$ref": f"#/components/schemas/{model_name}"},
-                    },
-                }
-            }
-        }
-        list_response = {
-            "application/json": {
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "success": {"type": "boolean"},
-                        "data": {"type": "array", "items": {"$ref": f"#/components/schemas/{model_name}"}},
-                    },
-                }
-            }
-        }
-
-        list_path = {
-            "get": {
-                "summary": f"Get list of {model_name}",
-                "parameters": [copy.deepcopy(FILTER_PARAMETER)],
-                "responses": {
-                    "200": {"description": "Successful response", "content": list_response},
-                    **copy.deepcopy(ERROR_RESPONSES),
-                },
-            },
-        }
-        instance_path = {
-            "get": {
-                "summary": f"Get instance {model_name}",
-                "parameters": [copy.deepcopy(ID_PARAMETER)],
-                "responses": {
-                    "200": {"description": "Successful response", "content": copy.deepcopy(instance_response)},
-                    **copy.deepcopy(ERROR_RESPONSES),
-                },
-            },
-            "delete": {
-                "summary": f"Delete {model_name}",
-                "parameters": [copy.deepcopy(ID_PARAMETER)],
-                "responses": {
-                    "200": {
-                        "description": "Deleted",
-                        "content": {
-                            "application/json": {
-                                "schema": {"type": "object", "properties": {"success": {"type": "boolean"}}}
-                            }
-                        },
-                    },
-                    **copy.deepcopy(ERROR_RESPONSES),
-                },
-            },
-        }
-
-        create_form = self._form(model, "create_form")
-        if create_form is not None:
-            schemas[f"{model_name}Create"], has_files = generate_form_schema(create_form)
-            list_path["post"] = {
-                "summary": f"Create {model_name}",
-                "requestBody": {"required": True, "content": request_content(f"{model_name}Create", has_files)},
-                "responses": {
-                    "200": {"description": "Created", "content": copy.deepcopy(instance_response)},
-                    "400": copy.deepcopy(VALIDATION_ERROR_RESPONSE),
-                    **copy.deepcopy(ERROR_RESPONSES),
-                },
-            }
-
-        edit_form = self._form(model, "edit_form")
-        if edit_form is not None:
-            schemas[f"{model_name}Edit"], has_files = generate_form_schema(edit_form)
-            schemas[f"{model_name}Patch"], _ = generate_form_schema(edit_form, partial=True)
-            for method, schema_name, summary, description in (
-                    ("put", f"{model_name}Edit", f"Replace {model_name}", "Updated"),
-                    ("patch", f"{model_name}Patch", f"Partial update {model_name}", "Patched"),
-            ):
-                instance_path[method] = {
-                    "summary": summary,
-                    "parameters": [copy.deepcopy(ID_PARAMETER)],
-                    "requestBody": {"required": True, "content": request_content(schema_name, has_files)},
-                    "responses": {
-                        "200": {"description": description, "content": copy.deepcopy(instance_response)},
-                        "400": copy.deepcopy(VALIDATION_ERROR_RESPONSE),
-                        **copy.deepcopy(ERROR_RESPONSES),
-                    },
-                }
-
-        openapi["paths"][f"/sdc_api/{model_name_lower}/"] = list_path
-        openapi["paths"][f"/sdc_api/{model_name_lower}/{{id}}/"] = instance_path

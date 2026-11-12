@@ -145,3 +145,20 @@ describe('Register', () => {
     });
 
 });
+
+describe('SdcApiTokens', () => {
+    let controller;
+
+    beforeEach(async () => {
+        // Create new controller instance based on the standard process.
+        controller = await test_utils.get_controller('sdc-api-tokens',
+                                                  {},
+                                                  '<div><h1>Controller Loaded</h1></div>');
+    });
+
+    test('Load Content', async () => {
+        const $div = $('body').find('sdc-api-tokens');
+        expect($div.length).toBeGreaterThan(0);
+    });
+
+});
