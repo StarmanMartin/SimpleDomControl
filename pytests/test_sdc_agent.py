@@ -3,6 +3,7 @@ Tests of the agent-friendly commands (projects/agents.plan.md, M1): no prompts o
 env files, and ``manage.py sdc_agent``. The commands run in a generated project like the other generation tests.
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -150,6 +151,11 @@ def test_new_controller(project):
     assert f'+ {APP}/Assets/src/{APP}/controller/shelf_list/shelf_list.js' in result.stdout
     assert f'~ {APP}/sdc_views.py' in result.stdout and f'~ {APP}/sdc_urls.py' in result.stdout
     assert 'Next:' in result.stdout
+    # Not listed: the git-ignored link of the template next to the JS, the system check warnings of sdc_cc
+    assert 'controller/shelf_list/shelf_list.html' not in result.stdout and 'System check' not in result.stdout
+    # The generated code follows, so the agent needs no extra call to read it
+    generated = result.stdout.split('Generated code:', 1)[1]
+    assert 'class ShelfList(' in generated and 'class ShelfListController' in generated
     assert '<shelf-list>' in _manage(project, 'sdc_agent', 'overview').stdout
 
 
@@ -158,6 +164,42 @@ def test_new_model(project):
     assert result.returncode == 0, result.stderr
     assert f'~ {APP}/models.py' in result.stdout and 'makemigrations' in result.stdout
     assert 'class Shelf(' in open(os.path.join(project, APP, 'models.py')).read()
+    generated = result.stdout.split('Generated code:', 1)[1]
+    assert f'==> {APP}/models.py:' in generated and 'class Shelf(' in generated
+    assert f'==> {APP}/forms.py:' in generated
+
+
+def test_where_show(project):
+    # Several names in one call; --show adds the project code (WP6.1: fewer model calls)
+    result = _manage(project, 'sdc_agent', 'where', 'shelf-view', 'Shelf', '--show')
+    assert result.returncode == 0, result.stderr
+    out = result.stdout
+    assert out.startswith('<shelf-view> (app test_app_one)') and '\nmodel Shelf (app test_app_one)' in out
+    for header in (f'==> {APP}/sdc_views.py:', f'==> {APP}/templates/{APP}/sdc/shelf_view.html <==',
+                   f'==> {APP}/Assets/src/{APP}/controller/shelf_view/shelf_view.js <==',
+                   f'==> {APP}/models.py:', f'==> {APP}/forms.py:'):
+        assert header in out, header
+    assert 'class ShelfView(' in out and 'class Shelf(' in out and 'class ShelfViewController' in out
+    # Only the class of the view, not the whole sdc_views.py, but with the imports of the file
+    assert 'class ShelfList(' not in out
+    for file in ('sdc_views.py', 'models.py', 'forms.py'):
+        assert re.search(rf'==> {APP}/{file}:\d+-\d+ <==\n(from|import) ', out), file
+        assert out.count(f'==> {APP}/{file}:') >= 2, file
+
+    template = os.path.join(project, APP, 'templates', APP, 'sdc', 'shelf_view.html')
+    text = open(template).read()
+    try:
+        with open(template, 'w') as f:
+            f.write(''.join(f'<p>{i}</p>\n' for i in range(300)))
+        out = _manage(project, 'sdc_agent', 'where', 'shelf-view', '--show').stdout
+        assert '<p>119</p>' in out and '<p>120</p>' not in out
+        assert f"… cut; the rest: sed -n '121,300p' {APP}/templates/{APP}/sdc/shelf_view.html" in out
+    finally:
+        with open(template, 'w') as f:
+            f.write(text)
+
+    result = _manage(project, 'sdc_agent', 'where', 'shelf-view', 'nothing_here')
+    assert result.returncode != 0 and "No controller or model 'nothing_here'" in result.stderr
 
 
 # ------------------------------------------------------------------ WP1.6: summaries of tests and builds

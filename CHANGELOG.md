@@ -5,6 +5,22 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- `sdc_agent where` takes several names and `--show`, which also prints the project code of the controllers and
+  models (view class, template, JS, SCSS; model and form classes; the imports of each Python file; parts over
+  120 lines are cut). `sdc_agent new-controller` / `new-model` print the generated code the same way. The agent kit
+  (`AGENTS.md`, skills `sdc-controller` / `sdc-model`) asks agents to read the skill and the code in one step: the
+  agent benchmark showed that SDC agents need more model calls than plain-Django agents, not more project code.
+- Skill `sdc-controller`: section "After `new-controller`" — the generated pair works as it is (a server-rendered
+  page needs no JS change), what the second argument of `app.register` means, that the template is edited in
+  `templates/<app>/sdc/` and not through the link next to the JS.
+
+### Changed
+- `sdc_agent new-controller` no longer lists the git-ignored template link that `sdc_cc` puts next to the JS, and
+  `sdc_cc` no longer prints Django's system check warnings of its URL lookup.
+
 ## 0.164.0
 
 ### Added

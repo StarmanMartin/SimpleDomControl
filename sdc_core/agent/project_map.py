@@ -3,6 +3,7 @@ One map of an SDC project for ``manage.py sdc_agent``: its controllers (server v
 SCSS, organizer entry) and SdcModels (fields, forms, documentation, MCP exposure). Built from the URL conf and the
 model registry, like ``sdc_teach`` (``teach_controllers.sdc_controllers``, ``teach_models.sdc_models``).
 """
+import ast
 import importlib
 import inspect
 import os
@@ -210,3 +211,87 @@ def build(root=None):
                 if os.path.isdir(os.path.join(controller_root, name)) and (app, name) not in known:
                     project.orphan_js.append((app, os.path.join(controller_root, name)))
     return project
+
+
+# Longest code part ``sdc_agent where --show`` prints; longer parts end with the command for the rest
+MAX_SHOW_LINES = 120
+
+
+def _source_part(obj, root):
+    """``(file, first line, last line, text)`` of a class defined in the project, else None."""
+    try:
+        file = inspect.getsourcefile(obj)
+        source, start = inspect.getsourcelines(obj)
+    except (OSError, TypeError):
+        return None
+    if not file or not is_editable(file, root):
+        return None
+    return file, start, start + len(source) - 1, ''.join(source)
+
+
+def _imports_part(file):
+    """``(file, first line, last line, text)`` of the top-level imports of a Python file, else None."""
+    try:
+        with open(file, encoding='utf-8') as f:
+            text = f.read()
+        imports = [n for n in ast.parse(text).body if isinstance(n, (ast.Import, ast.ImportFrom))]
+    except (OSError, SyntaxError, ValueError):
+        return None
+    if not imports:
+        return None
+    start, end = imports[0].lineno, max(n.end_lineno for n in imports)
+    return file, start, end, ''.join(text.splitlines(keepends=True)[start - 1:end])
+
+
+def _file_part(path, root):
+    if not path or not os.path.isfile(path) or not is_editable(path, root):
+        return None
+    with open(path, encoding='utf-8') as f:
+        return path, None, None, f.read()
+
+
+def code_of(project, controllers, models):
+    """
+    The project code of controllers and models for ``sdc_agent where --show``, as ``(path, start, end, text)``
+    with paths relative to the project: view class, template, JS and SCSS of a controller; model class and form
+    classes of a model, each Python file headed by its imports. Files of installed packages are left out; long
+    parts are cut after ``MAX_SHOW_LINES``.
+    """
+    parts = []
+    for c in controllers:
+        try:
+            view = import_string(c.view_class)
+        except ImportError:
+            view = None
+        parts += [_source_part(view, project.root) if view else None,
+                  _file_part(c.template, project.root), _file_part(c.js, project.root),
+                  _file_part(c.scss, project.root)]
+    for m in models:
+        model = django_apps.get_model(m.app, m.name)
+        parts.append(_source_part(model, project.root))
+        for path in sorted(set(m.forms.values())):
+            try:
+                parts.append(_source_part(import_string(path), project.root))
+            except ImportError:
+                pass
+    with_imports, files = [], set()
+    for part in parts:
+        if part is not None and part[1] and part[0] not in files:
+            files.add(part[0])
+            with_imports.append(_imports_part(part[0]))
+        with_imports.append(part)
+    result, seen = [], set()
+    for part in with_imports:
+        if part is None or (part[0], part[1]) in seen:
+            continue
+        seen.add((part[0], part[1]))
+        path, start, end, text = part
+        rel = project.rel(path)
+        lines = text.splitlines(keepends=True)
+        if len(lines) > MAX_SHOW_LINES:
+            first = start or 1
+            last = end or len(lines)
+            cut = first + MAX_SHOW_LINES
+            text = ''.join(lines[:MAX_SHOW_LINES]) + f"… cut; the rest: sed -n '{cut},{last}p' {rel}\n"
+        result.append((rel, start, end, text))
+    return result

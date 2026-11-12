@@ -77,7 +77,8 @@ class AddControllerManager:
         if self._template_url is not None:
             return self._template_url
         cmd = f'{sys.executable} manage.py sdc_get_controller_url {self.app_name} {self.controller_name_sc}'
-        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True, cwd=options.PROJECT_ROOT)
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, shell=True,
+                             cwd=options.PROJECT_ROOT)
         out = str(p.communicate()[0], encoding="utf-8")
         out = re.sub(r'\\r?\\n.*$', r'', out)
         out = re.sub(r'\r?\n.*$', r'', out)

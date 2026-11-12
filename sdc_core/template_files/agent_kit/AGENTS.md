@@ -19,16 +19,19 @@ of searching for it.
 
 ```
 python manage.py sdc_agent overview                  # apps, controllers, models with file:line
-python manage.py sdc_agent where <tag|Model>         # every file of one controller or model
+python manage.py sdc_agent where <tag|Model>... [--show]  # their files; --show prints the code
 python manage.py sdc_agent check                     # problems + fixes; run after every change
-python manage.py sdc_agent new-controller <app> <snake_name>
-python manage.py sdc_agent new-model <app> <ModelName>
+python manage.py sdc_agent new-controller <app> <snake_name>   # prints the new code
+python manage.py sdc_agent new-model <app> <ModelName>         # prints the new code
 python manage.py sdc_agent test [--js] [label]       # summary only; full log in .sdc_agent/logs/
 python manage.py sdc_agent build                     # asset build (needs node_modules)
 ```
 
 ## Rules
 
+- Work in few steps: start with **one** command that reads the matching skill and the code to change, e.g.
+  `cat .claude/skills/sdc-controller/SKILL.md; python manage.py sdc_agent where book-list Book --show`; then
+  make independent edits and checks together.
 - Create controllers and models with the commands above, never by copying files; do not edit
   `Assets/src/index.organizer.js`.
 - Event handlers are controller methods (`sdc_click="method"` in the template) or plain `function` values in

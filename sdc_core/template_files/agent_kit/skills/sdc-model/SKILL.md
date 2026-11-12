@@ -10,7 +10,7 @@ REST API (`sdc_api/`) and MCP (`sdc_mcp/`).
 
 ```
 python manage.py sdc_agent new-model <app> Review       # model, form, list/detail templates
-python manage.py sdc_agent where Review                 # files of an existing model
+python manage.py sdc_agent where Review --show          # files and code of an existing model
 python manage.py makemigrations && python manage.py migrate
 ```
 

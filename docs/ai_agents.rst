@@ -19,9 +19,12 @@ The agent kit
 *AGENTS.md*
    Always loaded by the agent (about 800 tokens): the controller-pair
    structure, the ``sdc_agent`` commands, the rules that save the most work
-   (create controllers and models with the commands, no arrow functions as
-   event handlers in the constructor, how server calls work, finish with
-   ``sdc_agent check``) and a list of the skills. A block between
+   (start with one command that reads the matching skill and the code to
+   change, e.g. ``cat .claude/skills/sdc-controller/SKILL.md; python manage.py
+   sdc_agent where book-list Book --show``; create controllers and models with
+   the commands; no arrow functions as event handlers in the constructor; how
+   server calls work; finish with ``sdc_agent check``) and a list of the
+   skills. A block between
    ``<!-- sdc:generated:start … -->`` and ``<!-- sdc:generated:end -->`` lists
    the apps and models of the project; edit the rest of the file freely.
 
@@ -33,7 +36,8 @@ The agent kit
    Skills the agent loads only when a task needs them:
 
    - ``sdc-controller`` — views, templates, client controllers, events, server
-     calls, navigation
+     calls, navigation, what a generated controller needs (usually no JS
+     change for a server-rendered page)
    - ``sdc-model`` — SdcModels, forms, permissions, migrations, querysets
    - ``sdc-api-mcp`` — REST API, API tokens, MCP endpoint
    - ``sdc-testing`` — Django and Jest tests, debugging
@@ -61,9 +65,15 @@ never ask for input.
    (fields, forms) of the project, one line each. Installed apps such as
    ``sdc_tools`` are summarized unless ``--all``.
 
-``where NAME [--json]``
-   Every file of one controller (tag or snake_case name) or model: view class
+``where NAME [NAME …] [--show] [--json]``
+   Every file of controllers (tag or snake_case name) or models: view class
    and line, URL, template, JS, SCSS, organizer line, JS tests, forms.
+   ``--show`` also prints the project code: the view class, template, JS and
+   SCSS of a controller, the model class and its form classes, each Python
+   file headed by its imports (only code of
+   the project, never of installed packages; parts longer than 120 lines end
+   with the ``sed`` command for the rest). An agent gets the files to change
+   in one step instead of a second call that reads them.
 
 ``check [--strict] [--json]``
    Consistency problems, each with its fix: a controller missing in the app
@@ -74,8 +84,11 @@ never ask for input.
    1 when there are problems.
 
 ``new-controller APP NAME [--mixins a,b]`` / ``new-model APP Name``
-   Run ``sdc_cc`` / ``sdc_new_model`` and list the created (``+``) and changed
-   (``~``) files and the next steps.
+   Run ``sdc_cc`` / ``sdc_new_model``, list the created (``+``) and changed
+   (``~``) files and the next steps, and print the generated code (as
+   ``where NAME --show``). Links are not listed: the template link that
+   ``sdc_cc`` puts next to the JS for editors is git-ignored and not meant to
+   be edited.
 
 ``test [--js] [--all] [ARG …]`` / ``build [--develop]``
    Run the Django tests, the Jest tests (``yarn``/``npm run sdc_test``) or the

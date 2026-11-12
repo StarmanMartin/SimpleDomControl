@@ -573,9 +573,14 @@ Compact project information and shortcuts for AI coding agents and scripts:
 .. code-block:: sh
 
     $ python manage.py sdc_agent overview
+    $ python manage.py sdc_agent where book-list Book --show   # files and code of both
+    $ python manage.py sdc_agent new-controller library book_list
     $ python manage.py sdc_agent check
 
-See :doc:`ai_agents`.
+``where --show`` prints the project code of the named controllers and models
+(view class with the imports of its file, template, JS, SCSS; model and form
+classes); ``new-controller`` / ``new-model`` print the generated code the same
+way. See :doc:`ai_agents`.
 
 20 - Creating a new project (``sdc new``)
 *****************************************

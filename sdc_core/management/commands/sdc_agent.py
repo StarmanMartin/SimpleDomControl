@@ -1,5 +1,7 @@
 import json
 import os
+import subprocess
+import sys
 from dataclasses import asdict
 
 from django.core.management import call_command
@@ -24,8 +26,10 @@ class Command(BaseCommand):
         p.add_argument('--app', help='only this app')
         p.add_argument('--all', action='store_true', help='also the controllers of installed apps (sdc_tools, ...)')
         p.add_argument('--json', action='store_true')
-        p = sub.add_parser('where', help='all files of a controller (tag or snake_case name) or model')
-        p.add_argument('name')
+        p = sub.add_parser('where', help='all files of controllers (tag or snake_case name) or models')
+        p.add_argument('names', nargs='+', metavar='name')
+        p.add_argument('--show', action='store_true',
+                       help='also print the project code: view class, template, JS, SCSS, model and form classes')
         p.add_argument('--json', action='store_true')
         p = sub.add_parser('check', help='consistency problems with their fixes (exit code 1 if any)')
         p.add_argument('--strict', action='store_true', help='missing documentation fails as well')
@@ -91,13 +95,20 @@ class Command(BaseCommand):
 
     def _where(self, opts):
         project = self._map()
-        controllers, models = project.find(opts['name'])
-        if not controllers and not models:
-            raise CommandError(f"No controller or model '{opts['name']}'. List them with: "
-                               f"python manage.py sdc_agent overview")
+        controllers, models = [], []
+        for name in opts['names']:
+            found = project.find(name)
+            if not any(found):
+                raise CommandError(f"No controller or model '{name}'. List them with: "
+                                   f"python manage.py sdc_agent overview")
+            controllers += [c for c in found[0] if c not in controllers]
+            models += [m for m in found[1] if m not in models]
         if opts['json']:
-            self.stdout.write(json.dumps({'controllers': [asdict(c) for c in controllers],
-                                          'models': [asdict(m) for m in models]}, indent=1, default=str))
+            data = {'controllers': [asdict(c) for c in controllers], 'models': [asdict(m) for m in models]}
+            if opts['show']:
+                data['code'] = [dict(zip(('path', 'start', 'end', 'text'), part))
+                                for part in project_map.code_of(project, controllers, models)]
+            self.stdout.write(json.dumps(data, indent=1, default=str))
             return
         rel = project.rel
         lines = []
@@ -121,6 +132,9 @@ class Command(BaseCommand):
             for key, path in sorted(m.forms.items()):
                 lines.append(f'  form {key:<6} {path}')
             lines.append(f'  js model   {rel(m.js_dir)}' + ('' if m.mcp else '\n  mcp        hidden (SdcMeta.mcp)'))
+        if opts['show']:
+            for path, start, end, text in project_map.code_of(project, controllers, models):
+                lines += ['', f'==> {path}:{start}-{end} <==' if start else f'==> {path} <==', text.rstrip('\n')]
         self.stdout.write('\n'.join(lines))
 
     def _check(self, opts):
@@ -145,6 +159,9 @@ class Command(BaseCommand):
             dirs[:] = [d for d in dirs if d not in _SKIP_DIRS]
             for name in files:
                 path = os.path.join(directory, name)
+                if os.path.islink(path):
+                    # sdc_cc links the template into the JS folder for editors (git-ignored): not a file to edit
+                    continue
                 try:
                     state[path] = os.lstat(path).st_mtime_ns
                 except OSError:
@@ -159,6 +176,18 @@ class Command(BaseCommand):
                 [f'  ~ {os.path.relpath(p, root)}' for p in changed]
         self.stdout.write('\n'.join(['Created (+) and changed (~) files:'] + lines + ['Next:'] +
                                     [f'  - {step}' for step in next_steps]))
+
+    def _show_generated(self, root, name):
+        """The generated code (``where NAME --show``), in a new process: this one has the old URL conf and models."""
+        manage = os.path.join(root, 'manage.py')
+        if not os.path.isfile(manage):
+            return
+        result = subprocess.run([sys.executable, manage, 'sdc_agent', 'where', name, '--show'], cwd=root,
+                                stdin=subprocess.DEVNULL, capture_output=True, text=True)
+        if result.returncode == 0:
+            code = result.stdout.split('\n\n', 1)
+            if len(code) == 2:
+                self.stdout.write('\nGenerated code:\n\n' + code[1].rstrip('\n'))
 
     def _new_controller(self, opts):
         from django.conf import settings
@@ -175,6 +204,7 @@ class Command(BaseCommand):
             f'handlers as methods (sdc_click="method") or plain functions, not arrow functions in the constructor',
             f'use it with <{tag}></{tag}> or the URL /~{tag}; rebuild the assets (sdc_agent build)',
         ])
+        self._show_generated(root, opts['name'])
 
     def _new_model(self, opts):
         from django.conf import settings
@@ -187,6 +217,7 @@ class Command(BaseCommand):
             'python manage.py makemigrations && python manage.py migrate',
             f'forms: {opts["app"]}/forms.py (SdcMeta.create_form / edit_form)',
         ])
+        self._show_generated(root, opts['name'])
 
     # ------------------------------------------------------------------ tests and build
     def _write_result(self, result):

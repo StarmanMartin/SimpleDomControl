@@ -19,9 +19,17 @@ A controller is a **pair** with one name: `book_list` (snake_case, server) ↔ `
 
 ```
 python manage.py sdc_agent new-controller <app> book_list    # creates all parts above
-python manage.py sdc_agent where book-list                   # every file with line numbers
+python manage.py sdc_agent where book-list --show            # every file; --show: with the code
 python manage.py sdc_agent check                             # broken pairs, wrong handlers, … with fixes
 ```
+
+### After `new-controller`
+
+- The generated pair works as it is: the view renders the template, the JS loads it. A page whose content comes
+  from the server (`get_content` + template) needs **no JS change**; keep the generated `app.register(…, true|false)`
+  line (the second argument only says whether it replaces a controller with the same tag).
+- Edit the template in `<app>/templates/<app>/sdc/`; `controller/<name>/<name>.html` next to the JS is a git-ignored
+  link to it for editors — do not write to it.
 
 A controller is shown wherever its tag is used (`<book-list></book-list>` in another template) or by URL
 `/~book-list` (see `references/navigation.md`). JS/SCSS changes need an asset build
