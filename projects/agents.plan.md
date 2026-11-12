@@ -236,16 +236,64 @@ and make the cheaper one the default if success holds.
 
 ---
 
-## M6 — Comparison with other stacks (condition `free`) — **first run done (10 of 18 runs)**
+## M6 — Comparison with other stacks (condition `free`) — **done (40 free runs); WP6.1 done**
 
 Added 2026-11-11 on request: the same six tasks where the agent may use any framework except SDC, starting from a
 plain Django seed of the same app, with framework-neutral equivalents of the SDC-specific tasks (decisions of the
 maintainer). Design: [agents.architecture.md](agents.architecture.md), "Condition `free`". `selftest --condition
 free` passes. First run (10 of 18 runs, all passed): SDC with the kit costs about the same as plain Django
 (2.17 vs 2.04 USD on the same 10 task/runs), SDC without the kit twice as much; SDC is cheaper where the feature is
-built in (MCP: 0.20 vs 0.36 USD), plain Django for simple pages. SDC runs carry ~21k tokens context per turn vs
-~13k — hypothesis: verbose generated files. Report: [agents-bench/2026-11-12-free.md](agents-bench/2026-11-12-free.md).
-Open: complete the run (with `--transcripts`) and check the context hypothesis.
+built in (MCP: 0.20 vs 0.36 USD), plain Django for simple pages. Report:
+[agents-bench/2026-11-12-free.md](agents-bench/2026-11-12-free.md).
+
+Status (2026-11-12): second run with `--transcripts` (12 runs, all passed) against the 12 kit transcript runs
+(`275554d`, before the WP3.2 tuning): SDC + kit 2.53 vs free 2.62 USD, 360 vs 487 s wall time, 31k vs 54k output
+tokens; over all 52 runs 0.211 vs 0.212 USD per run. The context hypothesis is **not confirmed**: project files are
+read equally (3.7k vs 3.3k characters per run); SDC's extra input is framework knowledge (kit +1.8k tokens at the
+start, skills and `sdc_agent` output 5.4k characters per run). "Context per turn" (21k vs 13k) was an artefact of
+`num_turns`: per model call it is 25.3k vs 22.6k (+12 %); SDC needs ~30 % more model calls (8.6 vs 6.6), because
+free agents bundle tool calls. Free results do less than the checks show: no login on the review pages (4/4 runs),
+a 15-file MCP app with one read-only tool, no live updates/REST/single-page navigation, no packages installed.
+Used in the SoftwareX draft (`paper_sdc/softwarex/`, Table 5).
+
+### WP6.1 — Fewer model calls in SDC runs — **done**
+The lever is the number of model calls, not shorter generated files. Try: `AGENTS.md` asking to read the matching
+skill together with `sdc_agent where` in one step; `sdc_agent where --show` printing the relevant file contents.
+Then re-run kit and free with `--transcripts` (also measures the WP3.2 tuning of `452939a`, not yet measured).
+
+Status (2026-11-12): in the kit transcripts the agents already combined skill and `where` in the first call
+(`cat …/SKILL.md && sdc_agent where book-detail`), then needed a second call to `cat` the files `where` had listed.
+Implemented:
+- `sdc_agent where NAME [NAME …] [--show] [--json]`: several names per call; `--show` prints the project code
+  (view class only, template, JS, SCSS; model class and its form classes; never code of installed packages; parts
+  over 120 lines end with the `sed -n` command for the rest; `--json` adds `code`). Library:
+  `project_map.code_of`. Test: `pytests/test_sdc_agent.py::test_where_show`.
+- Kit: `AGENTS.md` rule "Work in few steps" with the one-command example
+  `cat .claude/skills/sdc-controller/SKILL.md; python manage.py sdc_agent where book-list Book --show`, then
+  independent edits and checks together; command list and the skills `sdc-controller` / `sdc-model` show
+  `--show`. `AGENTS.md` template 3,508 of 3,600 characters.
+- CHANGELOG (Unreleased), `docs/ai_agents.rst`. `selftest --condition kit` passes, full pytest 326 passed.
+
+Measured 2026-11-12 (`bench.py run --condition kit --transcripts --runs 2`, 12/12 passed, report
+[agents-bench/2026-11-12-kit-wp61.md](agents-bench/2026-11-12-kit-wp61.md)): every `where` call used `--show`;
+model calls per run 8.6 → 7.8 (free 6.6), input tokens −9 %, cost 2.53 → 2.45 USD, wall time 360 → 348 s (free
+2.62 USD, 487 s). Includes the WP3.2 tuning. Remaining extra reads: imports of the file shown (`head -5`),
+the generated code after `new-controller` / `new-model`, re-reads after failed edits.
+
+Follow-ups done (2026-11-12): `--show` heads each Python file with its imports; `new-controller` / `new-model`
+print the generated code. Re-run (12/12 passed, `results/2026-11-12-kit-followup.jsonl`): model calls 7.2 per run
+(−16 % against 8.6; free 6.6), input tokens 2.27M (−13 %), cost 2.49 USD and wall time 351 s (unchanged within the
+spread; free 2.62 USD, 487 s). Fewer reads after `--show` / `new-model`; `controller_list` still reads after `new-controller` and
+searches for `register(` (0.29 vs 0.15 USD free).
+
+Skill update (2026-11-12): `sdc-controller` section "After `new-controller`"; `new-controller` no longer lists the
+template link next to the JS; `sdc_cc` without system check warnings. Final comparison, same day, 3 runs per task
+each, 18/18 passed each (`results/2026-11-12-kit-skill.jsonl` vs `results/2026-11-12-free-3runs.jsonl`): SDC + kit
+3.71 vs plain Django 4.18 USD (−11 %), 518 vs 777 s (−33 %), 7.3 vs 7.0 model calls per run, 25.8k vs 22.8k context
+per call, 44k vs 89k output tokens. `controller_list` 0.29 → 0.23 USD; the skill now leads agents to write Django
+tests (5/18 runs). Reports: [agents-bench/2026-11-12-kit-wp61.md](agents-bench/2026-11-12-kit-wp61.md),
+[agents-bench/2026-11-12-free.md](agents-bench/2026-11-12-free.md). The line on tests was removed from the skill
+afterwards (not measured since). Open: the remaining gap is context per call (start context 21.3k vs 19.3k).
 
 ## M5 — Docs and release — **done**
 
