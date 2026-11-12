@@ -20,6 +20,9 @@ The server and the client are released with the same version number.
 ### Changed
 - `sdc_agent new-controller` no longer lists the git-ignored template link that `sdc_cc` puts next to the JS, and
   `sdc_cc` no longer prints Django's system check warnings of its URL lookup.
+- The JS controller that `sdc_cc` generates is half as long (888 instead of 1730 characters): the commented-out
+  options (`contentReload`, `load_async`, `this.events`) and the lifecycle hooks are one line each. The event example
+  uses a plain `function` instead of an arrow function.
 
 ## 0.164.0
 
