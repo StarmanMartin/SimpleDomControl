@@ -236,13 +236,16 @@ and make the cheaper one the default if success holds.
 
 ---
 
-## M6 — Comparison with other stacks (condition `free`) — **harness done; run open**
+## M6 — Comparison with other stacks (condition `free`) — **first run done (10 of 18 runs)**
 
 Added 2026-11-11 on request: the same six tasks where the agent may use any framework except SDC, starting from a
 plain Django seed of the same app, with framework-neutral equivalents of the SDC-specific tasks (decisions of the
 maintainer). Design: [agents.architecture.md](agents.architecture.md), "Condition `free`". `selftest --condition
-free` passes. Open: the run (`bench.py run --condition free --runs 3`) and the comparison with `kit` and
-`baseline`.
+free` passes. First run (10 of 18 runs, all passed): SDC with the kit costs about the same as plain Django
+(2.17 vs 2.04 USD on the same 10 task/runs), SDC without the kit twice as much; SDC is cheaper where the feature is
+built in (MCP: 0.20 vs 0.36 USD), plain Django for simple pages. SDC runs carry ~21k tokens context per turn vs
+~13k — hypothesis: verbose generated files. Report: [agents-bench/2026-11-12-free.md](agents-bench/2026-11-12-free.md).
+Open: complete the run (with `--transcripts`) and check the context hypothesis.
 
 ## M5 — Docs and release — **done**
 

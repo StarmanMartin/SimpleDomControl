@@ -24,8 +24,9 @@ implementation differs from the text. Small fixes go to `ISSUES.md` (workspace r
    - M3 measure and tune: done ([report](agents-bench/2026-11-11-kit.md))
    - M4 runtime follow-ups: done (WP4.3, assistant evaluation, open)
    - M5 docs and release: 0.164.0
-3. **Compare with other stacks** (agents.plan.md, M6): run `python scripts/agent_bench/bench.py run --condition free
-   --runs 3` and compare with the `kit` results.
+3. **Compare with other stacks** (agents.plan.md, M6): first run done ([report](agents-bench/2026-11-12-free.md)):
+   SDC + kit ≈ plain Django in cost; complete the run with `--transcripts` and check why SDC turns carry more
+   context.
 4. **Remove the deprecated JWTs** (release after 0.163.0) — `SDC_API_TOKENS['accept_jwt']`, the JWT path of
    `api_tokens.authenticate` and the refresh flow of `sdc_api/login/`; `jwt_utils.py` stays for the e-mail links of
    `sdc_user` (or moves there). See mcp.plan.md, WP2.6.
