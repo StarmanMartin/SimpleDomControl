@@ -104,3 +104,4 @@ sdc.zip
 # Built Python packages (poetry build); they are published to PyPI, not kept in git
 /dist/
 /sdc_user/Assets/src/sdc_user/controller/sdc_api_tokens/sdc_api_tokens.html
+/.sdc_agent/
