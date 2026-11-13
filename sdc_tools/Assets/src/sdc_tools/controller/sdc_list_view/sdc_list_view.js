@@ -1,4 +1,5 @@
 import { AbstractSDC, app, SdcModel, SdcQuerySet } from 'sdc_client';
+import { modelErrorElement } from '../sdc_error/sdc_error.js';
 
 /**
  * Generic live list of the records of one SDC model, rendered with the model's list template.
@@ -65,7 +66,7 @@ export class SdcListViewController extends AbstractSDC {
     if (this.on_update) {
       this.model.load().then(() => {
         this.on_update(this.model);
-      });
+      }).catch(() => null); // a refusal is shown by the list view itself
     }
   }
 
@@ -76,7 +77,11 @@ export class SdcListViewController extends AbstractSDC {
       lc = $html.find('.list-container');
     }
 
-    lc.append(this.model.listView({modelQuery: this.search_values, templateContext: this.template_context}));
+    lc.append(this.model.listView({
+      modelQuery: this.search_values,
+      templateContext: this.template_context,
+      cbReject: (err) => this._showError(err),
+    }));
     this.model.onUpdate = this.model.onCreate = () => {
       if (this.on_update) {
         this.model.update().then(() => {
@@ -113,11 +118,18 @@ export class SdcListViewController extends AbstractSDC {
     this._updateView();
   }
 
+  _showError(err) {
+    // The model was refused (e.g. 403): show the error instead of the list.
+    this.find('.list-container').safeEmpty().append(modelErrorElement(err));
+    this.refresh().then(r => null);
+  }
+
   _updateView() {
 
     const $div = this.model.listView({
       searchValues: this.search_values,
       templateContext: this.template_context,
+      cbReject: (err) => this._showError(err),
       cbResolve: () => {
       const elems = $('.tooltip.fade.show');
       elems.remove();

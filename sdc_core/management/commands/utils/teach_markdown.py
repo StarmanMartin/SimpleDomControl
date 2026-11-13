@@ -202,6 +202,12 @@ GENERAL_TASKS = [
 ]
 
 
+def _error_line(err, limit=300):
+    """The first line of a crawl error, shortened: stack traces stay in ``SDC_SKILL.data.json``."""
+    line = next((x.strip() for x in str(err).splitlines() if x.strip()), '')
+    return line if len(line) <= limit else line[:limit - 1] + '…'
+
+
 def _roles(verified, crawled_as=()):
     if verified.get('ok') and len(crawled_as) > 1 and set(verified['ok']) == set(crawled_as):
         return ' (opens for every crawled role)'
@@ -366,7 +372,7 @@ def render_markdown(data, audience='agent'):
 
     if data['errors'] and agent:
         lines += ['## Errors observed while crawling', '']
-        lines += [f'- `/{url}`: {err}' for err, url in data['errors'][:50]]
+        lines += [f'- `/{url}`: {_error_line(err)}' for err, url in data['errors'][:50]]
         lines.append('')
 
     return '\n'.join(lines)

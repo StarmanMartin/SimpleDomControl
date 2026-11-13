@@ -520,3 +520,117 @@ def test_index_and_describe_of_models_and_controllers():
     text = describe(data, 'author')
     assert text.startswith('### `Author` (main_test)') and 'Views: list `/~sdc-list-view~&model=Author`' in text
     assert describe(data, '<sdc-list-view>').startswith('_No crawled link opened this view')
+
+
+class _FakePage:
+    url = 'http://test/'
+
+    def __getattr__(self, name):
+        return lambda *args, **kwargs: None
+
+
+class _FakeContext:
+    def add_init_script(self, script):
+        pass
+
+    def new_page(self):
+        return _FakePage()
+
+
+def _snap(href, path, error_code=None):
+    controllers = [{'tag': path[-1], 'url_params': [], 'parent': None, 'nav_idx': len(path) - 1}]
+    if error_code is not None:
+        controllers.append({'tag': 'sdc-error', 'url_params': [], 'parent': path[-1], 'nav_idx': len(path) - 1,
+                            'error_code': error_code})
+    return {'href': href, 'path': path, 'args': {}, 'controllers': controllers, 'links': [], 'external': [],
+            'forms': [], 'buttons': [], 'headings': []}
+
+
+def _fake_crawl(pages, extra_paths):
+    """Runs ``Crawler.crawl`` on ``pages``: ``{href: {'snap', 'errors', 'refusals'}}`` instead of a browser."""
+    from sdc_core.management.commands.utils.teach_crawler import Crawler
+
+    class FakeCrawler(Crawler):
+        def _goto(self, url):
+            self._current = pages[url]
+            self.errors += [{'url': 'http://test/' + url, 'error': e} for e in self._current.get('errors', [])]
+            self._socket_refusals += self._current.get('refusals', [])
+
+        def _snapshot(self):
+            return self._current['snap']
+
+        def _model_calls(self):
+            return []
+
+    return FakeCrawler(_FakeContext(), 'http://test', start='/~home', click=False, label='anonymous',
+                       extra_paths=extra_paths, log=lambda *a: None).crawl()
+
+
+def test_refused_page_loads_are_not_crawl_errors():
+    refusal = {'model': 'Author', 'type': 'connect', 'msg': '403 Not allowed!'}
+    pages = {
+        '/~home': {'snap': _snap('/~home', ['home']), 'errors': ['TypeError: real bug']},
+        # A model socket refusal (the generic view may not show an error view)
+        '/~sdc-list-view~&model=Author': {'snap': _snap('/~sdc-list-view~&model=Author', ['sdc-list-view']),
+                                          'errors': ['403 Not allowed!', 'not ready: Timeout'],
+                                          'refusals': [refusal]},
+        # An error view 403 (e.g. the refused detail view)
+        '/~sdc-detail-view~&model=Author&pk=1': {
+            'snap': _snap('/~sdc-detail-view~&model=Author&pk=1', ['sdc-detail-view'], error_code=403),
+            'errors': ['Failed to load resource: 403']},
+    }
+    tree = _fake_crawl(pages, ['/~sdc-list-view~&model=Author', '/~sdc-detail-view~&model=Author&pk=1'])
+    assert {e['error'] for e in tree['errors']} == {'TypeError: real bug'}
+    assert sorted(e['error'] for e in tree['refused']) == ['403 Not allowed!', 'Failed to load resource: 403',
+                                                           'not ready: Timeout']
+    assert all(e['label'] == 'anonymous' for e in tree['refused'])
+    assert tree['visits']['/~sdc-list-view~&model=Author'] == {'anonymous': 403}
+    assert tree['visits']['/~sdc-detail-view~&model=Author&pk=1'] == {'anonymous': 403}
+    assert tree['visits']['/~home'] == {'anonymous': None}
+
+    merged = merge_crawls(tree, {'nodes': {}, 'errors': [], 'refused': [{'url': 'u', 'error': 'x', 'label': 'b'}],
+                                 'global': {}, 'visits': {}})
+    assert len(merged['refused']) == 4
+
+
+def test_model_socket_refusals_are_recorded():
+    import json
+    from sdc_core.management.commands.utils.teach_crawler import Crawler
+
+    class FakeSocket:
+        def __init__(self, url):
+            self.url = url
+            self.handlers = {}
+
+        def on(self, event, handler):
+            self.handlers[event] = handler
+
+    crawler = Crawler(_FakeContext(), 'http://test')
+    model_ws, call_ws = FakeSocket('ws://test/sdc_ws/model/Author/3'), FakeSocket('ws://test/sdc_ws/ws/')
+    crawler._on_websocket(model_ws)
+    crawler._on_websocket(call_ws)
+    assert 'framereceived' not in call_ws.handlers
+    receive = model_ws.handlers['framereceived']
+    receive(json.dumps({'type': 'load', 'is_error': True, 'msg': '500 Server error', 'event_id': 'a'}))
+    receive(json.dumps({'type': 'connect', 'is_error': False, 'event_id': 'b'}))
+    receive('not json')
+    receive(json.dumps({'type': 'connect', 'is_error': True, 'msg': '403 Not allowed!', 'event_id': 'c'}))
+    assert crawler._socket_refusals == [{'model': 'Author/3', 'type': 'connect', 'msg': '403 Not allowed!'}]
+
+
+def test_errors_in_the_markdown_are_one_line():
+    from sdc_core.management.commands.utils.teach_data import build_skill_data
+    from sdc_core.management.commands.utils.teach_markdown import render_markdown
+    tree = _tree(_node(['main-view']))
+    tree['errors'] = [{'url': 'http://test/~main-view', 'error': 'ValueError: broken\n  File "x.py", line 1\n' + 'y' * 50},
+                      {'url': 'http://test/~main-view', 'error': 'z' * 500}]
+    tree['refused'] = [{'url': 'http://test/~main-view', 'error': '403 Not allowed!', 'label': 'anonymous'}]
+    data = build_skill_data(tree, {'project': 'Demo', 'crawled_as': ['anonymous'], 'date': '2026-01-01'})
+    assert data['refused'] == [('anonymous', '403 Not allowed!', '~main-view')]
+    # The data keeps the full error
+    assert any('File "x.py"' in err for err, _ in data['errors'])
+    md = render_markdown(data, 'agent')
+    assert '- `/~main-view`: ValueError: broken\n' in md
+    assert 'File "x.py"' not in md and 'y' * 50 not in md
+    assert '- `/~main-view`: ' + 'z' * 299 + '…\n' in md
+    assert '403 Not allowed!' not in md

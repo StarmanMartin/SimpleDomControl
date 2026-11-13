@@ -8,6 +8,21 @@ import {AbstractSDC, app} from 'sdc_client';
  * - `sdc-error 403` (or similar) means the server refused the view: log in, or use a user with the required permissions.
  * - It has no actions; navigate elsewhere (link, breadcrumb, browser back) to leave it.
  */
+/**
+ * An `<sdc-error>` element for a refused model request: the code is taken from the message of the
+ * `SdcModelError` (e.g. `403 Not allowed!` -> `sdc-error 403`), the message is shown below it.
+ * The generic model views (`sdc-detail-view`, `sdc-list-view`, `sdc-model-form`) show it instead of
+ * their content when the server refuses the model.
+ *
+ * @param {Error|{msg: string}} err - the rejection of a model request
+ * @returns {jQuery}
+ */
+export function modelErrorElement(err) {
+    const msg = err?.msg ?? err?.message ?? '';
+    const code = /^\s*(\d{3})\b/.exec(msg)?.[1] ?? 500;
+    return $('<sdc-error>').attr('data-code', code).text(msg);
+}
+
 export class SdcErrorController extends AbstractSDC {
 
     constructor() {

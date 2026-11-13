@@ -280,6 +280,68 @@ describe('Sdc details', () => {
      });
 });
 
+describe('Generic views of a refused model', () => {
+    // BookContent refuses anonymous users and the Jest client is not logged in: the server answers
+    // "403 Not allowed!" on the model socket.
+    const settle = () => new Promise(resolve => setTimeout(resolve, 500));
+    let consoleError, consoleDebug;
+
+    beforeEach(() => {
+        consoleError = jest.spyOn(console, 'error');
+        consoleDebug = jest.spyOn(console, 'debug').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        consoleError.mockRestore();
+        consoleDebug.mockRestore();
+    });
+
+    const noUnexpectedClose = () => expect(consoleError).not.toHaveBeenCalledWith(
+        expect.stringContaining('closed unexpectedly'));
+
+    test('sdc-detail-view shows sdc-error 403 instead of loading forever', async () => {
+        const controller = (await test_utils.controllerFromTestHtml(<div>
+            <sdc-detail-view data-model="BookContent" data-pk={1}></sdc-detail-view>
+        </div>))[0];
+        await settle();
+        const $error = controller.find('.detail-container sdc-error');
+        expect($error.attr('data-code')).toBe('403');
+        expect($error.text()).toContain('403 Not allowed!');
+        noUnexpectedClose();
+    });
+
+    test('sdc-list-view shows sdc-error 403', async () => {
+        const controller = (await test_utils.controllerFromTestHtml(<div>
+            <sdc-list-view data-model="BookContent"></sdc-list-view>
+        </div>))[0];
+        await settle();
+        expect(controller.find('.list-container sdc-error').attr('data-code')).toBe('403');
+        noUnexpectedClose();
+    });
+
+    test('sdc-model-form shows sdc-error 403 instead of a create form', async () => {
+        const controller = (await test_utils.controllerFromTestHtml(<div>
+            <sdc-model-form data-model="BookContent" data-pk={1}></sdc-model-form>
+        </div>))[0];
+        await settle();
+        expect(controller.find('.form-container sdc-error').attr('data-code')).toBe('403');
+        expect(controller.find('.btn-container').length).toBe(0);
+        expect(controller.$container.text()).not.toContain('Loading...');
+        expect(controller.controller_name()).toBeTruthy();
+        noUnexpectedClose();
+    });
+
+    test('a create sdc-model-form shows sdc-error 403', async () => {
+        const controller = (await test_utils.controllerFromTestHtml(<div>
+            <sdc-model-form data-model="BookContent"></sdc-model-form>
+        </div>))[0];
+        await settle();
+        expect(controller.find('.form-container sdc-error').attr('data-code')).toBe('403');
+        expect(controller.$container.text()).not.toContain('Loading...');
+        noUnexpectedClose();
+    });
+});
+
 describe('SdcDummy', () => {
     let controller;
 

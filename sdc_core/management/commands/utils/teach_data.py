@@ -123,7 +123,7 @@ def build_skill_data(tree, meta):
     :param meta: ``project``, ``crawled_as`` (list), ``logged_in_label``, ``controller_infos``
                  (``{tag: {'app', 'view_class', 'url', 'doc', 'actions'}}``), optional ``models`` and ``date``
     :return: ``{'format', 'project', 'date', 'crawled_as', 'global', 'views', 'embedded', 'unreached', 'models',
-               'errors'}``; ``views`` has one entry per controller tag that the navigator showed as the deepest
+               'errors', 'refused'}``; ``views`` has one entry per controller tag that the navigator showed as the deepest
                view of a path, with all paths it was seen at (``paths``, shortest first).
     """
     infos = meta.get('controller_infos') or {}
@@ -204,6 +204,9 @@ def build_skill_data(tree, meta):
         'tasks': [{'controller': tag} | task for tag, info in sorted(infos.items()) for task in info.get('tasks') or []
                   if not info.get('hidden')],
         'errors': sorted({(e['error'], e['url'].split('/', 3)[-1]) for e in tree.get('errors', [])}),
+        # Errors of page loads the server refused for a role (expected, see Crawler.refused): kept in the data
+        # file, not rendered as errors
+        'refused': sorted({(e['label'], e['error'], e['url'].split('/', 3)[-1]) for e in tree.get('refused', [])}),
     }
 
 

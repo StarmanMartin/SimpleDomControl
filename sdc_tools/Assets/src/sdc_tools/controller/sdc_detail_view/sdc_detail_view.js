@@ -1,4 +1,5 @@
 import { AbstractSDC, app, SdcModel, SdcQuerySet } from 'sdc_client';
+import { modelErrorElement } from '../sdc_error/sdc_error.js';
 
 
 /**
@@ -62,7 +63,18 @@ export class SdcDetailViewController extends AbstractSDC {
   }
 
   async onLoad($html) {
-    await this.onInitDetails(this.params);
+    try {
+      await this.onInitDetails(this.params);
+    } catch (err) {
+      // The model was refused (e.g. 403) or not found: show the error, the view still finishes loading.
+      this.model = null;
+      let $lc = $html.filter('.detail-container');
+      if ($lc.length === 0) {
+        $lc = $html.find('.detail-container');
+      }
+      $lc.append(modelErrorElement(err));
+      return super.onLoad($html);
+    }
 
     const $dt = this.model.detailView({
       cbResolve: () => {
@@ -71,7 +83,12 @@ export class SdcDetailViewController extends AbstractSDC {
         this.refresh().then(r => null);
         this._onUpdate.bind(this);
 
-      }, templateContext: this.template_context
+      },
+      cbReject: (err) => {
+        this.find('.detail-container').append(modelErrorElement(err));
+        this.refresh().then(r => null);
+      },
+      templateContext: this.template_context
     });
     if (this.querySetInstance) {
       this.querySetInstance.onUpdate = async () => {

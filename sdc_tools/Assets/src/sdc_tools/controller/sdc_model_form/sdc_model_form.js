@@ -1,4 +1,5 @@
 import { AbstractSDC, app, trigger, SdcQuerySet, SdcModel } from 'sdc_client';
+import { modelErrorElement } from '../sdc_error/sdc_error.js';
 
 
 /**
@@ -23,6 +24,7 @@ export class SdcModelFormController extends AbstractSDC {
     this.isKeepEditing = null;
     this.isReset = null;
     this._isLoaded = false;
+    this._loadError = null;
     this.autoSave = null;
     this.model = null;
     this.formHeader = null;
@@ -104,6 +106,10 @@ export class SdcModelFormController extends AbstractSDC {
           this.model = await this.model.get();
           this.id = this.model.id;
         } catch (e) {
+          if (e?.is_error) {
+            // The server refused the model (SdcModelError, e.g. 403): no create form as a fallback.
+            throw e;
+          }
           this.id = null;
           this.model = this.model.new();
         }
@@ -112,18 +118,25 @@ export class SdcModelFormController extends AbstractSDC {
     if (typeof (this.id) === "undefined" || this.id === null) {
       this.isAutoChange = false;
       this.type = 'create';
-      this.formGenerator = (modelObj) => modelObj.form({ cbResolve: this._onFormLoaded.bind(this) });
+      this.formGenerator = (modelObj) => modelObj.form({
+        cbResolve: this._onFormLoaded.bind(this),
+        cbReject: this._onFormError.bind(this)
+      });
     } else if (this.form_name) {
       this.isAutoChange = this.autoSave;
       this.type = 'edit';
       this.formGenerator = (modelObj) => modelObj.namedForm({
         formName: this.form_name,
-        cbResolve: this._onFormLoaded.bind(this)
+        cbResolve: this._onFormLoaded.bind(this),
+        cbReject: this._onFormError.bind(this)
       });
     } else {
       this.isAutoChange = true;
       this.type = 'edit';
-      this.formGenerator = (modelObj) => modelObj.form({ cbResolve: this._onFormLoaded.bind(this) });
+      this.formGenerator = (modelObj) => modelObj.form({
+        cbResolve: this._onFormLoaded.bind(this),
+        cbReject: this._onFormError.bind(this)
+      });
     }
 
   }
@@ -131,11 +144,19 @@ export class SdcModelFormController extends AbstractSDC {
   async onLoad($html) {
     await this.onInitForm(this.params).catch((e) => {
       this.model = null;
-      console.error(e);
+      this._loadError = e;
+      if (!e?.is_error) {
+        // An SdcModelError (e.g. 403) was already reported to the user by the model socket.
+        console.error(e);
+      }
     });
     if (this.model) {
       this.form = this.formGenerator(this.model).addClass('container-fluid');
       $html.find('.form-container').append(this.form);
+    } else {
+      $html.find('.form-container').append(modelErrorElement(this._loadError));
+      $html.find('.btn-container').remove();
+      this._isLoaded = true;
     }
     // $html.find(`.not-${this.type}`).remove();
     return super.onLoad($html);
@@ -158,6 +179,15 @@ export class SdcModelFormController extends AbstractSDC {
       this.refresh();
     }
     this._isLoaded = true;
+  }
+
+  _onFormError(err) {
+    // The server refused the form (e.g. 403): show the error instead of "Loading..." and the form buttons.
+    this._loadError = err;
+    this._isLoaded = true;
+    this.find('.form-container').safeEmpty().append(modelErrorElement(err));
+    this.find('.btn-container').remove();
+    this.refresh();
   }
 
   _createFormToEditForm() {
@@ -202,10 +232,16 @@ export class SdcModelFormController extends AbstractSDC {
   }
 
   controller_name() {
+    if (!this.model || !this.type) {
+      return super.controller_name();
+    }
     return `${this.type.replace(/^./g, letter => letter.toUpperCase())} ${this.model.constructor.name.replace(/[A-Z]/g, letter => " " + letter).replace(/^./g, letter => letter.toUpperCase())}`
   }
 
   save_btn() {
+    if (this._loadError) {
+      return <span></span>;
+    }
     if (!this._isLoaded) {
       return <h3>{gettext('Loading...')}</h3>;
     }

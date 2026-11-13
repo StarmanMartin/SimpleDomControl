@@ -244,6 +244,17 @@ def state_key(path, args):
     return '~'.join(path) + '?' + ','.join(sorted(args or {}))
 
 
+# The message of a refused model request ("403 Not allowed!", translated after the code)
+REFUSAL_MSG = re.compile(r'\s*40[13]\b')
+
+
+def _is_refusal_code(code):
+    try:
+        return int(code) in (401, 403)
+    except (TypeError, ValueError):
+        return False
+
+
 class Crawler:
     def __init__(self, context, base_url, start='/', max_depth=5, max_nodes=200, click=True,
                  click_all=False, deny=None, timeout=10000, log=print, label='anonymous',
@@ -266,6 +277,10 @@ class Crawler:
         self.visits = {}
         self.global_items = None
         self.errors = []
+        # Expected refusals of this role: page loads the server refused (error view 401/403 or a model socket
+        # answering "403 Not allowed!"). Their console/page errors go here instead of ``errors``.
+        self.refused = []
+        self._socket_refusals = []
         self._calls = []
         self._dialogs = []
         self.page = None
@@ -303,7 +318,18 @@ class Crawler:
                 self._calls.append({'via': 'websocket', 'target': f'{data.get("app")}.{data.get("controller")}',
                                     'function': data.get('function'), 'args': sorted(args)})
 
+        def on_received(payload):
+            try:
+                data = json.loads(payload)
+            except (TypeError, ValueError):
+                return
+            if isinstance(data, dict) and data.get('is_error') and REFUSAL_MSG.match(str(data.get('msg') or '')):
+                self._socket_refusals.append({'model': ws.url.rsplit('/sdc_ws/model/', 1)[-1],
+                                              'type': data.get('type'), 'msg': data.get('msg')})
+
         ws.on('framesent', on_frame)
+        if '/sdc_ws/model/' in ws.url:
+            ws.on('framereceived', on_received)
 
     def _on_request(self, request):
         if request.method != 'POST':
@@ -376,21 +402,40 @@ class Crawler:
                 levels.append(i)
         return levels
 
+    def _open(self, href):
+        """
+        Opens ``href``; returns ``(snapshot, model calls, error code of the view or None)``. When the server
+        refused this role (error view 401/403, or a model socket answered "403 Not allowed!", then the code is
+        403), the errors of the page load are its expected consequences: they go to ``refused``, not ``errors``.
+        """
+        self._socket_refusals.clear()
+        errors_before = len(self.errors)
+        self._goto(href)
+        snap = self._snapshot()
+        model_calls = self._model_calls()
+        idx = len(snap['path']) - 1
+        codes = [c['error_code'] for c in snap['controllers']
+                 if c.get('error_code') is not None and c['nav_idx'] == idx]
+        code = codes[0] if codes else (403 if self._socket_refusals else None)
+        if self._socket_refusals or _is_refusal_code(code):
+            self.refused += [e | {'label': self.label} for e in self.errors[errors_before:]]
+            del self.errors[errors_before:]
+        return snap, model_calls, code
+
     # ----------------------------------------------------------------- crawl
     def crawl(self):
         self.context.add_init_script(MODEL_LOG_JS)
         self.context.add_init_script(HIDE_IGNORED_JS)
         self.page = self.context.new_page()
         self._attach(self.page)
-        self._goto(self.start)
-        root = self._snapshot()
+        root, root_calls, _ = self._open(self.start)
         global_tags = {c['tag'] for c in self._own(root['controllers'], None)}
         self.global_items = {
             'links': self._own(root['links'], None),
             'external': self._own(root['external'], None),
             'buttons': [],
             'forms': self._own(root['forms'], None),
-            'model_calls': [c for c in self._model_calls() if c['controller'] in global_tags],
+            'model_calls': [c for c in root_calls if c['controller'] in global_tags],
         }
         if self.click:
             self.global_items['buttons'] = self._click_buttons(root['href'], self._own(root['buttons'], None), [])
@@ -407,13 +452,8 @@ class Crawler:
             if href in seen_hrefs:
                 continue
             seen_hrefs.add(href)
-            self._goto(href)
-            snap = self._snapshot()
-            model_calls = self._model_calls()
-            idx = len(snap['path']) - 1
-            codes = [c['error_code'] for c in snap['controllers']
-                     if c.get('error_code') is not None and c['nav_idx'] == idx]
-            self.visits[href] = {self.label: codes[0] if codes else None}
+            snap, model_calls, code = self._open(href)
+            self.visits[href] = {self.label: code}
             key = state_key(snap['path'], snap['args'])
             if key in self.nodes:
                 self._merge_examples(self.nodes[key], snap)
@@ -438,7 +478,8 @@ class Crawler:
             node['forms'] = self._ask_forms(node['href'], node['forms'], new_hrefs)
             queue.extend((h, depth + 1, 'form') for h in new_hrefs)
         self.page.close()
-        return {'nodes': self.nodes, 'errors': self.errors, 'global': self.global_items, 'visits': self.visits}
+        return {'nodes': self.nodes, 'errors': self.errors, 'refused': self.refused, 'global': self.global_items,
+                'visits': self.visits}
 
     def _make_node(self, key, snap, depth, via):
         idx = len(snap['path']) - 1
@@ -647,5 +688,6 @@ def merge_crawls(anonymous, logged_in):
     visits = {href: dict(labels) for href, labels in (anonymous.get('visits') or {}).items()}
     for href, labels in (logged_in.get('visits') or {}).items():
         visits.setdefault(href, {}).update(labels)
-    return {'nodes': nodes, 'errors': anonymous['errors'] + logged_in['errors'], 'global': global_items,
+    return {'nodes': nodes, 'errors': anonymous['errors'] + logged_in['errors'],
+            'refused': (anonymous.get('refused') or []) + (logged_in.get('refused') or []), 'global': global_items,
             'visits': visits}
