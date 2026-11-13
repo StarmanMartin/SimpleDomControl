@@ -5,6 +5,19 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## 0.165.1
+
+### Fixed
+- `sdc-detail-view`, `sdc-list-view` and `sdc-model-form` show `sdc-error 403` (with the server's message) when the
+  server refuses their model, instead of loading forever (detail view), staying empty (list) or falling back to a
+  create form that never loads (form). The new `modelErrorElement(err)` of `sdc_error.js` builds that element.
+  `sdc-model-form.controller_name()` no longer fails without a model.
+- `sdc_teach`: a page load the server refuses for a role (error view 401/403, or a model socket answering
+  "403 Not allowed!") is that route's result for the role ("error view for anonymous"), not a crawl error; the
+  console and page errors of such a load are kept under `refused` in `SDC_SKILL.data.json`. "Errors observed while
+  crawling" shows only the first line of each error (at most 300 characters); stack traces stay in the data file.
+- Needs `sdc_client` 0.165.1 (refused model connections reach `cbReject`).
+
 ## 0.165.0
 
 ### Added

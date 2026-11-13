@@ -1,6 +1,6 @@
 [project]
 name = "SimpleDomControl"
-version = "0.165.0"
+version = "0.165.1"
 description = "Simple DOM control -> a django MVC framework"
 authors = [{ name = "Martin Starman", email = "private@martin-starman.com" }]
 readme = "README.md"
