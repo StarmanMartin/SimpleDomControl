@@ -917,7 +917,7 @@ describe('SdcAiAssistant', () => {
                     },
                 };
                 window.sdcNav = nav;
-                $buttons = $(`<ai-button-view>
+                $buttons = $(`<ai-button-view class="_sdc_controller_">
                     <button class="ai-next" type="button" sdc_click="nextPage">Next</button>
                     <button class="ai-prev" type="button" sdc_click="this.event_.ai-prev" data-ai-click="safe">Prev</button>
                     <button class="ai-open-modal" type="button" data-ai-click="safe" data-bs-toggle="modal">Remove</button>
@@ -1066,6 +1066,14 @@ describe('SdcAiAssistant', () => {
                 button.removeAttribute('onclick');
                 button.textContent = 'Save report';
                 expect(element('Save report').needs_confirmation).toBe(true);
+            });
+
+            test('sdc_click handlers of ancestors (the click bubbles) must be declared safe too', () => {
+                const $wrap = $('<div sdc_click="removeInstance"></div>').appendTo($buttons);
+                $buttons.find('.ai-next').appendTo($wrap);
+                expect(element('Next').needs_confirmation).toBe(true);
+                $wrap.attr('sdc_click', 'nextPage');
+                expect(element('Next').needs_confirmation).toBeUndefined();
             });
 
             test('explicit confirmation wins over a safe declaration on a child', () => {

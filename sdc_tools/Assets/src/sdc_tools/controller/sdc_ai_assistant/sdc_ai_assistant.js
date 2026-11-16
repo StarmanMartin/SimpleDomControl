@@ -1521,7 +1521,8 @@ class SdcAiAssistantController extends AbstractSDC {
         if (this._submitsForm(el)) {
             return {blocked: 'it submits a form; forms are submitted by the user'};
         }
-        if (this._linkTarget(el)?.external) {
+        const link = this._linkTarget(el);
+        if (link?.external) {
             return {blocked: 'the link leaves the app; give the user the link instead'};
         }
         const marked = el.closest('[data-ai-click]')?.getAttribute('data-ai-click');
@@ -1532,7 +1533,6 @@ class SdcAiAssistantController extends AbstractSDC {
             return {};
         }
         const handlers = this._elementHandlers(el);
-        const actions = (el.getAttribute('sdc_click') || '').split(/\s+/).filter(Boolean);
         const text = [this._elementText(el), handlers.join(' '), el.title || '',
             el.getAttribute('aria-label') || '', typeof el.className === 'string' ? el.className : '',
             el.type === 'reset' ? 'reset' : ''].join(' ');
@@ -1541,23 +1541,32 @@ class SdcAiAssistantController extends AbstractSDC {
         }
         // A method declaration cannot authorize an additional inline click handler. Other listeners are not
         // inspectable: aiSafeActions and data-ai-click are app assertions covering the complete click.
+        // The dispatcher also runs the sdc_click handlers of every ancestor (the click bubbles), so all of them
+        // must be declared safe
+        const actions = [];
+        for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
+            for (const name of (node.getAttribute('sdc_click') || '').split(/\s+/).filter(Boolean)) {
+                actions.push([node, name]);
+            }
+        }
         if (actions.length && !el.onclick && !el.hasAttribute('onclick')
-            && actions.every((name) => this._isSafeAction(el, name))) {
+            && actions.every(([node, name]) => this._isSafeAction(node, name))) {
             return {};
         }
-        if (this._linkTarget(el)?.sdc && !handlers.length) {
-            return {};  // opens a view
+        if (link?.sdc && !handlers.length) {
+            return {};  // opens a view (_click uses the navigator, no handler runs)
         }
         return {confirm: true};
     }
 
     /**
      * Every controller method dispatched for ``name`` must be declared safe. The click dispatcher invokes
-     * matching methods throughout the parent chain, rather than stopping at the first match.
+     * matching methods throughout the parent chain, rather than stopping at the first match. The chain starts at
+     * the controller the dispatcher uses (``getController``: the nearest ``._sdc_controller_``, ``el`` included).
      */
     _isSafeAction(el, name) {
         let found = false;
-        for (let c = $(this._controllerOf(el)).data('_controller_'); c; c = c._parentController) {
+        for (let c = $(el).closest('._sdc_controller_').data('_controller_'); c; c = c._parentController) {
             const handler = typeof c[name] === 'function' ? c[name]
                 : name.startsWith('this.event_') ? c.getEvents?.().click?.[name.slice('this.event_'.length)] : null;
             if (typeof handler === 'function') {
