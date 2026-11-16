@@ -31,7 +31,7 @@
         </td>
         <td>
             <div style="float: right;">
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                <button data-ai-click="safe" type="button" class="btn btn-danger" data-bs-toggle="modal"
                         data-bs-target="#delete-model-modal-{{lid}}">
                     Remove
                 </button>
@@ -47,13 +47,13 @@
                     <div class="modal-content">
                         <div class="modal-header">
                             <h5 class="modal-title" id="delete-model-modal-{{instance.pk}}-label">{% trans 'Are you sure' %}</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            <button data-ai-click="safe" type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
                             {% trans 'Do you want to delete:' %} {{instance}}?
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans 'Close' %}</button>
+                            <button data-ai-click="safe" type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans 'Close' %}</button>
                             <button sdc_click="removeInstance" data-instance-pk="{{instance.pk}}" type="button"
                                     class="btn btn-danger" data-bs-dismiss="modal">{% trans 'Remove' %} {{instance}}
                             </button>
