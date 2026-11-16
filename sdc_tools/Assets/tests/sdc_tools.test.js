@@ -916,9 +916,15 @@ describe('SdcAiAssistant', () => {
                 };
                 window.sdcNav = nav;
                 $buttons = $(`<ai-button-view>
-                    <button class="ai-next" type="button" sdc_click="this.event_.ai-next nextPage">Next</button>
-                    <button class="ai-open-modal" type="button" data-bs-toggle="modal">Remove</button>
+                    <button class="ai-next" type="button" sdc_click="nextPage">Next</button>
+                    <button class="ai-prev" type="button" sdc_click="this.event_.ai-prev" data-ai-click="safe">Prev</button>
+                    <button class="ai-open-modal" type="button" data-ai-click="safe" data-bs-toggle="modal">Remove</button>
+                    <button class="ai-close" type="button" data-ai-click="safe" data-bs-dismiss="modal">Close</button>
                     <button class="ai-delete" type="button" sdc_click="removeInstance">Remove Jane</button>
+                    <button class="ai-run" type="button" sdc_click="runNow">Run now</button>
+                    <button class="ai-lock" type="button" data-bs-toggle="tooltip" title="Lock mapping">Lock</button>
+                    <button class="ai-count" type="button" sdc_click="this.event_.ai-count">Count</button>
+                    <button class="ai-ask" type="button" sdc_click="nextPage" data-ai-click="confirm">Ask</button>
                     <button class="ai-off" type="button" disabled>Off</button>
                     <a class="navigation-links" href="..~book-list">Books</a>
                     <a href="https://example.com/help">Help</a>
@@ -927,6 +933,17 @@ describe('SdcAiAssistant', () => {
                     <button class="invisible">Hidden</button>
                 </ai-button-view>`).appendTo($page);
                 clicks = [];
+                // The view's controller declares "nextPage" safe; "runNow" and "removeInstance" are not
+                class ButtonView {
+                    static aiSafeActions = ['nextPage'];
+
+                    nextPage() {}
+
+                    runNow() {}
+
+                    removeInstance() {}
+                }
+                $buttons.data('_controller_', new ButtonView());
                 $buttons.find('button').each(function () {
                     this.addEventListener('click', (ev) => {
                         ev.preventDefault();
@@ -956,11 +973,19 @@ describe('SdcAiAssistant', () => {
                 const page = controller._readPage();
                 expect(element('Next')).toMatchObject({kind: 'button', controller: 'ai-button-view',
                     handlers: ['nextPage']});
+                // Declared safe by the controller (aiSafeActions) or by data-ai-click="safe"
                 expect(element('Next').needs_confirmation).toBeUndefined();
+                expect(element('Prev').needs_confirmation).toBeUndefined();
                 expect(element('Remove Jane').needs_confirmation).toBe(true);
-                // Only opens a modal (the real "Remove …" button inside it asks)
+                // Only opens or closes a modal (the real "Remove …" button inside it asks)
                 expect(element('Remove')).toMatchObject({toggles: 'modal'});
                 expect(element('Remove').needs_confirmation).toBeUndefined();
+                expect(element('Close').needs_confirmation).toBeUndefined();
+                // Code whose effect is unknown asks, whatever its text: an undeclared handler, a plain listener
+                // behind a tooltip, a controller event handler, and data-ai-click="confirm"
+                for (const text of ['Run now', 'Lock', 'Count', 'Ask']) {
+                    expect([text, element(text).needs_confirmation]).toEqual([text, true]);
+                }
                 expect(element('Off')).toMatchObject({clickable: false, reason: 'the element is disabled'});
                 expect(element('Books')).toMatchObject({kind: 'link', href: '/~main-view~book-list'});
                 expect(element('Help')).toMatchObject({external: true, clickable: false});
@@ -977,6 +1002,35 @@ describe('SdcAiAssistant', () => {
                 expect(search.updates_on_change).toBe(true);
                 expect(controller._fillForm({form: search.id, values: {search: 'jane'}}).note)
                     .toContain('updates by itself');
+            });
+
+            test('safe actions require every matching parent handler to be declared safe', () => {
+                const child = $buttons.data('_controller_');
+                class Parent {
+                    nextPage() {}
+                }
+                child._parentController = new Parent();
+                expect(element('Next').needs_confirmation).toBe(true);
+                Parent.aiSafeActions = ['nextPage'];
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                child._parentController = {_parentController: new Parent()};
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                $buttons.find('.ai-next').attr('sdc_click', 'missingAction');
+                expect(element('Next').needs_confirmation).toBe(true);
+            });
+
+            test('Bootstrap attributes do not authorize additional click handlers', () => {
+                const toggle = $buttons.find('.ai-open-modal').removeAttr('data-ai-click')[0];
+                const dismiss = $buttons.find('.ai-close').removeAttr('data-ai-click')[0];
+                toggle.onclick = () => clicks.push('save');
+                dismiss.addEventListener('click', () => clicks.push('send'));
+                expect(element('Remove').needs_confirmation).toBe(true);
+                expect(element('Close').needs_confirmation).toBe(true);
+                expect(clicks).toEqual([]);
+                toggle.setAttribute('data-ai-click', 'safe');
+                expect(element('Remove').needs_confirmation).toBeUndefined();
+                toggle.setAttribute('data-ai-click', 'confirm');
+                expect(element('Remove').needs_confirmation).toBe(true);
             });
 
             test('click runs a button\'s handler and opens SDC links with the navigator', async () => {

@@ -779,8 +779,8 @@ only created when the user submits. The user can undo every fill_form with "Rest
 - When the result of `navigate`, `click` or `fill_form` contains `page`, it is the outline of the page afterwards: \
 use it instead of calling `read_page` again.
 - `click` presses a button or link of the current page, like the user. Form submit buttons and links that leave the \
-app cannot be clicked. Buttons that may delete, save or send data (`needs_confirmation`) are only clicked after the \
-user allowed it in the chat.
+app cannot be clicked. Elements marked `needs_confirmation` (every button that runs an action the app has not \
+declared safe, e.g. "Run now", "Lock" or "Delete") are only clicked after the user allowed it in the chat.
 - `model_get` and `model_load` read SdcModel records. There are no tools to create, change or delete records.
 
 Rules:
@@ -847,7 +847,8 @@ AI_TOOLS = [
     {'name': 'click',
      'description': 'Click a button or link of the current page like the user: SDC links open the view, buttons '
                     'run their action (e.g. "Next" of a search bar, opening a modal). Submit buttons of forms and '
-                    'links leaving the app cannot be clicked; buttons that may delete, save or send data are only '
+                    'links leaving the app cannot be clicked; buttons that run an action not declared safe by the '
+                    'app (needs_confirmation, e.g. "Run now", "Lock", "Delete") are only '
                     'clicked if the user allows it in the chat. Returns the URL afterwards; use read_page to see '
                     'the result.',
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['element'],

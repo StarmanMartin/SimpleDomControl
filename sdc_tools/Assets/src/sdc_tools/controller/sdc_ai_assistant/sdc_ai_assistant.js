@@ -35,7 +35,8 @@ const PAGE_ATTRIBUTES = ['id', 'name', 'type', 'href', 'value', 'placeholder', '
 const CLICKABLE = 'a[href], button, [sdc_click], [role=button], input[type=button], input[type=submit], '
     + 'input[type=reset]';
 const MAX_PAGE_ELEMENTS = 200;
-// Buttons that may delete, save, send data or log out: clicked only after the user allowed it in the chat
+// Clicks the user has to allow in the chat first (see _clickPolicy): every element that runs code, unless the app
+// declares it safe, and in any case these words (also on links, e.g. a "Logout" link)
 const CONFIRM_CLICK = /log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|send|abmelden|löschen|entfernen|speichern|senden/i;
 // How long a click waits before it checks whether the page is still loading
 const CLICK_SETTLE_MS = 300;
@@ -1502,6 +1503,13 @@ class SdcAiAssistantController extends AbstractSDC {
     /**
      * What a click on ``el`` may do: ``{blocked: reason}`` if the assistant must not click it,
      * ``{confirm: true}`` if the user has to allow it first, else ``{}``.
+     *
+     * Without asking, the assistant clicks only what cannot change data by itself: SDC links (they open a view),
+     * ``sdc_click``
+     * handlers that their controller lists in ``static aiSafeActions``, and elements marked
+     * ``data-ai-click="safe"`` (on the element or an ancestor). Every other element runs code whose effect is
+     * unknown (e.g. "Run now", a React ``onClick``, a controller ``events`` handler), so the user is asked.
+     * ``data-ai-click="confirm"`` always asks; the words of ``CONFIRM_CLICK`` ask unless the element is marked safe.
      */
     _clickPolicy(el) {
         if (!el.getClientRects().length) {
@@ -1516,15 +1524,46 @@ class SdcAiAssistantController extends AbstractSDC {
         if (this._linkTarget(el)?.external) {
             return {blocked: 'the link leaves the app; give the user the link instead'};
         }
-        // Only shows or hides something (a modal, a collapsed menu): e.g. the "Remove" button of a list row opens
-        // the modal with the real "Remove …" button, which then asks
-        if (el.getAttribute('data-bs-toggle') && !this._elementHandlers(el).length && el.tagName !== 'A') {
+        const marked = el.closest('[data-ai-click]')?.getAttribute('data-ai-click');
+        if (marked === 'confirm') {
+            return {confirm: true};
+        }
+        if (marked === 'safe') {
             return {};
         }
-        const text = [this._elementText(el), this._elementHandlers(el).join(' '), el.title || '',
+        const handlers = this._elementHandlers(el);
+        // Handlers of the controller's ``events`` (``this.event_…``) cannot be declared safe one by one
+        const eventHandlers = (el.getAttribute('sdc_click') || '').includes('this.event_');
+        const text = [this._elementText(el), handlers.join(' '), el.title || '',
             el.getAttribute('aria-label') || '', typeof el.className === 'string' ? el.className : '',
             el.type === 'reset' ? 'reset' : ''].join(' ');
-        return CONFIRM_CLICK.test(text) ? {confirm: true} : {};
+        if (CONFIRM_CLICK.test(text)) {
+            return {confirm: true};
+        }
+        if (this._linkTarget(el)?.sdc && !handlers.length) {
+            return {};  // opens a view
+        }
+        if (handlers.length && !eventHandlers && handlers.every((h) => this._isSafeAction(el, h))) {
+            return {};
+        }
+        return {confirm: true};
+    }
+
+    /**
+     * Every controller method dispatched for ``name`` must be declared safe. The click dispatcher invokes
+     * matching methods throughout the parent chain, rather than stopping at the first match.
+     */
+    _isSafeAction(el, name) {
+        let found = false;
+        for (let c = $(this._controllerOf(el)).data('_controller_'); c; c = c._parentController) {
+            if (typeof c[name] === 'function') {
+                found = true;
+                if (!(c.constructor?.aiSafeActions || []).includes(name)) {
+                    return false;
+                }
+            }
+        }
+        return found;
     }
 
     _describeElement(el) {

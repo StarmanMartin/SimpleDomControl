@@ -10,6 +10,9 @@ import { AbstractSDC, app } from 'sdc_client';
  */
 class SdcSearchSelectController extends AbstractSDC {
 
+  // The AI assistant clicks these without asking: they only open and close the option list
+  static aiSafeActions = ['onActivate', 'onDeactivate'];
+
   constructor() {
     super();
     this.contentUrl = "/sdc_view/sdc_tools/sdc_search_select"; //<sdc-search-select></sdc-search-select>

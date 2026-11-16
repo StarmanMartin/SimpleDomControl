@@ -5,6 +5,22 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Changed
+- AI assistant: the `click` guard asks the user before every element that runs code whose effect it cannot know,
+  not only before buttons whose text looks like delete, save, send or logout. Without asking it clicks SDC links,
+  `sdc_click` handlers listed in every matching controller's
+  `static aiSafeActions`, and elements marked `data-ai-click="safe"` (on the element or an ancestor);
+  `data-ai-click="confirm"` always asks. In an evaluation of a research application the assistant had clicked
+  "Run now" (a real synchronisation) and a lock button behind a tooltip without asking.
+- `<sdc-search-view>` marks its "Prev"/"Next" buttons safe; `<sdc-search-select>` declares opening and closing
+  its option list safe.
+
+### Fixed
+- AI assistant: Bootstrap toggle and dismiss attributes no longer bypass confirmation; harmless controls need
+  `data-ai-click="safe"`. Safe action declarations are checked on every matching parent controller handler.
+
 ## 0.165.1
 
 ### Fixed

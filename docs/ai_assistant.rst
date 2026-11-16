@@ -324,10 +324,41 @@ The assistant acts through tools that run in the browser:
     handlers (e.g. "Next"/"Prev" of a search bar, opening a modal). Never
     clicked: submit buttons of forms (the user submits), links that leave the
     app (target, other origin or non-SDC page), hidden and disabled elements.
-    Buttons whose text, handler, title or classes look like delete, remove,
-    save, send, submit, reset or logout are only clicked after the user clicked
-    *Allow* in the chat; *Deny*, a new question or a lost connection cancel the
-    click. Returns the URL afterwards and whether a modal opened.
+    Without asking, the assistant clicks only what cannot change data by
+    itself: SDC links (they open a view), ``sdc_click`` handlers that every
+    matching controller declares safe, and elements
+    marked ``data-ai-click="safe"``. Every other element runs code whose effect
+    the assistant cannot know (an undeclared ``sdc_click`` handler, a handler of
+    the controller's ``events``, a plain ``onClick``) and is only clicked after
+    the user clicked *Allow* in the chat; *Deny*, a new question or a lost
+    connection cancel the click. So are elements marked
+    ``data-ai-click="confirm"`` and, unless marked safe, elements whose text,
+    handler, title or classes look like delete, remove, save, send, submit,
+    reset or logout. Returns the URL afterwards and whether a modal opened.
+
+    Bootstrap toggle and dismiss attributes alone do not make a click safe:
+    those controls may also run application handlers. Mark verified harmless
+    controls with ``data-ai-click="safe"``. For ``aiSafeActions``, every
+    matching method in the controller's parent chain must be declared safe.
+
+    Declare actions that only show something or move within the page as safe,
+    so the assistant does not ask for them:
+
+    .. code-block:: javascript
+
+        class SampleListController extends AbstractSDC {
+            // clicked without asking; all other sdc_click handlers ask first
+            static aiSafeActions = ['showDetails', 'nextPage'];
+        }
+
+    .. code-block:: html
+
+        <button data-ai-click="safe" class="page-next">Next</button>
+        <button data-ai-click="confirm" sdc_click="archive">Archive</button>
+
+    ``data-ai-click`` also works on an ancestor, e.g. a toolbar of harmless
+    buttons. The bundled controllers declare their own harmless buttons (the
+    paging of ``<sdc-search-view>``, opening and closing ``<sdc-search-select>``).
 ``describe`` (index mode only)
     Answered by the server from the skill data, without the browser: the full
     documentation of one view, controller or model of the index (arguments,
@@ -344,7 +375,8 @@ The assistant acts through tools that run in the browser:
 
 Password, hidden and file fields are never read or filled. Because the
 assistant can click buttons, it can change data the user may change, but only
-through the page's own buttons and, for risky ones, after the user allowed it. A response may use
+through the page's own buttons and, for every button that runs an action not
+declared safe, after the user allowed it. A response may use
 tools in up to five rounds (``SDC_AI_MAX_ACTION_ROUNDS``); then the model has to answer.
 With ``SDC_AI_PAGE_IN_RESULTS`` (default) ``navigate``, ``click`` and
 ``fill_form`` return the outline of the page afterwards, so a search with paging
