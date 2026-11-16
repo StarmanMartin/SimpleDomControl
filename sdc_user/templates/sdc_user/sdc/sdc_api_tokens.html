@@ -10,7 +10,7 @@
         <div class="input-group">
             <input type="text" readonly class="form-control font-monospace new-token-value"
                    aria-label="{% trans 'New token' %}">
-            <button type="button" class="btn btn-outline-secondary" sdc_click="copy_token">{% trans 'Copy' %}</button>
+            <button type="button" class="btn btn-outline-secondary" data-ai-click="safe" sdc_click="copy_token">{% trans 'Copy' %}</button>
         </div>
     </div>
 
@@ -43,7 +43,7 @@
                             {% if token.is_revoked %}{% trans 'revoked' %}
                             {% elif token.is_expired %}{% trans 'expired' %}
                             {% else %}
-                                <button type="button" class="btn btn-sm btn-outline-danger" sdc_click="revoke_token"
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-ai-click="confirm" sdc_click="revoke_token"
                                         data-token-id="{{ token.id }}" data-token-name="{{ token.name }}">
                                     {% trans 'Revoke' %}</button>
                             {% endif %}
@@ -147,6 +147,6 @@
             </div>
         </div>
 
-        <button type="button" class="btn btn-primary" sdc_click="create_token">{% trans 'Create token' %}</button>
+        <button type="button" class="btn btn-primary" data-ai-click="safe" sdc_click="create_token">{% trans 'Create token' %}</button>
     </div>
 </div>
