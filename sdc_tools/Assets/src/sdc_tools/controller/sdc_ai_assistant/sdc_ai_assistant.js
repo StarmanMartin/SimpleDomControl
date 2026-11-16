@@ -1504,12 +1504,12 @@ class SdcAiAssistantController extends AbstractSDC {
      * What a click on ``el`` may do: ``{blocked: reason}`` if the assistant must not click it,
      * ``{confirm: true}`` if the user has to allow it first, else ``{}``.
      *
-     * Without asking, the assistant clicks only what cannot change data by itself: SDC links (they open a view),
-     * ``sdc_click``
-     * handlers that their controller lists in ``static aiSafeActions``, and elements marked
+     * Without asking, the assistant clicks trusted actions: SDC links (they open a view),
+     * explicitly declared ``sdc_click`` handlers in ``static aiSafeActions``, and elements marked
      * ``data-ai-click="safe"`` (on the element or an ancestor). Every other element runs code whose effect is
      * unknown (e.g. "Run now", a React ``onClick``, a controller ``events`` handler), so the user is asked.
-     * ``data-ai-click="confirm"`` always asks; the words of ``CONFIRM_CLICK`` ask unless the element is marked safe.
+     * ``data-ai-click="confirm"`` on any ancestor always asks; risky labels and inline handlers ask unless
+     * explicitly marked ``data-ai-click="safe"``. Safety declarations cover all effects of the click.
      */
     _clickPolicy(el) {
         if (!el.getClientRects().length) {
@@ -1525,26 +1525,28 @@ class SdcAiAssistantController extends AbstractSDC {
             return {blocked: 'the link leaves the app; give the user the link instead'};
         }
         const marked = el.closest('[data-ai-click]')?.getAttribute('data-ai-click');
-        if (marked === 'confirm') {
+        if (el.closest('[data-ai-click="confirm"]')) {
             return {confirm: true};
         }
         if (marked === 'safe') {
             return {};
         }
         const handlers = this._elementHandlers(el);
-        // Handlers of the controller's ``events`` (``this.event_…``) cannot be declared safe one by one
-        const eventHandlers = (el.getAttribute('sdc_click') || '').includes('this.event_');
+        const actions = (el.getAttribute('sdc_click') || '').split(/\s+/).filter(Boolean);
         const text = [this._elementText(el), handlers.join(' '), el.title || '',
             el.getAttribute('aria-label') || '', typeof el.className === 'string' ? el.className : '',
             el.type === 'reset' ? 'reset' : ''].join(' ');
         if (CONFIRM_CLICK.test(text)) {
             return {confirm: true};
         }
+        // A method declaration cannot authorize an additional inline click handler. Other listeners are not
+        // inspectable: aiSafeActions and data-ai-click are app assertions covering the complete click.
+        if (actions.length && !el.onclick && !el.hasAttribute('onclick')
+            && actions.every((name) => this._isSafeAction(el, name))) {
+            return {};
+        }
         if (this._linkTarget(el)?.sdc && !handlers.length) {
             return {};  // opens a view
-        }
-        if (handlers.length && !eventHandlers && handlers.every((h) => this._isSafeAction(el, h))) {
-            return {};
         }
         return {confirm: true};
     }
@@ -1556,7 +1558,9 @@ class SdcAiAssistantController extends AbstractSDC {
     _isSafeAction(el, name) {
         let found = false;
         for (let c = $(this._controllerOf(el)).data('_controller_'); c; c = c._parentController) {
-            if (typeof c[name] === 'function') {
+            const handler = typeof c[name] === 'function' ? c[name]
+                : name.startsWith('this.event_') ? c.getEvents?.().click?.[name.slice('this.event_'.length)] : null;
+            if (typeof handler === 'function') {
                 found = true;
                 if (!(c.constructor?.aiSafeActions || []).includes(name)) {
                     return false;

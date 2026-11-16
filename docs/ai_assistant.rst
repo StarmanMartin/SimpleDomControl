@@ -324,22 +324,26 @@ The assistant acts through tools that run in the browser:
     handlers (e.g. "Next"/"Prev" of a search bar, opening a modal). Never
     clicked: submit buttons of forms (the user submits), links that leave the
     app (target, other origin or non-SDC page), hidden and disabled elements.
-    Without asking, the assistant clicks only what cannot change data by
-    itself: SDC links (they open a view), ``sdc_click`` handlers that every
-    matching controller declares safe, and elements
-    marked ``data-ai-click="safe"``. Every other element runs code whose effect
-    the assistant cannot know (an undeclared ``sdc_click`` handler, a handler of
-    the controller's ``events``, a plain ``onClick``) and is only clicked after
-    the user clicked *Allow* in the chat; *Deny*, a new question or a lost
-    connection cancel the click. So are elements marked
-    ``data-ai-click="confirm"`` and, unless marked safe, elements whose text,
-    handler, title or classes look like delete, remove, save, send, submit,
-    reset or logout. Returns the URL afterwards and whether a modal opened.
+    Without asking, the assistant opens SDC navigation links and clicks elements
+    explicitly marked ``data-ai-click="safe"`` or whose ``sdc_click`` handlers
+    every matching controller lists in ``static aiSafeActions``. All other
+    clicks require *Allow* in the chat; *Deny*, a new question or a lost
+    connection cancel the click. An element or ancestor marked
+    ``data-ai-click="confirm"`` always asks, even inside a safe toolbar.
+    Without an explicit ``data-ai-click="safe"``, inline click handlers and
+    labels suggesting delete, remove, save, send, submit, reset or logout
+    require approval even if the SDC method is allowlisted.
 
-    Bootstrap toggle and dismiss attributes alone do not make a click safe:
-    those controls may also run application handlers. Mark verified harmless
-    controls with ``data-ai-click="safe"``. For ``aiSafeActions``, every
-    matching method in the controller's parent chain must be declared safe.
+    Bundled ``sdc_tools`` and inherited ``sdc_client`` methods are not trusted
+    automatically. Deletion, saving, submission helpers and wrappers that call
+    application methods require approval unless explicitly declared safe.
+    Bootstrap toggle and dismiss attributes alone do not make a click safe.
+
+    Safety declarations are application assertions about the complete click,
+    including delegated methods, ancestor handlers and additional listeners.
+    Browsers cannot reliably enumerate native, React or delegated listeners,
+    so a method allowlist does not prove the absence of other effects.
+    Use declarations only for controls whose complete behavior you have checked.
 
     Declare actions that only show something or move within the page as safe,
     so the assistant does not ask for them:
@@ -357,8 +361,9 @@ The assistant acts through tools that run in the browser:
         <button data-ai-click="confirm" sdc_click="archive">Archive</button>
 
     ``data-ai-click`` also works on an ancestor, e.g. a toolbar of harmless
-    buttons. The bundled controllers declare their own harmless buttons (the
-    paging of ``<sdc-search-view>``, opening and closing ``<sdc-search-select>``).
+    buttons. ``<sdc-search-view>`` explicitly marks its paging buttons safe.
+    Search-select handlers require approval because they delegate to methods
+    that applications may replace.
 ``describe`` (index mode only)
     Answered by the server from the skill data, without the browser: the full
     documentation of one view, controller or model of the index (arguments,

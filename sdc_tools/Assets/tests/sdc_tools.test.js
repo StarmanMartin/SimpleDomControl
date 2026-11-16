@@ -7,6 +7,8 @@ import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
 import {SdcNavigatorController} from '../src/sdc_tools/controller/sdc_navigator/sdc_navigator.js';
 import {matchesAllowedPaths} from '../src/sdc_tools/controller/sdc_navigation_client/sdc_navigation_client.js';
+import {SdcListViewController} from '../src/sdc_tools/controller/sdc_list_view/sdc_list_view.js';
+import {SdcSearchViewController} from '../src/sdc_tools/controller/sdc_search_view/sdc_search_view.js';
 import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
 import {jest} from '@jest/globals';
 
@@ -1016,6 +1018,59 @@ describe('SdcAiAssistant', () => {
                 child._parentController = {_parentController: new Parent()};
                 expect(element('Next').needs_confirmation).toBeUndefined();
                 $buttons.find('.ai-next').attr('sdc_click', 'missingAction');
+                expect(element('Next').needs_confirmation).toBe(true);
+            });
+
+            test('bundled mutations and delegated selector events require approval', () => {
+                const list = new SdcListViewController();
+                $buttons.data('_controller_', list);
+                expect(element('Remove Jane').needs_confirmation).toBe(true);
+                $buttons.find('.ai-next').attr('sdc_click', '_updateView');
+                expect(element('Next').needs_confirmation).toBe(true);
+
+                const search = new SdcSearchViewController();
+                search.onChange = jest.fn();
+                $buttons.data('_controller_', search);
+                $buttons.find('.ai-next').attr('sdc_click', 'this.event_.page-number-control-btn');
+                expect(element('Next').needs_confirmation).toBe(true);
+                expect(search.onChange).not.toHaveBeenCalled();
+            });
+
+            test('runtime helpers and custom delegates require approval even with additional listeners', () => {
+                const runtime = new AbstractSDC();
+                runtime._submitModelForm = jest.fn();
+                $buttons.data('_controller_', runtime);
+                const button = $buttons.find('.ai-next');
+                const extra = jest.fn();
+                button[0].addEventListener('click', extra);
+                for (const name of ['refresh', 'reload', 'submitModelFormDistributor', 'defaultSubmitModelForm',
+                    'serverCall', 'remove', '_runLifecycle']) {
+                    button.attr('sdc_click', name);
+                    expect([name, element('Next').needs_confirmation]).toEqual([name, true]);
+                }
+                expect(extra).not.toHaveBeenCalled();
+                expect(runtime._submitModelForm).not.toHaveBeenCalled();
+                $buttons.find('form button').attr('sdc_click', 'defaultSubmitModelForm');
+                expect(element('Find')).toMatchObject({clickable: false});
+                expect(element('Find').reason).toContain('submits a form');
+            });
+
+            test('inline handlers and destructive labels still ask despite a method allowlist', () => {
+                const button = $buttons.find('.ai-next')[0];
+                button.onclick = jest.fn();
+                expect(element('Next').needs_confirmation).toBe(true);
+                button.onclick = null;
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                button.setAttribute('onclick', 'saveData()');
+                expect(element('Next').needs_confirmation).toBe(true);
+                button.removeAttribute('onclick');
+                button.textContent = 'Save report';
+                expect(element('Save report').needs_confirmation).toBe(true);
+            });
+
+            test('explicit confirmation wins over a safe declaration on a child', () => {
+                $buttons.attr('data-ai-click', 'confirm');
+                expect(element('Prev').needs_confirmation).toBe(true);
                 expect(element('Next').needs_confirmation).toBe(true);
             });
 
