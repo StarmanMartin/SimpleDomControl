@@ -7,6 +7,8 @@ import {} from "#root/src/models/src.js";
 import '../src/sdc_tools/sdc_tools.organizer.js';
 import {SdcNavigatorController} from '../src/sdc_tools/controller/sdc_navigator/sdc_navigator.js';
 import {matchesAllowedPaths} from '../src/sdc_tools/controller/sdc_navigation_client/sdc_navigation_client.js';
+import {SdcListViewController} from '../src/sdc_tools/controller/sdc_list_view/sdc_list_view.js';
+import {SdcSearchViewController} from '../src/sdc_tools/controller/sdc_search_view/sdc_search_view.js';
 import {renderMarkdown} from '../src/sdc_tools/controller/sdc_ai_assistant/markdown.js';
 import {jest} from '@jest/globals';
 
@@ -915,10 +917,16 @@ describe('SdcAiAssistant', () => {
                     },
                 };
                 window.sdcNav = nav;
-                $buttons = $(`<ai-button-view>
-                    <button class="ai-next" type="button" sdc_click="this.event_.ai-next nextPage">Next</button>
-                    <button class="ai-open-modal" type="button" data-bs-toggle="modal">Remove</button>
+                $buttons = $(`<ai-button-view class="_sdc_controller_">
+                    <button class="ai-next" type="button" sdc_click="nextPage">Next</button>
+                    <button class="ai-prev" type="button" sdc_click="this.event_.ai-prev" data-ai-click="safe">Prev</button>
+                    <button class="ai-open-modal" type="button" data-ai-click="safe" data-bs-toggle="modal">Remove</button>
+                    <button class="ai-close" type="button" data-ai-click="safe" data-bs-dismiss="modal">Close</button>
                     <button class="ai-delete" type="button" sdc_click="removeInstance">Remove Jane</button>
+                    <button class="ai-run" type="button" sdc_click="runNow">Run now</button>
+                    <button class="ai-lock" type="button" data-bs-toggle="tooltip" title="Lock mapping">Lock</button>
+                    <button class="ai-count" type="button" sdc_click="this.event_.ai-count">Count</button>
+                    <button class="ai-ask" type="button" sdc_click="nextPage" data-ai-click="confirm">Ask</button>
                     <button class="ai-off" type="button" disabled>Off</button>
                     <a class="navigation-links" href="..~book-list">Books</a>
                     <a href="https://example.com/help">Help</a>
@@ -927,6 +935,17 @@ describe('SdcAiAssistant', () => {
                     <button class="invisible">Hidden</button>
                 </ai-button-view>`).appendTo($page);
                 clicks = [];
+                // The view's controller declares "nextPage" safe; "runNow" and "removeInstance" are not
+                class ButtonView {
+                    static aiSafeActions = ['nextPage'];
+
+                    nextPage() {}
+
+                    runNow() {}
+
+                    removeInstance() {}
+                }
+                $buttons.data('_controller_', new ButtonView());
                 $buttons.find('button').each(function () {
                     this.addEventListener('click', (ev) => {
                         ev.preventDefault();
@@ -956,11 +975,19 @@ describe('SdcAiAssistant', () => {
                 const page = controller._readPage();
                 expect(element('Next')).toMatchObject({kind: 'button', controller: 'ai-button-view',
                     handlers: ['nextPage']});
+                // Declared safe by the controller (aiSafeActions) or by data-ai-click="safe"
                 expect(element('Next').needs_confirmation).toBeUndefined();
+                expect(element('Prev').needs_confirmation).toBeUndefined();
                 expect(element('Remove Jane').needs_confirmation).toBe(true);
-                // Only opens a modal (the real "Remove …" button inside it asks)
+                // Only opens or closes a modal (the real "Remove …" button inside it asks)
                 expect(element('Remove')).toMatchObject({toggles: 'modal'});
                 expect(element('Remove').needs_confirmation).toBeUndefined();
+                expect(element('Close').needs_confirmation).toBeUndefined();
+                // Code whose effect is unknown asks, whatever its text: an undeclared handler, a plain listener
+                // behind a tooltip, a controller event handler, and data-ai-click="confirm"
+                for (const text of ['Run now', 'Lock', 'Count', 'Ask']) {
+                    expect([text, element(text).needs_confirmation]).toEqual([text, true]);
+                }
                 expect(element('Off')).toMatchObject({clickable: false, reason: 'the element is disabled'});
                 expect(element('Books')).toMatchObject({kind: 'link', href: '/~main-view~book-list'});
                 expect(element('Help')).toMatchObject({external: true, clickable: false});
@@ -977,6 +1004,96 @@ describe('SdcAiAssistant', () => {
                 expect(search.updates_on_change).toBe(true);
                 expect(controller._fillForm({form: search.id, values: {search: 'jane'}}).note)
                     .toContain('updates by itself');
+            });
+
+            test('safe actions require every matching parent handler to be declared safe', () => {
+                const child = $buttons.data('_controller_');
+                class Parent {
+                    nextPage() {}
+                }
+                child._parentController = new Parent();
+                expect(element('Next').needs_confirmation).toBe(true);
+                Parent.aiSafeActions = ['nextPage'];
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                child._parentController = {_parentController: new Parent()};
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                $buttons.find('.ai-next').attr('sdc_click', 'missingAction');
+                expect(element('Next').needs_confirmation).toBe(true);
+            });
+
+            test('bundled mutations and delegated selector events require approval', () => {
+                const list = new SdcListViewController();
+                $buttons.data('_controller_', list);
+                expect(element('Remove Jane').needs_confirmation).toBe(true);
+                $buttons.find('.ai-next').attr('sdc_click', '_updateView');
+                expect(element('Next').needs_confirmation).toBe(true);
+
+                const search = new SdcSearchViewController();
+                search.onChange = jest.fn();
+                $buttons.data('_controller_', search);
+                $buttons.find('.ai-next').attr('sdc_click', 'this.event_.page-number-control-btn');
+                expect(element('Next').needs_confirmation).toBe(true);
+                expect(search.onChange).not.toHaveBeenCalled();
+            });
+
+            test('runtime helpers and custom delegates require approval even with additional listeners', () => {
+                const runtime = new AbstractSDC();
+                runtime._submitModelForm = jest.fn();
+                $buttons.data('_controller_', runtime);
+                const button = $buttons.find('.ai-next');
+                const extra = jest.fn();
+                button[0].addEventListener('click', extra);
+                for (const name of ['refresh', 'reload', 'submitModelFormDistributor', 'defaultSubmitModelForm',
+                    'serverCall', 'remove', '_runLifecycle']) {
+                    button.attr('sdc_click', name);
+                    expect([name, element('Next').needs_confirmation]).toEqual([name, true]);
+                }
+                expect(extra).not.toHaveBeenCalled();
+                expect(runtime._submitModelForm).not.toHaveBeenCalled();
+                $buttons.find('form button').attr('sdc_click', 'defaultSubmitModelForm');
+                expect(element('Find')).toMatchObject({clickable: false});
+                expect(element('Find').reason).toContain('submits a form');
+            });
+
+            test('inline handlers and destructive labels still ask despite a method allowlist', () => {
+                const button = $buttons.find('.ai-next')[0];
+                button.onclick = jest.fn();
+                expect(element('Next').needs_confirmation).toBe(true);
+                button.onclick = null;
+                expect(element('Next').needs_confirmation).toBeUndefined();
+                button.setAttribute('onclick', 'saveData()');
+                expect(element('Next').needs_confirmation).toBe(true);
+                button.removeAttribute('onclick');
+                button.textContent = 'Save report';
+                expect(element('Save report').needs_confirmation).toBe(true);
+            });
+
+            test('sdc_click handlers of ancestors (the click bubbles) must be declared safe too', () => {
+                const $wrap = $('<div sdc_click="removeInstance"></div>').appendTo($buttons);
+                $buttons.find('.ai-next').appendTo($wrap);
+                expect(element('Next').needs_confirmation).toBe(true);
+                $wrap.attr('sdc_click', 'nextPage');
+                expect(element('Next').needs_confirmation).toBeUndefined();
+            });
+
+            test('explicit confirmation wins over a safe declaration on a child', () => {
+                $buttons.attr('data-ai-click', 'confirm');
+                expect(element('Prev').needs_confirmation).toBe(true);
+                expect(element('Next').needs_confirmation).toBe(true);
+            });
+
+            test('Bootstrap attributes do not authorize additional click handlers', () => {
+                const toggle = $buttons.find('.ai-open-modal').removeAttr('data-ai-click')[0];
+                const dismiss = $buttons.find('.ai-close').removeAttr('data-ai-click')[0];
+                toggle.onclick = () => clicks.push('save');
+                dismiss.addEventListener('click', () => clicks.push('send'));
+                expect(element('Remove').needs_confirmation).toBe(true);
+                expect(element('Close').needs_confirmation).toBe(true);
+                expect(clicks).toEqual([]);
+                toggle.setAttribute('data-ai-click', 'safe');
+                expect(element('Remove').needs_confirmation).toBeUndefined();
+                toggle.setAttribute('data-ai-click', 'confirm');
+                expect(element('Remove').needs_confirmation).toBe(true);
             });
 
             test('click runs a button\'s handler and opens SDC links with the navigator', async () => {

@@ -105,7 +105,7 @@ removeInstance($btn) {
 
 Cover in one or two sentences what happens for the user: which data is read, created, changed, deleted or
 sent (e-mails, server calls), where the user ends up, and whether it can be undone. The AI assistant asks
-the user before it clicks buttons that delete, save or send data; the text tells it what the click does.
+the user before it clicks buttons that run an action not declared safe (`static aiSafeActions`, `data-ai-click`); the text tells it what the click does.
 
 ## When you are done
 

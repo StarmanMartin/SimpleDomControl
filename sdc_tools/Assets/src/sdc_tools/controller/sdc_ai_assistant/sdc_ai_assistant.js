@@ -35,7 +35,8 @@ const PAGE_ATTRIBUTES = ['id', 'name', 'type', 'href', 'value', 'placeholder', '
 const CLICKABLE = 'a[href], button, [sdc_click], [role=button], input[type=button], input[type=submit], '
     + 'input[type=reset]';
 const MAX_PAGE_ELEMENTS = 200;
-// Buttons that may delete, save, send data or log out: clicked only after the user allowed it in the chat
+// Clicks the user has to allow in the chat first (see _clickPolicy): every element that runs code, unless the app
+// declares it safe, and in any case these words (also on links, e.g. a "Logout" link)
 const CONFIRM_CLICK = /log ?out|sign ?out|delete|remove|destroy|drop|reset|submit|save|send|abmelden|löschen|entfernen|speichern|senden/i;
 // How long a click waits before it checks whether the page is still loading
 const CLICK_SETTLE_MS = 300;
@@ -1502,6 +1503,13 @@ class SdcAiAssistantController extends AbstractSDC {
     /**
      * What a click on ``el`` may do: ``{blocked: reason}`` if the assistant must not click it,
      * ``{confirm: true}`` if the user has to allow it first, else ``{}``.
+     *
+     * Without asking, the assistant clicks trusted actions: SDC links (they open a view),
+     * explicitly declared ``sdc_click`` handlers in ``static aiSafeActions``, and elements marked
+     * ``data-ai-click="safe"`` (on the element or an ancestor). Every other element runs code whose effect is
+     * unknown (e.g. "Run now", a React ``onClick``, a controller ``events`` handler), so the user is asked.
+     * ``data-ai-click="confirm"`` on any ancestor always asks; risky labels and inline handlers ask unless
+     * explicitly marked ``data-ai-click="safe"``. Safety declarations cover all effects of the click.
      */
     _clickPolicy(el) {
         if (!el.getClientRects().length) {
@@ -1513,18 +1521,62 @@ class SdcAiAssistantController extends AbstractSDC {
         if (this._submitsForm(el)) {
             return {blocked: 'it submits a form; forms are submitted by the user'};
         }
-        if (this._linkTarget(el)?.external) {
+        const link = this._linkTarget(el);
+        if (link?.external) {
             return {blocked: 'the link leaves the app; give the user the link instead'};
         }
-        // Only shows or hides something (a modal, a collapsed menu): e.g. the "Remove" button of a list row opens
-        // the modal with the real "Remove …" button, which then asks
-        if (el.getAttribute('data-bs-toggle') && !this._elementHandlers(el).length && el.tagName !== 'A') {
+        const marked = el.closest('[data-ai-click]')?.getAttribute('data-ai-click');
+        if (el.closest('[data-ai-click="confirm"]')) {
+            return {confirm: true};
+        }
+        if (marked === 'safe') {
             return {};
         }
-        const text = [this._elementText(el), this._elementHandlers(el).join(' '), el.title || '',
+        const handlers = this._elementHandlers(el);
+        const text = [this._elementText(el), handlers.join(' '), el.title || '',
             el.getAttribute('aria-label') || '', typeof el.className === 'string' ? el.className : '',
             el.type === 'reset' ? 'reset' : ''].join(' ');
-        return CONFIRM_CLICK.test(text) ? {confirm: true} : {};
+        if (CONFIRM_CLICK.test(text)) {
+            return {confirm: true};
+        }
+        // A method declaration cannot authorize an additional inline click handler. Other listeners are not
+        // inspectable: aiSafeActions and data-ai-click are app assertions covering the complete click.
+        // The dispatcher also runs the sdc_click handlers of every ancestor (the click bubbles), so all of them
+        // must be declared safe
+        const actions = [];
+        for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
+            for (const name of (node.getAttribute('sdc_click') || '').split(/\s+/).filter(Boolean)) {
+                actions.push([node, name]);
+            }
+        }
+        if (actions.length && !el.onclick && !el.hasAttribute('onclick')
+            && actions.every(([node, name]) => this._isSafeAction(node, name))) {
+            return {};
+        }
+        if (link?.sdc && !handlers.length) {
+            return {};  // opens a view (_click uses the navigator, no handler runs)
+        }
+        return {confirm: true};
+    }
+
+    /**
+     * Every controller method dispatched for ``name`` must be declared safe. The click dispatcher invokes
+     * matching methods throughout the parent chain, rather than stopping at the first match. The chain starts at
+     * the controller the dispatcher uses (``getController``: the nearest ``._sdc_controller_``, ``el`` included).
+     */
+    _isSafeAction(el, name) {
+        let found = false;
+        for (let c = $(el).closest('._sdc_controller_').data('_controller_'); c; c = c._parentController) {
+            const handler = typeof c[name] === 'function' ? c[name]
+                : name.startsWith('this.event_') ? c.getEvents?.().click?.[name.slice('this.event_'.length)] : null;
+            if (typeof handler === 'function') {
+                found = true;
+                if (!(c.constructor?.aiSafeActions || []).includes(name)) {
+                    return false;
+                }
+            }
+        }
+        return found;
     }
 
     _describeElement(el) {
