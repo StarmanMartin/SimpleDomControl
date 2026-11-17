@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.166.0
 
 ### Changed
 - AI click safety uses explicit declarations rather than automatically trusting bundled or inherited methods.
@@ -23,6 +23,8 @@ The server and the client are released with the same version number.
 ### Fixed
 - AI assistant: Bootstrap toggle and dismiss attributes no longer bypass confirmation; harmless controls need
   `data-ai-click="safe"`. Safe action declarations are checked on every matching parent controller handler.
+- Generated model list/detail templates (and the `SdcUser` list/details) mark the delete modal's open and close
+  buttons `data-ai-click="safe"`; the "Remove" button still asks.
 
 ## 0.165.1
 
