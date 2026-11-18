@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.169.0
 
 ### Security
 - Client filters (websocket `model_query`, REST, MCP `model_load`) may no longer follow relations: a key may use the
