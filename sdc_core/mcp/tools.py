@@ -24,7 +24,7 @@ from django.http import Http404
 from sdc_core import api_tokens, skill_data
 from sdc_core.mcp.settings import exposed_models, mcp_settings
 from sdc_core.sdc_extentions import model_actions
-from sdc_core.sdc_extentions.models import all_models, resolve_form
+from sdc_core.sdc_extentions.models import all_models, make_form, resolve_form
 from sdc_core.sdc_extentions.schema import generate_form_schema, is_file_field
 
 logger = logging.getLogger(__name__)
@@ -97,7 +97,7 @@ def _form_input_schema(form_class, partial, exclude=()):
     (a required file field when creating).
     """
     schema, _has_files = generate_form_schema(form_class, partial=partial)
-    fields = form_class().fields
+    fields = make_form(form_class).fields
     dropped = {name for name, field in fields.items() if is_file_field(field)} | set(exclude)
     required = [name for name in schema.get('required', []) if name not in dropped]
     if not partial and any(name in dropped for name in schema.get('required', [])

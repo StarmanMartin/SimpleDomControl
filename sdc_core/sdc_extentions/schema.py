@@ -8,7 +8,7 @@ from django import forms
 from django.db import models
 from django.forms.models import ModelChoiceIterator
 
-from sdc_core.sdc_extentions.models import filter_model_fields
+from sdc_core.sdc_extentions.models import filter_model_fields, make_form
 
 
 # Looked up along the class hierarchy of a field (most specific class first), so e.g.
@@ -104,7 +104,7 @@ def form_field_to_schema(field):
 
 
 def generate_form_schema(form_class, partial=False):
-    form = form_class()
+    form = make_form(form_class)
 
     properties = {}
     required = []

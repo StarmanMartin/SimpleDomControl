@@ -29,7 +29,8 @@ from channels.db import database_sync_to_async
 from asgiref.sync import async_to_sync, sync_to_async
 import json
 
-from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query, resolve_form
+from sdc_core.sdc_extentions.models import SdcModel, SDCSerializer, all_models, sanitize_filter_query, resolve_form, \
+    make_form
 from sdc_core.sdc_extentions.response import sdc_link_factory, sdc_link_obj_factory
 from sdc_core.sdc_extentions.import_manager import import_function
 from sdc_core.sdc_extentions.search import handle_search_form
@@ -466,7 +467,8 @@ class SDCModelConsumer(WebsocketConsumer):
             'type': json_data['event_type'],
             'event_id': json_data['event_id'],
             'html': self._render(self.model.SdcMeta.html_form_template,
-                                 {'instance': instance, 'form': form(instance=instance)},
+                                 {'instance': instance,
+                                  'form': make_form(form, self.scope.get('user'), instance=instance)},
                                  json_data),
             'is_error': False
         }))
@@ -521,7 +523,7 @@ class SDCModelConsumer(WebsocketConsumer):
                 uploads[key] = self._upload_handler[val['id']][0].file_complete(val['content_length'])
                 del self._upload_handler[val['id']]
 
-        form_instance = form(instance=instance, data=data, files=uploads)
+        form_instance = make_form(form, self.scope.get('user'), instance=instance, data=data, files=uploads)
         is_valid = form_instance.is_valid()
         new_instance = None
 

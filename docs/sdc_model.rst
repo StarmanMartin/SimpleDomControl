@@ -123,6 +123,30 @@ import string (``"app.forms.BookForm"``), the form class itself, or a function
 that is called with ``{}`` and returns one of these. The same rules apply to
 rendering, saving and the REST API.
 
+A form that must know who uses it sets ``sdc_pass_user = True``. It is then
+built with ``user=``: the user who loads or submits it in the browser, over the
+REST API or over MCP (``None`` when only its schema is generated, and the
+anonymous user for visitors who are not logged in). Use it to limit choices to
+the user's own records, so that nobody can link a new record to someone else's
+data by sending its id:
+
+.. code-block:: python
+
+   class BookForm(forms.ModelForm):
+       sdc_pass_user = True
+
+       class Meta:
+           model = Book
+           fields = ('title', 'shelf')
+
+       def __init__(self, *args, user=None, **kwargs):
+           super().__init__(*args, **kwargs)
+           owner = user if user is not None and user.is_authenticated else None
+           self.fields['shelf'].queryset = Shelf.objects.filter(owner=owner)
+
+``get_queryset()`` only decides which existing rows a user may read and change;
+the choices of a form's related fields are separate and need this.
+
 ``fields`` and ``exclude`` are used in three places: the filter keys a client
 may use (see :ref:`sdc-model-filter-sanitising`), the fields that
 ``sdc_make_model_js`` puts into the generated JavaScript class, and the
