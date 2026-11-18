@@ -15,9 +15,12 @@ Privileges:
 ``account:read``           read the own user record and the own token list
 ``account:write``          change the own profile (never password, e-mail or username)
 ``account:tokens``         create tokens (with at most the own privileges) and revoke own tokens
+``<area>:<action>``        a privilege of the application (``SDC_API_TOKENS['app_privileges']``), e.g.
+                           ``eln:read``; it guards the application's own MCP tools (``SDC_MCP['tools']``)
 =========================  ==================================================================================
 
-``write`` does not include ``read`` and ``delete`` does not include ``write``.
+``write`` does not include ``read`` and ``delete`` does not include ``write``. ``model:*:read`` never includes an
+application privilege.
 
 Settings (``SDC_API_TOKENS``, a dict; missing keys use ``DEFAULT_SETTINGS``):
 
@@ -26,15 +29,21 @@ Settings (``SDC_API_TOKENS``, a dict; missing keys use ``DEFAULT_SETTINGS``):
 - ``login_lifetime_seconds``: lifetime of the tokens of ``sdc_api/login/`` (username and password)
 - ``accept_jwt``: still accept the JSON web tokens of SDC ≤ 0.162 (deprecated, answered with a ``Deprecation``
   header; will be removed)
+- ``app_privileges``: the privileges of the application, ``{name: description}`` or
+  ``{name: {'description': ..., 'presets': ['read', 'read_write', 'full']}}``. A name looks like ``<area>:<action>``
+  (lower case, digits, ``_``; not ``model:`` or ``account:``). ``presets`` lists the presets that include it
+  (default: only ``full``). Login tokens and tokens created without privileges get them like every privilege.
 """
 import datetime
 import hashlib
+import re
 import secrets
 import warnings
 from dataclasses import dataclass
 from functools import wraps
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.http import JsonResponse
 from django.utils import timezone
 
@@ -63,7 +72,9 @@ DEFAULT_SETTINGS = {
     'default_lifetime_days': 90,
     'login_lifetime_seconds': 3600,
     'accept_jwt': True,
+    'app_privileges': {},
 }
+APP_PRIVILEGE_PATTERN = re.compile(r'^[a-z][a-z0-9_]*:[a-z][a-z0-9_]*$')
 # last_used_at is written at most once per interval and token
 LAST_USED_INTERVAL = datetime.timedelta(minutes=1)
 
@@ -78,6 +89,46 @@ class TokenError(ValueError):
 
 # ------------------------------------------------------------------ privileges
 
+def app_privileges():
+    """
+    The privileges of the application (``SDC_API_TOKENS['app_privileges']``) as
+    ``{name: {'description': str, 'presets': tuple}}``; ``ImproperlyConfigured`` for invalid entries.
+    """
+    configured = token_settings()['app_privileges'] or {}
+    if not isinstance(configured, dict):
+        raise ImproperlyConfigured("SDC_API_TOKENS['app_privileges'] must be a dict {name: description}")
+    result = {}
+    for name, value in configured.items():
+        if not isinstance(name, str) or not APP_PRIVILEGE_PATTERN.match(name) or \
+                name.split(':')[0] in ('model', 'account'):
+            raise ImproperlyConfigured(f"Invalid application privilege {name!r}: use '<area>:<action>' in lower case, "
+                                       f"not 'model:' or 'account:'")
+        if isinstance(value, str):
+            value = {'description': value}
+        if not isinstance(value, dict):
+            raise ImproperlyConfigured(f"The application privilege {name!r} needs a description")
+        presets = tuple(value.get('presets', ('full',)))
+        unknown = [preset for preset in presets if preset not in PRESETS]
+        if unknown:
+            raise ImproperlyConfigured(f"Unknown presets of the application privilege {name!r}: {', '.join(unknown)}")
+        result[name] = {'description': str(value.get('description') or name), 'presets': presets}
+    return result
+
+
+def presets():
+    """The presets (``read``, ``read_write``, ``full``) with the application privileges assigned to them."""
+    result = {name: list(privileges) for name, privileges in PRESETS.items()}
+    for name, config in app_privileges().items():
+        for preset in config['presets']:
+            result[preset].append(name)
+    return {name: tuple(privileges) for name, privileges in result.items()}
+
+
+def full_access():
+    """Every privilege: those of all models, the account and the application."""
+    return FULL_ACCESS + tuple(app_privileges())
+
+
 def normalize_privileges(privileges):
     """
     The sorted, de-duplicated privileges with the model names spelled as the model classes; ``TokenError`` for
@@ -87,10 +138,11 @@ def normalize_privileges(privileges):
             not all(isinstance(p, str) for p in privileges):
         raise TokenError('privileges must be a list of strings')
     models = all_models()
+    app = app_privileges()
     result = set()
     for privilege in privileges:
         privilege = privilege.strip()
-        if privilege in ACCOUNT_PRIVILEGES:
+        if privilege in ACCOUNT_PRIVILEGES or privilege in app:
             result.add(privilege)
             continue
         parts = privilege.split(':')
@@ -124,6 +176,13 @@ class Grant:
     def allows_account(self, privilege):
         return privilege in self.privileges
 
+    def has(self, privilege):
+        """True if the privilege is granted: a model privilege (wildcards apply), an account or application one."""
+        parts = privilege.split(':')
+        if len(parts) == 3 and parts[0] == 'model':
+            return self.allows(parts[1], parts[2])
+        return privilege in self.privileges
+
     def models(self, privilege):
         """Names of the SdcModels with ``privilege``."""
         return {name for name in all_models().keys() if self.allows(name, privilege)}
@@ -131,7 +190,8 @@ class Grant:
     def covers(self, privileges):
         """True if every one of ``privileges`` (normalized) is also granted here."""
         for privilege in privileges:
-            if privilege in ACCOUNT_PRIVILEGES:
+            if not privilege.startswith('model:'):
+                # account and application privileges are only covered by themselves
                 if privilege not in self.privileges:
                     return False
                 continue

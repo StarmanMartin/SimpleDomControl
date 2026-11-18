@@ -145,6 +145,17 @@
                 <input class="form-check-input token-privilege" type="checkbox" value="account:tokens" id="sdc-api-token-account-tokens">
                 <label class="form-check-label" for="sdc-api-token-account-tokens">{% trans 'Create and revoke tokens' %}</label>
             </div>
+            {% if app_privileges %}
+                <p class="form-label mt-2">{% trans 'Application' %}</p>
+                {% for privilege, config in app_privileges.items %}
+                    <div class="form-check">
+                        <input class="form-check-input token-privilege" type="checkbox" value="{{ privilege }}"
+                               id="sdc-api-token-app-{{ forloop.counter }}">
+                        <label class="form-check-label" for="sdc-api-token-app-{{ forloop.counter }}">
+                            <code>{{ privilege }}</code>: {{ config.description }}</label>
+                    </div>
+                {% endfor %}
+            {% endif %}
         </div>
 
         <button type="button" class="btn btn-primary" data-ai-click="confirm" sdc_click="create_token">{% trans 'Create token' %}</button>

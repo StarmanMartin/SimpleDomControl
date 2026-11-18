@@ -103,19 +103,20 @@ the setting.
      - ``'/'``
      - Default ``next_page`` of the ``sdc_user`` login controller.
    * - ``SDC_API_TOKENS``
-     - ``{'max_lifetime_days': 365, 'default_lifetime_days': 90, 'login_lifetime_seconds': 3600, 'accept_jwt': True}``
-     - Lifetimes of the API tokens of the REST API and the MCP endpoint, and
-       whether the deprecated JSON web tokens are still accepted. See
-       :doc:`rest_api`.
+     - ``{'max_lifetime_days': 365, 'default_lifetime_days': 90, 'login_lifetime_seconds': 3600, 'accept_jwt': True, 'app_privileges': {}}``
+     - Lifetimes of the API tokens of the REST API and the MCP endpoint,
+       whether the deprecated JSON web tokens are still accepted, and the
+       application's own privileges. See :doc:`rest_api`.
    * - ``JWT``
      - ``{'secret': SECRET_KEY, 'algorithm': 'HS256', 'exp_delta_seconds': 3600}``
      - Signs the e-mail confirmation and password reset tokens of
        ``sdc_user`` and the deprecated JSON web tokens of the REST API
        (accepted for one more release, see :doc:`rest_api`).
    * - ``SDC_MCP``
-     - ``{'enabled': False, 'models': '__all__', 'max_records': 50}`` (also ``'instructions'``)
-     - The MCP endpoint ``sdc_mcp/``: switch, exposed models and the most
-       records per ``model_load``. See :doc:`mcp`.
+     - ``{'enabled': False, 'models': '__all__', 'max_records': 50}`` (also ``'instructions'``, ``'tools'``)
+     - The MCP endpoint ``sdc_mcp/``: switch, exposed models, the most
+       records per ``model_load`` and the application's own tools. See
+       :doc:`mcp`.
    * - ``AUTH_USER_MODEL``
      - ``"sdc_user.SdcUser"``
      - The SDC user model.

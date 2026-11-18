@@ -50,7 +50,7 @@ class Command(BaseCommand):
         if user is None:
             raise CommandError(f"No user {opts['user']}")
         privileges = opts['privileges'].strip()
-        privileges = list(api_tokens.PRESETS[privileges]) if privileges in api_tokens.PRESETS else \
+        privileges = list(api_tokens.presets()[privileges]) if privileges in api_tokens.PRESETS else \
             [p for p in privileges.split(',') if p.strip()]
         expiry = {}
         if opts['days'] is not None:

@@ -122,11 +122,36 @@ then the model's own ``is_authorised()`` / ``get_queryset()`` for the user.
    * - ``account:tokens``
      - Create tokens (with at most the own privileges, expiring no later) and
        revoke own tokens.
+   * - ``<area>:<action>``
+     - A privilege of the application, declared in
+       ``SDC_API_TOKENS['app_privileges']`` (e.g. ``eln:read``). It guards the
+       application's own MCP tools (:doc:`mcp`). ``model:*:…`` never includes
+       it.
 
 ``write`` does not include ``read``, and ``delete`` does not include
 ``write``. The web app offers presets: *Read only* (``model:*:read``,
 ``account:read``), *Read & write* (also ``model:*:write``) and *Full access*
-(all privileges).
+(all privileges). Application privileges belong to *Full access* and to the
+presets listed in their ``presets``.
+
+Application privileges
+""""""""""""""""""""""
+
+.. code-block:: python
+
+   SDC_API_TOKENS = {
+       'app_privileges': {
+           # name: description (shown in the token form), only in the "full" preset
+           'eln:read': 'Read records of the connected ELNs',
+           # or with the presets that include it
+           'eln:sync': {'description': 'Start synchronisations', 'presets': ['full']},
+       },
+   }
+
+A name is ``<area>:<action>`` in lower case (letters, digits, ``_``) and may
+not start with ``model:`` or ``account:``. Login tokens and tokens created
+without privileges get them like all other privileges; a token can only create
+tokens with application privileges it has itself.
 
 A missing privilege is answered with ``403``, a JSON body that names it and the
 header of RFC 6750:

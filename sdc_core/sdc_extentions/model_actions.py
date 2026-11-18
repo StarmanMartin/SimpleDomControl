@@ -52,6 +52,9 @@ class _FullGrant:
     def allows_account(self, privilege):
         return True
 
+    def has(self, privilege):
+        return True
+
     def models(self, privilege):
         return set(all_models().keys())
 

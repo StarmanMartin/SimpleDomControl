@@ -9,6 +9,8 @@ Settings of the MCP endpoint (``SDC_MCP``, a dict; missing keys use ``DEFAULTS``
 - ``instructions``: knowledge of ``sdc_teach`` in the server instructions: ``'models'`` (default: only the data
   models of the index; views matter only for the browser assistant), ``'index'`` (the whole index incl. the URL
   guide and the views) or ``'none'``. Details are always available through ``describe`` and the resources.
+- ``tools``: dotted paths of the application's own tools (``sdc_core.mcp.app_tools.McpTool``): each path names a
+  tool, a list of tools or a function that returns them. See ``sdc_core.mcp.app_tools``.
 """
 from django.conf import settings
 
@@ -20,6 +22,7 @@ DEFAULTS = {
     'max_records': 50,
     'name': None,
     'instructions': 'models',
+    'tools': [],
 }
 
 

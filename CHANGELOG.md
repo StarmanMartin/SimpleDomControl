@@ -5,6 +5,20 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- MCP: applications can add their own tools with `SDC_MCP['tools']` (dotted paths to `sdc_core.mcp.app_tools.McpTool`
+  instances, lists of them or functions returning them), for data that is not a model, such as records fetched
+  live from another server. A client sees a tool only if its token has all of the tool's privileges. Arguments are
+  checked against the tool's input schema (now also `number` and `boolean`); unexpected exceptions are logged and
+  answered with a generic error, so no internal detail reaches the client. Annotations default to the most careful
+  hints.
+- API tokens: application privileges (`SDC_API_TOKENS['app_privileges']`, names like `eln:read`) with a
+  description and the presets that include them (default: only `full`). `model:*:…` never includes them. The token
+  form of `sdc_user` lists them; `sdc_tokens`, `sdc_mcp_config`, login tokens and tokens created without privileges
+  take them into account. New: `api_tokens.app_privileges()`, `presets()`, `full_access()`, `Grant.has()`.
+
 ## 0.166.0
 
 ### Changed
