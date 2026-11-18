@@ -262,7 +262,7 @@ def test_user_rules_still_apply(user, monkeypatch):
     ({'model': 'Author', 'extra': 1}, 'Unknown arguments: extra'),
     ({'model': 'Author', 'limit': '3'}, 'limit must be of type integer'),
     ({'model': 'Author', 'filter': {'secret': 1}}, "Filtering on 'secret' is not allowed"),
-    ({'model': 'Author', 'filter': {'name__nonsense': 1}}, 'Invalid filter'),
+    ({'model': 'Author', 'filter': {'name__nonsense': 1}}, "Filtering on 'name__nonsense' is not allowed"),
     ({'model': 'Author', 'filter': {'age': 'old'}}, 'Invalid filter'),
 ])
 def test_invalid_arguments_are_tool_errors(user, arguments, message):

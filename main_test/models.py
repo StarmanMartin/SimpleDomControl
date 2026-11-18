@@ -77,6 +77,8 @@ class Book(models.Model, SdcModel):
         html_list_template = "main_test/models/Book/Book_list.html"
         html_detail_template = "main_test/models/Book/Book_details.html"
         test = "main_test.forms.SmallBookForm"
+        # clients may filter books by the name of their author (one hop beyond the primary key)
+        filter_relations = ("author__name",)
 
     title = models.CharField(max_length=255)
     author = models.ForeignKey(Author, on_delete=models.CASCADE)
