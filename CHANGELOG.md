@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.167.0
 
 ### Added
 - MCP: applications can add their own tools with `SDC_MCP['tools']` (dotted paths to `sdc_core.mcp.app_tools.McpTool`
