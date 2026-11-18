@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.168.0
 
 ### Added
 - Model forms with `sdc_pass_user = True` are built with `user=`: the user who loads or submits them over the
