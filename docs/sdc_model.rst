@@ -399,11 +399,27 @@ Filter sanitising
 ~~~~~~~~~~~~~~~~~
 
 The client decides the filter (``model_query``). Before it is passed to
-``filter()``, ``sanitize_filter_query()`` checks every key: the part before the
-first ``__`` must be in ``get_filterable_fields(model)``, which is the model's
-field names (``_meta.get_fields()``) restricted by ``SdcMeta.fields``/
-``exclude``, plus ``pk`` and ``id``. Lookups on allowed fields, such as
-``title__icontains`` or ``author__name``, are accepted.
+``filter()``, ``sanitize_filter_query()`` checks every key. A key may
+
+- use a field in ``get_filterable_fields(model)`` (the model's field names
+  restricted by ``SdcMeta.fields``/``exclude``, plus ``pk`` and ``id``),
+  followed only by transforms and one lookup: ``title__icontains``,
+  ``created__date__gte``;
+- follow a forward relation to the related primary key (``author__pk``,
+  ``author__id``) or use a lookup of the relation itself (``author__in``,
+  ``author__isnull``);
+- use a one-hop path the model lists in ``SdcMeta.filter_relations``:
+
+  .. code-block:: python
+
+     class SdcMeta:
+         filter_relations = ("author__name",)   # allows author__name, author__name__icontains, ...
+
+Reverse relations and any further hop are refused. Otherwise a filter on the
+user's own rows could follow relations into other users' records and act as an
+oracle, e.g. ``owner__other_records__secret__startswith``. List a path in
+``filter_relations`` only if every record it reaches may be seen by everyone
+who may load the model.
 
 A rejected key raises ``PermissionDenied``, and the request is answered with the
 ``"403 Not allowed!"`` error. For live ``on_create`` checks the error is

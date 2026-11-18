@@ -152,7 +152,8 @@ def available_tools(grant):
                                 'model': _model_schema(models),
                                 'filter': {'type': 'object', 'description': 'Django field lookups on the fields '
                                            'of the model, e.g. {"name": "Jane"}, {"age__gte": 18} or '
-                                           '{"author__name__icontains": "tolk"}; omit to load all records'},
+                                           '{"author__pk": 3}; relations only to their primary key or as listed in the model\'s '
+                                           'SdcMeta.filter_relations; omit to load all records'},
                                 'limit': {'type': 'integer', 'minimum': 1, 'maximum': max_records,
                                           'description': f'Maximum number of records (default {max_records})'},
                                 'fields': _fields_schema(),

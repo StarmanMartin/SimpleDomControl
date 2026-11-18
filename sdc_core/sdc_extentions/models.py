@@ -4,8 +4,9 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import FieldDoesNotExist, PermissionDenied
 from django.db.models import QuerySet
+from django.db.models.constants import LOOKUP_SEP
 from django.template.loader import render_to_string
 from django.core.serializers.json import Serializer
 from django.db.models import FileField
@@ -135,20 +136,80 @@ def get_filterable_fields(model_cls) -> set[str]:
     return allowed
 
 
+def _is_lookup_chain(field, segments) -> bool:
+    """
+    True if ``segments`` are transforms of ``field`` (``date``, a JSON key, ...), optionally ended by one lookup
+    (``gte``, ``icontains``, ...). The name of a field of another model is neither.
+    """
+    for i, name in enumerate(segments):
+        if field.get_transform(name) is not None:
+            continue
+        return field.get_lookup(name) is not None and i == len(segments) - 1
+    return True
+
+
+def check_filter_key(model_cls, key: str, allowed: set[str]) -> None:
+    """
+    ``PermissionDenied`` unless the filter key stays on ``model_cls``. Allowed are:
+
+    - an exposed field of the model (:func:`get_filterable_fields`), followed only by transforms and one lookup
+      (``title__icontains``, ``created__date__gte``);
+    - a forward relation followed by the related primary key (``author__pk``, ``author__id``) or by a lookup of the
+      relation itself (``author__in``, ``author__isnull``);
+    - a one-hop path listed in ``SdcMeta.filter_relations`` (e.g. ``"author__name"``), followed only by lookups.
+
+    Reverse relations are never filterable. Without this rule a key like
+    ``owner__other_records__secret__startswith`` turns a filter on the user's own rows into an oracle for
+    other users' data.
+    """
+    segments = key.split(LOOKUP_SEP)
+    first, rest = segments[0], segments[1:]
+
+    def refuse(reason='is not allowed'):
+        raise PermissionDenied(f"Filtering on '{key}' {reason}")
+
+    if first == 'pk':
+        field = model_cls._meta.pk
+    else:
+        if first not in allowed:
+            refuse()
+        try:
+            field = model_cls._meta.get_field(first)
+        except FieldDoesNotExist:
+            refuse()
+    if field.is_relation and not field.concrete:
+        refuse('follows a reverse relation, which is not allowed')
+    if field.is_relation and rest:
+        related = field.related_model
+        hop = rest[0]
+        relations = set(getattr(model_cls.SdcMeta, 'filter_relations', None) or ())
+        if hop == 'pk' or hop == related._meta.pk.name:
+            field, rest = related._meta.pk, rest[1:]
+        elif f'{first}{LOOKUP_SEP}{hop}' in relations:
+            try:
+                field, rest = related._meta.get_field(hop), rest[1:]
+            except FieldDoesNotExist:
+                refuse()
+            if field.is_relation and rest:
+                refuse('follows a relation, which is not allowed')
+        elif field.get_lookup(hop) is not None and len(rest) == 1:
+            return
+        else:
+            refuse('follows a relation, which is not allowed (see SdcMeta.filter_relations)')
+    if rest and not _is_lookup_chain(field, rest):
+        refuse()
+
+
 def sanitize_filter_query(model_cls, query) -> dict[str, Any]:
     """
-    Validates client-supplied filter keys against :func:`get_filterable_fields`
-    so that arbitrary ORM lookups (e.g. ``password__startswith``) cannot be
-    injected through the REST/WebSocket query. The base field name (the part
-    before ``__``) of every key must be an exposed field, otherwise
-    ``PermissionDenied`` is raised. Returns a plain dict safe for ``filter(**...)``.
+    Validates client-supplied filter keys (REST, websocket, MCP) with :func:`check_filter_key`, so that neither
+    hidden fields (``password__startswith``) nor other tables reached through relations can be probed. Raises
+    ``PermissionDenied`` for a refused key. Returns a plain dict safe for ``filter(**...)``.
     """
     allowed = get_filterable_fields(model_cls)
     clean: dict[str, Any] = {}
     for key, value in query.items():
-        base = key.split('__', 1)[0]
-        if base not in allowed:
-            raise PermissionDenied(f"Filtering on '{key}' is not allowed")
+        check_filter_key(model_cls, key, allowed)
         clean[key] = value
     return clean
 
@@ -206,6 +267,7 @@ _SDC_META_DEFAULT = {
     'html_list_template': None,
     'html_detail_template': None,
     'html_form_template': getattr(settings, 'MODEL_FORM_TEMPLATE', "elements/form.html"),
+    'filter_relations': (),
 }
 
 

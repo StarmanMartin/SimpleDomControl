@@ -868,7 +868,8 @@ AI_TOOLS = [
      'input_schema': {'type': 'object', 'additionalProperties': False, 'required': ['model'],
                       'properties': {'model': _AI_MODEL,
                                      'filter': {'type': 'object', 'description': 'Django field lookups, '
-                                                'e.g. {"author__name": "Jane"}; omit to load all records'}}}},
+                                                'e.g. {"name__icontains": "Jane"}; relations only to their primary key; '
+                                                'omit to load all records'}}}},
 ]
 # Server tool of the index mode: answered by the consumer from the skill data, never sent to the browser
 AI_DESCRIBE_TOOL = {

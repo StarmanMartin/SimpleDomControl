@@ -5,6 +5,16 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Security
+- Client filters (websocket `model_query`, REST, MCP `model_load`) may no longer follow relations: a key may use the
+  model's own fields with transforms and one lookup, a forward relation's primary key or a lookup of the relation
+  itself, or a one-hop path listed in the new `SdcMeta.filter_relations`. Reverse relations are never filterable.
+  Before, only the first segment of a key was checked, so a filter on a user's own rows could follow relations into
+  other users' records and read hidden values (e.g. tokens) character by character through `__startswith`.
+  **Breaking** for clients that filter through relations: list the needed paths in `SdcMeta.filter_relations`.
+
 ## 0.168.0
 
 ### Added
