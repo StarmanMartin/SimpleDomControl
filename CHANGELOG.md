@@ -7,6 +7,14 @@ The server and the client are released with the same version number.
 
 ## Unreleased
 
+### Added
+- Model forms with `sdc_pass_user = True` are built with `user=`: the user who loads or submits them over the
+  websocket, the REST API or MCP (`None` when only a schema is generated). Forms can use it to limit the choices of
+  related fields to the user's own records. `get_queryset()` does not cover these choices, so before this a user
+  could link a new record to another user's record by sending its id. New: `sdc_extentions.models.make_form`.
+
+## 0.167.1
+
 ### Fixed
 - Jest in projects: `sdc_tools` and `sdc_user` ship `Assets/src/package.json` and `Assets/bin/package.json` with
   `{"type": "module"}`. Their JavaScript is loaded from the Python environment, outside the project, where Node

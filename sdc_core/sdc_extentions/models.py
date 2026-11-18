@@ -111,6 +111,17 @@ def resolve_form(form_attr):
     return form_attr
 
 
+def make_form(form_class, user=None, **kwargs):
+    """
+    An instance of a model form. A form class with ``sdc_pass_user = True`` also gets ``user=``: the user who loads
+    or submits it (``None`` where no user is involved, e.g. when a schema is generated). Such a form can limit its
+    choices to the user's records, e.g. ``self.fields['project'].queryset = Project.objects.filter(owner=user)``.
+    """
+    if getattr(form_class, 'sdc_pass_user', False):
+        kwargs['user'] = user
+    return form_class(**kwargs)
+
+
 def get_filterable_fields(model_cls) -> set[str]:
     """
     Returns the set of field names a client is allowed to filter on. Derived from

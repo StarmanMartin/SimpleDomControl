@@ -15,7 +15,7 @@ from django.core.exceptions import PermissionDenied
 from django.forms.models import model_to_dict
 from django.http import Http404, QueryDict
 
-from sdc_core.sdc_extentions.models import SDCSerializer, all_models, filter_model_fields, resolve_form, \
+from sdc_core.sdc_extentions.models import SDCSerializer, all_models, filter_model_fields, make_form, resolve_form, \
     sanitize_filter_query
 
 READ = 'read'
@@ -156,7 +156,7 @@ def create(user, model_name, data, files=None, grant=FULL):
     _check_grant(grant, model, WRITE)
     _check_authorised(model, user, 'create', {})
     form_class = resolve_form(model.SdcMeta.create_form)
-    form = form_class(instance=None, data=data, files=files)
+    form = make_form(form_class, user, instance=None, data=data, files=files)
     if not form.is_valid():
         raise FormValidationError(form.errors)
     return serialize([form.save()])[0]
@@ -174,8 +174,8 @@ def update(user, model_name, pk, data, files=None, partial=False, grant=FULL):
     instance = model.get_queryset(user, 'save', query).get(**query)
     form_class = resolve_form(model.SdcMeta.edit_form)
     if partial:
-        data = patch_data(form_class, instance, data)
-    form = form_class(instance=instance, data=data, files=files)
+        data = patch_data(form_class, instance, data, user=user)
+    form = make_form(form_class, user, instance=instance, data=data, files=files)
     if not form.is_valid():
         raise FormValidationError(form.errors)
     return serialize([form.save()])[0]
@@ -190,9 +190,9 @@ def delete(user, model_name, pk, grant=FULL):
     model.get_queryset(user, 'delete', query).get(**query).delete()
 
 
-def patch_data(form_class, instance, data):
+def patch_data(form_class, instance, data, user=None):
     """Form data for a partial update: the current values, overwritten by the submitted ones."""
-    field_names = list(form_class(instance=instance).fields.keys())
+    field_names = list(make_form(form_class, user, instance=instance).fields.keys())
     current = model_to_dict(instance, fields=field_names)
     if isinstance(data, QueryDict):
         merged = QueryDict(mutable=True)
