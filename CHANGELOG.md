@@ -5,6 +5,16 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Fixed
+- Jest in projects: `sdc_tools` and `sdc_user` ship `Assets/src/package.json` and `Assets/bin/package.json` with
+  `{"type": "module"}`. Their JavaScript is loaded from the Python environment, outside the project, where Node
+  found no `package.json` and treated the files as CommonJS ("Cannot use import statement outside a module").
+- Project template: the jest config maps `sdc_client` to the project's `node_modules/sdc_client`, so the library
+  files in the Python environment resolve the same client as the project. Existing projects add
+  `"moduleNameMapper": {"^sdc_client$": "<rootDir>/node_modules/sdc_client"}` to `jest` in their `package.json`.
+
 ## 0.167.0
 
 ### Added
