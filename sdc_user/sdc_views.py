@@ -260,6 +260,7 @@ class SdcApiTokens(SdcLoginRequiredMixin, SDCView):
             'models': sorted(all_models().keys(), key=str.lower),
             'model_privileges': api_tokens.MODEL_PRIVILEGES,
             'account_privileges': api_tokens.ACCOUNT_PRIVILEGES,
+            'app_privileges': api_tokens.app_privileges(),
             'lifetimes': lifetimes,
             'default_lifetime': default_days,
             'allow_no_expiry': not max_days,
@@ -282,7 +283,7 @@ class SdcApiTokens(SdcLoginRequiredMixin, SDCView):
             except (TypeError, ValueError):
                 return _call_error(channel, _('Invalid lifetime'))
         if isinstance(privileges, str):
-            privileges = list(api_tokens.PRESETS.get(privileges, [privileges]))
+            privileges = list(api_tokens.presets().get(privileges, [privileges]))
         try:
             token, secret = api_tokens.create_token(user, name, privileges or [], **expiry)
         except api_tokens.TokenError as e:

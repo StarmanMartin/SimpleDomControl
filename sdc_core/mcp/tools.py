@@ -7,8 +7,11 @@ every call runs through ``model_actions``, so the token's privileges and the mod
 - Write tools (one per model, input schema from the model's forms): ``<model>_create`` and ``<model>_update`` with
   ``model:<Name>:write``, ``<model>_delete`` with ``model:<Name>:delete``, and ``account_update`` with
   ``account:write``. File fields cannot be set over MCP.
+- The application's own tools (``SDC_MCP['tools']``, see ``sdc_core.mcp.app_tools``), each listed only if the token
+  has all of its privileges.
 """
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import Callable
@@ -23,6 +26,8 @@ from sdc_core.mcp.settings import exposed_models, mcp_settings
 from sdc_core.sdc_extentions import model_actions
 from sdc_core.sdc_extentions.models import all_models, resolve_form
 from sdc_core.sdc_extentions.schema import generate_form_schema, is_file_field
+
+logger = logging.getLogger(__name__)
 
 READ_ONLY = {'readOnlyHint': True, 'destructiveHint': False, 'idempotentHint': True, 'openWorldHint': False}
 CREATE = {'readOnlyHint': False, 'destructiveHint': False, 'idempotentHint': False, 'openWorldHint': False}
@@ -166,7 +171,44 @@ def available_tools(grant):
     account_update = _account_update_tool(grant)
     if account_update is not None:
         tools.append(account_update)
+    tools += _app_tools(grant)
     return tools
+
+
+GENERIC_TOOLS = ('describe', 'model_get', 'model_load', 'account_get', 'account_update')
+
+
+def generic_tool_names():
+    """Every name a generic tool can have (for any token), which application tools may not use."""
+    names = set(GENERIC_TOOLS)
+    for name in exposed_models():
+        names |= {f'{tool_prefix(name)}_{action}' for action in ('create', 'update', 'delete')}
+    return names
+
+
+def _app_tools(grant):
+    from sdc_core.mcp.app_tools import app_tools
+    return [Tool(tool.definition(), _app_handler(tool), strict=tool.strict)
+            for tool in app_tools(reserved=generic_tool_names())
+            if all(grant.has(privilege) for privilege in tool.privileges)]
+
+
+# Errors of an application tool that go back to the AI model with their message
+_EXPECTED_ERRORS = (ToolError, PermissionDenied, ObjectDoesNotExist, Http404, model_actions.MissingPrivilege,
+                    model_actions.FormValidationError, model_actions.FieldSelectionError)
+
+
+def _app_handler(tool):
+    def handle(arguments, user, grant):
+        try:
+            return tool.handler(arguments, user, grant)
+        except _EXPECTED_ERRORS:
+            raise
+        except Exception:
+            # The message may contain internal details (paths, URLs with credentials): only the log gets it
+            logger.exception('The MCP tool %s failed', tool.name)
+            raise ToolError(f'The tool {tool.name} failed; the details are in the server log')
+    return handle
 
 
 def _write_tools(grant):
@@ -243,7 +285,8 @@ def list_tools(grant):
 
 # ------------------------------------------------------------------ calls
 
-_JSON_TYPES = {'string': str, 'integer': int, 'object': dict, 'array': list}
+_JSON_TYPES = {'string': str, 'integer': int, 'number': (int, float), 'boolean': bool, 'object': dict,
+               'array': list}
 
 
 def _validate(tool, arguments):
@@ -268,12 +311,13 @@ def _validate(tool, arguments):
     for name, value in arguments.items():
         prop = schema['properties'][name]
         expected = _JSON_TYPES[prop['type']]
-        if isinstance(value, bool) or not isinstance(value, expected):
+        if isinstance(value, bool) != (prop['type'] == 'boolean') or not isinstance(value, expected):
             raise ToolError(f'{name} must be of type {prop["type"]}')
-        if prop['type'] == 'array' and not all(isinstance(item, str) for item in value):
+        if prop['type'] == 'array' and (prop.get('items') or {}).get('type') == 'string' and \
+                not all(isinstance(item, str) for item in value):
             raise ToolError(f'{name} must be a list of strings')
         if 'enum' in prop and value not in prop['enum']:
-            raise ToolError(f'{name} must be one of: {", ".join(prop["enum"])}')
+            raise ToolError(f'{name} must be one of: {", ".join(map(str, prop["enum"]))}')
         if 'minimum' in prop and value < prop['minimum'] or 'maximum' in prop and value > prop['maximum']:
             raise ToolError(f'{name} must be between {prop.get("minimum")} and {prop.get("maximum")}')
 

@@ -103,6 +103,10 @@ Settings
    whole index, ``'none'`` nothing. Details are always available through
    ``describe`` and the resources.
 
+``tools``
+   Dotted paths of the application's own tools (default ``[]``), see
+   `Application tools`_.
+
 Tools
 -----
 
@@ -158,6 +162,58 @@ All tools carry MCP annotations: the read tools are ``readOnlyHint``, update
 and delete tools ``destructiveHint``, so clients ask the user before they run
 them. The server instructions also ask the model to confirm changes with the
 user.
+
+Application tools
+^^^^^^^^^^^^^^^^^
+
+An application can add its own tools, for data that is not a model, such as
+records fetched live from another server. List them in ``SDC_MCP['tools']``;
+each dotted path names an ``McpTool``, a list of them or a function that
+returns them:
+
+.. code-block:: python
+
+   # settings.py
+   SDC_MCP = {'enabled': True, 'tools': ['my_app.mcp_tools.TOOLS']}
+   SDC_API_TOKENS = {'app_privileges': {'lab:read': 'Read the measurements of the devices'}}
+
+   # my_app/mcp_tools.py
+   from sdc_core.mcp.app_tools import McpTool, READ_ONLY_OPEN_WORLD
+   from sdc_core.mcp.tools import ToolError
+
+   def measurement(arguments, user, grant):
+       device = Device.objects.filter(owner=user, pk=arguments['device']).first()
+       if device is None:
+           raise ToolError('Not found (or the user is not allowed to see it)')
+       return device.read_measurement()
+
+   TOOLS = [McpTool(
+       name='device_measurement', title='Read a measurement',
+       description="The latest measurement of one of the user's devices.",
+       input_schema={'type': 'object', 'additionalProperties': False, 'required': ['device'],
+                     'properties': {'device': {'type': 'integer', 'description': 'Id of the device'}}},
+       handler=measurement, privileges=('lab:read',), annotations=READ_ONLY_OPEN_WORLD)]
+
+- A client sees a tool only if its token has **all** of the tool's
+  ``privileges``: application privileges (:doc:`rest_api`), model privileges
+  (``model:<Name>:read``, wildcards apply) or account privileges.
+- **The handler decides which records the user may reach**; it gets the
+  token's ``user`` and ``grant``. The privileges only decide whether the token
+  may use the tool at all.
+- The arguments are checked against ``input_schema`` before the handler runs
+  (required and unknown names; with ``strict=True``, the default, also the
+  types ``string``, ``integer``, ``number``, ``boolean``, ``object``,
+  ``array``, enums and ranges of the top-level arguments).
+- ``ToolError``, ``PermissionDenied``, ``ObjectDoesNotExist`` and ``Http404``
+  go back to the AI model as error results with their message. Any other
+  exception is logged and answered with a generic error, so internal details
+  never reach the client.
+- ``annotations`` default to the most careful hints (not read-only,
+  destructive, open world): clients ask before every call. Use ``READ_ONLY``,
+  ``READ_ONLY_OPEN_WORLD`` or your own dict for harmless tools.
+- Tool names: letters, digits, ``_`` and ``-`` (at most 64), and not the name
+  of a generic tool. Invalid entries raise ``ImproperlyConfigured`` (logged;
+  ``tools/list`` answers *Internal error*).
 
 Resources and instructions
 --------------------------

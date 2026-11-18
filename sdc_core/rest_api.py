@@ -56,7 +56,7 @@ def _refresh_with_jwt(request):
         return JsonResponse({"error": "Expired token"}, status=401)
     except (jwt.InvalidTokenError, User.DoesNotExist):
         return JsonResponse({"error": "Invalid token"}, status=401)
-    token, new_secret = api_tokens.create_token(user, 'Login (refreshed JWT)', api_tokens.FULL_ACCESS,
+    token, new_secret = api_tokens.create_token(user, 'Login (refreshed JWT)', api_tokens.full_access(),
                                                 kind='login')
     return api_tokens.mark_deprecated(_login_response(token, new_secret))
 
@@ -87,7 +87,7 @@ def get_api_token(request):
             return JsonResponse({"error": "Invalid credentials"}, status=401)
         try:
             token, secret = api_tokens.create_token(user, data.get("name") or "Login",
-                                                    data.get("privileges") or api_tokens.FULL_ACCESS,
+                                                    data.get("privileges") or api_tokens.full_access(),
                                                     kind='login')
         except api_tokens.TokenError as e:
             return JsonResponse({"error": str(e)}, status=400)
