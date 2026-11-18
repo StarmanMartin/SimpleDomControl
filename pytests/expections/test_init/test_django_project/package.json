@@ -34,7 +34,10 @@
     ],
     "testMatch": [
       "<rootDir>/*/Assets/tests/*.test.js?(x)"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^sdc_client$": "<rootDir>/node_modules/sdc_client"
+    }
   },
   "keywords": [],
   "author": "",
