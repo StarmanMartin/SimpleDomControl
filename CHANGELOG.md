@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.167.1
 
 ### Fixed
 - Jest in projects: `sdc_tools` and `sdc_user` ship `Assets/src/package.json` and `Assets/bin/package.json` with
