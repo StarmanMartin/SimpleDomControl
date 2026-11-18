@@ -140,6 +140,8 @@ def test_a_function_can_provide_the_tools(user):
             privileges='lab:read'),
     McpTool(name='x', description='', input_schema={'type': 'object', 'properties': {}}, handler=_echo,
             privileges=('lab:unknown',)),
+    McpTool(name='x', description='', input_schema={'type': 'object', 'properties': {}}, handler=_echo,
+            privileges=('lab:read', 'lab:read')),
     McpTool(name='x', description='', input_schema={'type': 'object'}, handler=_echo, privileges=('lab:read',)),
     McpTool(name='x', description='', input_schema={'type': 'object', 'properties': {'a': {}}}, handler=_echo,
             privileges=('lab:read',)),

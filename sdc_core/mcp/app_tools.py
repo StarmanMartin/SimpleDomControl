@@ -106,7 +106,7 @@ def _check(tool, path, reserved):
         normalized = api_tokens.normalize_privileges(list(tool.privileges))
     except api_tokens.TokenError as e:
         raise ImproperlyConfigured(f'{where}: {tool.name}: {e}')
-    if len(normalized) != len(set(tool.privileges)):
+    if len(normalized) != len(tool.privileges):
         raise ImproperlyConfigured(f'{where}: {tool.name} lists a privilege twice')
 
 
