@@ -80,7 +80,18 @@ def _instructions():
     index = skill_data.skill_index() if mode in ('models', 'index') else None
     if index and mode == 'models':
         index = _models_section(index)
-    return f'{text}\n\n{index}' if index else text
+    parts = [text]
+    extra = (mcp_settings().get('instructions_extra') or '').strip()
+    if extra:
+        parts.append(extra)
+    app_files = resources.listed_app_resources()
+    if app_files:
+        parts.append('Documentation of this website (MCP resources, read them with resources/read):\n' + '\n'.join(
+            f"- `{r['uri']}`: {r['title']}" + (f" ({r['description']})" if r['description'] else '')
+            for r in app_files))
+    if index:
+        parts.append(index)
+    return '\n\n'.join(parts)
 
 
 def _models_section(index):

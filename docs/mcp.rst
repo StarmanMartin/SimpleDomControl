@@ -107,6 +107,32 @@ Settings
    Dotted paths of the application's own tools (default ``[]``), see
    `Application tools`_.
 
+``instructions_extra``
+   Text of the application appended to the server instructions (default
+   ``None``), e.g. the workflow an AI model should follow. Clients read the
+   instructions when they connect, so keep it short and link longer documents
+   as resources:
+
+   .. code-block:: python
+
+      SDC_MCP = {
+          'enabled': True,
+          'instructions_extra': (BASE_DIR / 'my_app/mcp/recipe.md').read_text(),
+          'resources': [
+              {'name': 'operators', 'path': 'my_app/mcp/operators.md',
+               'title': 'Operator guide', 'description': 'How to write conversion operators'},
+          ],
+      }
+
+``resources``
+   Files of the application served as MCP resources ``sdc://app/<name>``
+   (default ``[]``): ``name`` (letters, digits, ``_``, ``-``), ``path``
+   (relative to ``BASE_DIR``), optional ``title``, ``description`` and
+   ``mimeType`` (``.md`` → ``text/markdown``, else guessed). They are listed in
+   ``resources/list`` and named in the instructions. Clients can only read the
+   configured names, never choose a path; a missing file is left out (and
+   logged).
+
 Tools
 -----
 
