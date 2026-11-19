@@ -4622,10 +4622,10 @@ schema-utils@^4.3.3:
     ajv-formats "^2.1.1"
     ajv-keywords "^5.1.0"
 
-sdc_client@^0.169.0:
-  version "0.169.0"
-  resolved "https://registry.yarnpkg.com/sdc_client/-/sdc_client-0.169.0.tgz#6dece6bb2d019888217fb1e1dfb84bd62a838fcc"
-  integrity sha512-ysfoQjb6ct0tlSLq3pexaEsYCFij4u2R2NEtrCIN7nUbyg/qw5s88tG5+Pe94snfNANcKaFZoO5twiQrCtcMeg==
+sdc_client@^0.170.0:
+  version "0.170.0"
+  resolved "https://registry.yarnpkg.com/sdc_client/-/sdc_client-0.170.0.tgz#c316d558bf755afd9396d2d60e6a1816cc38e57e"
+  integrity sha512-IZHZD9Y9Cek9wyYRa+UTtFmPGikqxA/INGm9GBv2Z5ijdglV/SApRU4+p1xAiHKApcsf97y1P7xPci0wdIkLNw==
   dependencies:
     dotenv "^16.4.7"
     gulp-exec "^5.0.0"
