@@ -9,6 +9,11 @@ Settings of the MCP endpoint (``SDC_MCP``, a dict; missing keys use ``DEFAULTS``
 - ``instructions``: knowledge of ``sdc_teach`` in the server instructions: ``'models'`` (default: only the data
   models of the index; views matter only for the browser assistant), ``'index'`` (the whole index incl. the URL
   guide and the views) or ``'none'``. Details are always available through ``describe`` and the resources.
+- ``instructions_extra``: text of the application appended to the server instructions (e.g. a workflow recipe the
+  AI model should follow); clients read the instructions when they connect.
+- ``resources``: files of the application exposed as resources ``sdc://app/<name>``: a list of
+  ``{'name', 'path', 'title'?, 'description'?, 'mimeType'?}``; ``path`` is relative to ``BASE_DIR``, ``name`` uses
+  letters, digits, ``_`` and ``-``. Clients can only read these configured files, never choose a path.
 - ``tools``: dotted paths of the application's own tools (``sdc_core.mcp.app_tools.McpTool``): each path names a
   tool, a list of tools or a function that returns them. See ``sdc_core.mcp.app_tools``.
 """
@@ -23,6 +28,8 @@ DEFAULTS = {
     'name': None,
     'instructions': 'models',
     'tools': [],
+    'instructions_extra': None,
+    'resources': [],
 }
 
 
