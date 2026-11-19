@@ -5,12 +5,14 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.170.0
 
 ### Added
 - MCP: `SDC_MCP['instructions_extra']` appends the application's own text to the server instructions (e.g. a workflow
   recipe), and `SDC_MCP['resources']` serves the application's files as resources `sdc://app/<name>` (listed in
   `resources/list` and named in the instructions; clients can only read the configured names).
+  Files that are not UTF-8 text are served as base64 `blob` contents (`application/octet-stream` without a
+  configured or guessable type).
 
 ## 0.169.0
 
