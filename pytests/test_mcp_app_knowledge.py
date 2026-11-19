@@ -1,4 +1,5 @@
 """The application's own MCP instructions (``SDC_MCP['instructions_extra']``) and resources (``SDC_MCP['resources']``)."""
+import base64
 import json
 import os
 
@@ -74,6 +75,26 @@ def test_list_and_read(secret, docs):
         assert listed['sdc://app/key-paths']['mimeType'] == 'text/plain'
         content = _rpc(secret, 'resources/read', {'uri': 'sdc://app/recipe'})['result']['contents'][0]
     assert content == {'uri': 'sdc://app/recipe', 'mimeType': 'text/markdown', 'text': '# Recipe\n1. do this'}
+
+
+def test_a_binary_file_is_read_as_base64_blob(secret, docs):
+    png = b'\x89PNG\r\n\x1a\n\x00\xff'
+    (docs / 'docs' / 'logo.png').write_bytes(png)
+    with _settings(docs, resources=[{'name': 'logo', 'path': 'docs/logo.png'}]):
+        content = _rpc(secret, 'resources/read', {'uri': 'sdc://app/logo'})['result']['contents'][0]
+    assert content == {'uri': 'sdc://app/logo', 'mimeType': 'image/png',
+                       'blob': base64.b64encode(png).decode('ascii')}
+
+
+def test_a_binary_file_of_unknown_type_is_an_octet_stream(secret, docs):
+    (docs / 'docs' / 'data.bin42').write_bytes(b'\xff\xfe\x00')
+    (docs / 'docs' / 'notes').write_text('plain', encoding='utf-8')
+    configured = [{'name': 'data', 'path': 'docs/data.bin42'}, {'name': 'notes', 'path': 'docs/notes'}]
+    with _settings(docs, resources=configured):
+        data = _rpc(secret, 'resources/read', {'uri': 'sdc://app/data'})['result']['contents'][0]
+        notes = _rpc(secret, 'resources/read', {'uri': 'sdc://app/notes'})['result']['contents'][0]
+    assert data['mimeType'] == 'application/octet-stream' and data['blob'] == '//4A'
+    assert notes == {'uri': 'sdc://app/notes', 'mimeType': 'text/plain', 'text': 'plain'}
 
 
 @pytest.mark.parametrize('uri', ['sdc://app/secret', 'sdc://app/../secret.txt', 'sdc://app/docs/recipe.md',

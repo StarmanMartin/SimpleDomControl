@@ -84,11 +84,11 @@ def _instructions():
     extra = (mcp_settings().get('instructions_extra') or '').strip()
     if extra:
         parts.append(extra)
-    app_files = resources.app_resources()
+    app_files = resources.listed_app_resources()
     if app_files:
         parts.append('Documentation of this website (MCP resources, read them with resources/read):\n' + '\n'.join(
             f"- `{r['uri']}`: {r['title']}" + (f" ({r['description']})" if r['description'] else '')
-            for r in app_files.values()))
+            for r in app_files))
     if index:
         parts.append(index)
     return '\n\n'.join(parts)
