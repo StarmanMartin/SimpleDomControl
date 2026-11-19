@@ -5,6 +5,17 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## Unreleased
+
+### Added
+- `sdc_eval_ai --agent mcp` evaluates an AI model that uses the MCP endpoint, without a browser: an API token per
+  role (task key `privileges`, default `--mcp-privileges`), the server instructions as system prompt, the tools of
+  `tools/list` plus `resources_list` / `resources_read`, simulated confirmations (`--confirm`) before tools that may
+  change data, `--max-turns`, the conditions `full` / `none` and `--model oracle` to replay the `reference` steps as
+  tool calls. New checks: `records` (ORM filters, count and field values in the database), `tools_used`,
+  `tools_not_used` and `max_tool_errors`; new task keys `privileges` and `agent` (tasks of the other agent are
+  skipped). Token secrets never appear in results or logs. See "Evaluating an MCP agent" in the MCP docs.
+
 ## 0.170.0
 
 ### Added

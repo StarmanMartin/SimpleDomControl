@@ -17,6 +17,9 @@ from sdc_core.management.commands.utils.eval_ai import (
     JUDGE_PROMPT, EvalConfigError, apply_judge, check_episode, db_changes, episode_key, episode_metrics, format_table,
     load_tasks, outcome, parse_condition, parse_judge, parse_judge_model, parse_model, parse_users, prompt_for_run,
     prompt_warnings, read_results, settings_module_source, summarize, write_csv)
+from sdc_core.management.commands.utils.eval_mcp import (
+    HttpTransport, OracleSession, consumer_session, evaluate_records, mcp_metrics, mcp_settings_source,
+    parse_mcp_condition, parse_mcp_model, parse_privileges, run_episode, scrub)
 from sdc_core.management.commands.utils.teach_crawler import WAIT_READY_JS
 
 # Room for the reasoning of thinking models (e.g. GLM, DeepSeek) before the verdict
@@ -36,7 +39,8 @@ if fixtures is not None:
     call_command('flush', interactive=False, verbosity=0)
     if fixtures:
         call_command('loaddata', *fixtures, verbosity=0)
-sessions = {}
+sessions, tokens = {}, {}
+token_spec = json.loads(os.environ.get('SDC_EVAL_TOKENS', '{}'))
 for role, u in json.loads(os.environ['SDC_EVAL_USERS']).items():
     user = authenticate(username=u['username'], password=u['password'])
     if user is None:
@@ -48,7 +52,17 @@ for role, u in json.loads(os.environ['SDC_EVAL_USERS']).items():
     s[HASH_SESSION_KEY] = user.get_session_auth_hash()
     s.create()
     sessions[role] = {'name': settings.SESSION_COOKIE_NAME, 'value': s.session_key}
-ignored = {'sessions.session', 'admin.logentry', 'contenttypes.contenttype', 'auth.permission'}
+    if role in token_spec:
+        # An API token for the MCP agent: privileges or presets; the secret is only passed to the runner
+        from sdc_core import api_tokens
+        from sdc_core.models import ApiToken
+        ApiToken.objects.filter(user=user, name='sdc_eval_ai').delete()
+        privileges = []
+        for p in token_spec[role]:
+            privileges += api_tokens.presets().get(p, [p])
+        tokens[role] = api_tokens.create_token(user, 'sdc_eval_ai', privileges)[1]
+ignored = {'sessions.session', 'admin.logentry', 'contenttypes.contenttype', 'auth.permission',
+           'sdc_core.apitoken'}
 snapshot = {}
 for model in apps.get_models():
     label = model._meta.label_lower
@@ -56,7 +70,14 @@ for model in apps.get_models():
         continue
     rows = list(model._base_manager.order_by('pk').values_list())
     snapshot[label] = [len(rows), hashlib.sha256(json.dumps(rows, default=str).encode()).hexdigest()]
-print('SDC_EVAL_STATE ' + json.dumps({'sessions': sessions, 'snapshot': snapshot}))
+print('SDC_EVAL_STATE ' + json.dumps({'sessions': sessions, 'snapshot': snapshot, 'tokens': tokens}))
+"""
+
+# Run in the evaluation database after an MCP episode: evaluates the 'records' checks
+RECORDS_SCRIPT = """
+import json, os
+from sdc_core.management.commands.utils.eval_mcp import evaluate_records
+print('SDC_EVAL_RECORDS ' + json.dumps(evaluate_records(json.loads(os.environ['SDC_EVAL_RECORD_SPECS']))))
 """
 
 # Records form submissions of the app (not of the assistant panel) and every error view (<sdc-error>, e.g. after
@@ -206,6 +227,15 @@ class Command(BaseCommand):
         parser.add_argument('--confirm', choices=('deny', 'allow'), default='deny',
                             help='Answer of the simulated user when the assistant asks before a risky click '
                                  '(default: deny); every question is recorded in the episode')
+        parser.add_argument('--agent', choices=('browser', 'mcp'), default='browser',
+                            help='browser: the AI assistant in a headless browser (default). mcp: an AI model that '
+                                 'uses the MCP endpoint (sdc_mcp/) with an API token, without a browser; '
+                                 '--model oracle replays the "reference" of the tasks without a model')
+        parser.add_argument('--mcp-privileges', default='read',
+                            help='Privileges or presets of the API token of --agent mcp, comma-separated, for tasks '
+                                 'without "privileges" (default: the preset read)')
+        parser.add_argument('--max-turns', type=int, default=40,
+                            help='--agent mcp: most model requests per episode (default: 40)')
         parser.add_argument('--timeout', type=int, default=15000, help='Timeout of page actions in ms')
         parser.add_argument('--judge-model', default=None,
                             help='Model that grades tasks with a "judge" rubric (else needs_judge): a spec like '
@@ -239,8 +269,11 @@ class Command(BaseCommand):
             if ops['only']:
                 import re
                 tasks = [t for t in tasks if re.search(ops['only'], t['id'])]
-            conditions = [parse_condition(c) for c in ops['conditions'] or ['none', 'apps', 'full']]
-            models = [parse_model(m) for m in ops['models'] or [self._project_model()]]
+            mcp = ops['agent'] == 'mcp'
+            tasks = self._tasks_of_agent(tasks, ops['agent'])
+            conditions = [parse_mcp_condition(c) if mcp else parse_condition(c)
+                          for c in ops['conditions'] or (['none', 'full'] if mcp else ['none', 'apps', 'full'])]
+            models = [(parse_mcp_model if mcp else parse_model)(m) for m in ops['models'] or [self._project_model()]]
             users = parse_users(ops['users'], ops['users_file'])
         except EvalConfigError as e:
             raise CommandError(str(e))
@@ -249,6 +282,8 @@ class Command(BaseCommand):
         if ops['retry_errors'] and not ops['dry_run']:
             self._drop_errors(ops['output'])
         previous = read_results(ops['output'])
+        if any(r.get('agent', 'browser') != ops['agent'] for r in previous):
+            raise CommandError(f'{ops["output"]} has episodes of another agent: use one result file per --agent')
         self._warn_changed_models(previous, models)
         done = {episode_key(r) for r in previous if not (ops['retry_errors'] and r.get('outcome') == 'error')}
         rng = random.Random(ops['seed'])
@@ -266,39 +301,59 @@ class Command(BaseCommand):
         if ops['dry_run'] or not total:
             return
 
-        try:
-            from playwright.sync_api import sync_playwright
-        except ImportError:
-            raise CommandError('sdc_eval_ai needs playwright: pip install "simpledomcontrol[teach]" && '
-                               'playwright install chromium')
-
         workdir = tempfile.mkdtemp(prefix='sdc_eval_')
         metrics_file = os.path.abspath(ops['output']) + '.metrics.jsonl'
         try:
-            with sync_playwright() as p:
-                browser = TeachCommand._launch(p, ops, headless=not ops['headed'])
+            if ops['agent'] == 'mcp':
+                # The MCP agent needs no browser
+                self._run_plan(None, plan, workdir, metrics_file, users, total, ops)
+            else:
                 try:
-                    count = 0
-                    for condition, model, episodes in plan:
-                        if not episodes:
-                            continue
-                        env = self._group_env(workdir, condition, model, metrics_file, ops)
-                        with self._server(env, ops) as base_url:
-                            self.stdout.write(self.style.SUCCESS(
-                                f'== condition {condition["label"]} / model {model["label"]} ({base_url})'))
-                            for task, run in episodes:
-                                count += 1
-                                result = self._episode(browser, base_url, env, task, run, condition, model,
-                                                       users, metrics_file, ops)
-                                with open(ops['output'], 'a', encoding='utf-8') as f:
-                                    f.write(json.dumps(result, ensure_ascii=False, default=str) + '\n')
-                                self.stdout.write(f'[{count}/{total}] {task["id"]} run {run}: {result["outcome"]}'
-                                                  + (f' ({result["error"]})' if result.get('error') else ''))
-                finally:
-                    browser.close()
+                    from playwright.sync_api import sync_playwright
+                except ImportError:
+                    raise CommandError('sdc_eval_ai needs playwright: pip install "simpledomcontrol[teach]" && '
+                                       'playwright install chromium')
+                with sync_playwright() as p:
+                    browser = TeachCommand._launch(p, ops, headless=not ops['headed'])
+                    try:
+                        self._run_plan(browser, plan, workdir, metrics_file, users, total, ops)
+                    finally:
+                        browser.close()
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
         self._summarize(ops)
+
+    def _run_plan(self, browser, plan, workdir, metrics_file, users, total, ops):
+        """Runs the planned episodes group by group (a server per condition and model); appends the results."""
+        count = 0
+        for condition, model, episodes in plan:
+            if not episodes:
+                continue
+            env = self._group_env(workdir, condition, model, metrics_file, ops)
+            with self._server(env, ops) as base_url:
+                self.stdout.write(self.style.SUCCESS(
+                    f'== condition {condition["label"]} / model {model["label"]} ({base_url})'))
+                for task, run in episodes:
+                    count += 1
+                    if ops['agent'] == 'mcp':
+                        result = self._episode_mcp(base_url, env, task, run, condition, model, users, ops)
+                    else:
+                        result = self._episode(browser, base_url, env, task, run, condition, model, users,
+                                               metrics_file, ops)
+                    with open(ops['output'], 'a', encoding='utf-8') as f:
+                        f.write(json.dumps(result, ensure_ascii=False, default=str) + '\n')
+                    self.stdout.write(f'[{count}/{total}] {task["id"]} run {run}: {result["outcome"]}'
+                                      + (f' ({result["error"]})' if result.get('error') else ''))
+
+    def _tasks_of_agent(self, tasks, agent):
+        """The tasks that run with ``agent``; tasks of the other agent are skipped with a note."""
+        skipped = [t['id'] for t in tasks if t['agent'] not in (None, agent)]
+        if skipped:
+            self.stdout.write(f'Skipped {len(skipped)} tasks for the other agent: {", ".join(skipped)}')
+        tasks = [t for t in tasks if t['agent'] in (None, agent)]
+        if not tasks:
+            raise EvalConfigError(f'No tasks for --agent {agent}')
+        return tasks
 
     @staticmethod
     def _fail(msg):
@@ -318,13 +373,15 @@ class Command(BaseCommand):
             labels = [i['label'] for i in items]
             if len(labels) != len(set(labels)):
                 raise CommandError(f'Two {kind}s have the same label {labels}; name them with label=...')
+        if ops['agent'] == 'mcp' and any(t['role'] == 'anonymous' for t in tasks):
+            raise CommandError('Tasks for --agent mcp need a role with a user (an API token belongs to a user)')
         missing = sorted({t['role'] for t in tasks} - set(users) - {'anonymous'})
         if missing:
             raise CommandError(f'No user for the role(s) {missing}: use --user role=username:password')
         if ops['database'] not in getattr(settings, 'DATABASES_AVAILABLE', {ops['database']: None}):
             raise CommandError(f"DJANGO_DATABASE alias '{ops['database']}' is not defined in your settings")
         base_dir = str(getattr(settings, 'BASE_DIR', ''))
-        for c in conditions:
+        for c in conditions if ops['agent'] == 'browser' else []:
             files = [c['settings']['SDC_AI_SKILL_FILE']] if c['settings']['SDC_AI_SKILL_SOURCE'] == 'full' else []
             if c['settings'].get('SDC_AI_SKILL_MODE') == 'index':
                 files = [c['settings']['SDC_AI_SKILL_DATA_FILE']]
@@ -334,6 +391,8 @@ class Command(BaseCommand):
                     raise CommandError(f'Condition {c["label"]}: {file} does not exist (relative to BASE_DIR)')
         keys = {'anthropic': 'ANTHROPIC_API_KEY', 'openai-compatible': 'OPENAI_API_KEY'}
         for m in models:
+            if m['spec'] == 'oracle':
+                continue
             key = keys[m['settings']['SDC_AI_PROVIDER']]
             if not os.environ.get(key) and not ops['dry_run']:
                 self.stderr.write(self.style.WARNING(f'Model {m["label"]}: {key} is not set'))
@@ -349,6 +408,13 @@ class Command(BaseCommand):
     def _group_env(self, workdir, condition, model, metrics_file, ops):
         """Environment of the server of one condition/model: a settings module that overrides the AI settings."""
         name = 'sdc_eval_settings_' + hashlib.sha256(f'{condition["spec"]}|{model["spec"]}'.encode()).hexdigest()[:12]
+        if ops['agent'] == 'mcp':
+            # Only the MCP endpoint is configured: the condition overrides what the instructions contain
+            with open(os.path.join(workdir, f'{name}.py'), 'w') as f:
+                f.write(mcp_settings_source(settings.SETTINGS_MODULE, condition))
+            python_path = os.pathsep.join(filter(None, [workdir, os.getcwd(), os.environ.get('PYTHONPATH')]))
+            return os.environ | {'DJANGO_DATABASE': ops['database'], 'DJANGO_SETTINGS_MODULE': name,
+                                 'PYTHONPATH': python_path}
         values = {
             'SDC_AI_ASSISTANT': True, 'SDC_AI_TOKEN_FROM_SYSTEM': True, 'SDC_AI_REQUIRE_LOGIN': True,
             'SDC_AI_ALLOWED_GROUPS': None, 'SDC_AI_MAX_REQUESTS_PER_USER': None, 'SDC_AI_EFFORT': ops['effort'],
@@ -397,10 +463,13 @@ class Command(BaseCommand):
         return Server()
 
     @staticmethod
-    def _state(env, fixtures, users):
-        """Resets the database (fixtures not None), creates sessions for ``users``; returns sessions and snapshot."""
-        out = TeachCommand._manage(env | {'SDC_EVAL_FIXTURES': json.dumps(fixtures), 'SDC_EVAL_USERS': json.dumps(users)},
-                                   'shell', '-c', STATE_SCRIPT)
+    def _state(env, fixtures, users, tokens=None):
+        """
+        Resets the database (fixtures not None), creates sessions for ``users`` and API tokens for the roles of
+        ``tokens`` ({role: privileges}); returns sessions, snapshot and the token secrets.
+        """
+        out = TeachCommand._manage(env | {'SDC_EVAL_FIXTURES': json.dumps(fixtures), 'SDC_EVAL_USERS': json.dumps(users),
+                                          'SDC_EVAL_TOKENS': json.dumps(tokens or {})}, 'shell', '-c', STATE_SCRIPT)
         line = next((l for l in reversed(out.splitlines()) if l.startswith('SDC_EVAL_STATE ')), None)
         if line is None:
             raise CommandError(f'Unexpected output of the state script:\n{out[-2000:]}')
@@ -409,12 +478,7 @@ class Command(BaseCommand):
     # --------------------------------------------------------------------------------------------- episode
     def _episode(self, browser, base_url, env, task, run, condition, model, users, metrics_file, ops):
         prompt = prompt_for_run(task, run)
-        result = {
-            'task': task['id'], 'app': task['app'], 'category': task['category'], 'role': task['role'],
-            'condition': condition['label'], 'condition_spec': condition['spec'], 'model': model['label'],
-            'model_spec': model['spec'], 'run': run, 'prompt': prompt, 'followup': task['followup'],
-            'started': time.strftime('%Y-%m-%dT%H:%M:%S'), 'sdc_version': self._version(),
-        }
+        result = self._result_base(task, run, condition, model, prompt)
         started = time.monotonic()
         role_users = {task['role']: users[task['role']]} if task['role'] in users else {}
         episode, error = {}, None
@@ -454,6 +518,90 @@ class Command(BaseCommand):
             'seconds': round(time.monotonic() - started, 2),
         }
         return result
+
+    def _result_base(self, task, run, condition, model, prompt):
+        """The identifying fields of an episode's result line."""
+        return {
+            'task': task['id'], 'app': task['app'], 'category': task['category'], 'role': task['role'],
+            'condition': condition['label'], 'condition_spec': condition['spec'], 'model': model['label'],
+            'model_spec': model['spec'], 'run': run, 'prompt': prompt, 'followup': task['followup'],
+            'started': time.strftime('%Y-%m-%dT%H:%M:%S'), 'sdc_version': self._version(),
+        }
+
+    # ----------------------------------------------------------------------------------------- mcp episode
+    def _episode_mcp(self, base_url, env, task, run, condition, model, users, ops):
+        """
+        One episode of the MCP agent: resets the database, creates the API token of the task's role, lets the model
+        use ``/sdc_mcp/`` and evaluates the result. The token secret never leaves this method's locals.
+        """
+        prompt = prompt_for_run(task, run)
+        result = self._result_base(task, run, condition, model, prompt) | {'agent': 'mcp'}
+        started = time.monotonic()
+        role_users = {task['role']: users[task['role']]} if task['role'] in users else {}
+        privileges = task['privileges'] or parse_privileges(ops['mcp_privileges'])
+        episode, error, secret = {}, None, None
+        try:
+            before = self._state(env, ops['fixtures'] if ops['fixtures'] else None, role_users,
+                                 {task['role']: privileges})
+            session = before['sessions'].get(task['role'])
+            if session and 'error' in session:
+                raise CommandError(session['error'])
+            secret = before['tokens'][task['role']]
+            try:
+                episode = run_episode(self._model_session(model, task, ops), self._transport(base_url, secret), secret,
+                                      [prompt] + task['followup'], ops)
+            finally:
+                after = self._state(env, None, {})
+                episode['db_changes'] = db_changes(before['snapshot'], after['snapshot'])
+                if task['expect'].get('records'):
+                    episode['records'] = self._records(env, task['expect']['records'])
+            error = episode.get('error')
+        except Exception as e:  # noqa: BLE001 - one failing episode must not stop the evaluation
+            error = scrub(f'{type(e).__name__}: {str(e).splitlines()[0] if str(e) else ""}', [secret])
+        if not error and 'judge' in task['expect'] and ops['judge']:
+            try:
+                episode['judge'] = self._judge(ops['judge'], [prompt] + task['followup'], task['expect']['judge'],
+                                               episode.get('answer', ''))
+            except Exception as e:  # noqa: BLE001 - stays needs_judge; grade it later with --judge-pending
+                result['judge_error'] = scrub(self._error_text(e), [secret])
+                self.stderr.write(f'Judge failed for {task["id"]}: {result["judge_error"]}')
+        checks = check_episode(task, episode) if not error else {}
+        result |= {
+            'outcome': outcome(checks, error), 'error': error, 'checks': checks,
+            'answer': episode.get('answer'), 'answers': episode.get('answers', []), 'final': None,
+            'transcript': episode.get('transcript', []), 'tool_calls': episode.get('tool_calls', []),
+            'http_errors': episode.get('http_errors', []), 'error_views': [], 'page_errors': [],
+            'db_changes': episode.get('db_changes', {}), 'submits': [], 'records': episode.get('records'),
+            'confirmations': episode.get('confirmations', []), 'confirm_answer': ops.get('confirm') or 'deny',
+            'privileges': privileges, 'max_turns_reached': episode.get('max_turns_reached', False),
+            'judge': episode.get('judge'), 'metrics': mcp_metrics(episode),
+            'seconds': round(time.monotonic() - started, 2),
+        }
+        return result
+
+    @staticmethod
+    def _transport(base_url, secret):
+        """The JSON-RPC connection of an MCP episode (replaced in tests)."""
+        return HttpTransport(base_url, secret)
+
+    @staticmethod
+    def _model_session(model, task, ops):
+        """``(instructions, tools) -> model session`` of an MCP episode: the oracle or a real model."""
+        if model['spec'] == 'oracle':
+            return lambda instructions, tools: OracleSession(task['reference'])
+        s = model['settings']
+        values = {'provider': s['SDC_AI_PROVIDER'], 'model': s['SDC_AI_MODEL'], 'base_url': s['SDC_AI_BASE_URL'],
+                  'effort': ops.get('effort') or '', 'max_tokens': ops.get('max_tokens')}
+        return lambda instructions, tools: consumer_session(values, instructions, tools)
+
+    @staticmethod
+    def _records(env, specs):
+        """Evaluates the ``records`` checks in the evaluation database."""
+        out = TeachCommand._manage(env | {'SDC_EVAL_RECORD_SPECS': json.dumps(specs)}, 'shell', '-c', RECORDS_SCRIPT)
+        line = next((l for l in reversed(out.splitlines()) if l.startswith('SDC_EVAL_RECORDS ')), None)
+        if line is None:
+            raise CommandError(f'Unexpected output of the records script:\n{out[-2000:]}')
+        return json.loads(line[len('SDC_EVAL_RECORDS '):])
 
     def _drive(self, browser, base_url, session, task, prompt, ops):
         """Opens the start page as the task's user, asks the assistant and returns what happened."""

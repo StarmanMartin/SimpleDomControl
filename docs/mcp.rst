@@ -279,3 +279,94 @@ Protocol and security
   send no ``Origin`` and are not affected.
 - Revoke a token in the web app or with ``manage.py sdc_tokens revoke`` as soon
   as a client no longer needs it.
+
+
+.. _evaluating-an-mcp-agent:
+
+Evaluating an MCP agent
+-----------------------
+
+``manage.py sdc_eval_ai --agent mcp`` measures how well an AI model solves tasks
+with the MCP endpoint. It uses the task files, the judge, the metrics and the
+result files of the evaluation of the browser assistant (see
+:doc:`ai_assistant`), but needs no browser and no Playwright. Per condition and
+model it starts the throwaway server, resets the database from ``--fixture``,
+creates an API token for the user of the task's role and runs this loop in the
+command:
+
+#. ``initialize``: the server instructions are the system prompt.
+#. The model gets the tools of ``tools/list`` plus two harness tools,
+   ``resources_list`` and ``resources_read(uri)``, because model APIs have no
+   native MCP resources. Model requests are made by the code of the AI
+   assistant (Anthropic and OpenAI-compatible, keys from ``ANTHROPIC_API_KEY`` /
+   ``OPENAI_API_KEY``).
+#. Every tool call is a JSON-RPC request to ``/sdc_mcp/`` with the token.
+   Before a tool whose annotations do not say ``readOnlyHint: true`` the
+   simulated user answers ``--confirm allow|deny`` (default ``deny``, which
+   returns "The user declined this action." to the model). Every question is
+   recorded in ``confirmations``.
+#. The episode ends with the model's answer (follow-up prompts of the task are
+   sent afterwards), after ``--max-turns`` model requests (default 40; the
+   result has ``max_turns_reached``) or ``--episode-timeout`` seconds per
+   prompt.
+
+.. code-block:: bash
+
+   python manage.py sdc_eval_ai eval/tasks_mcp --agent mcp \
+       --model anthropic:claude-opus-5-5 --condition full --condition none \
+       --users-file eval/users.yaml --fixture eval/fixture.json \
+       --mcp-privileges read_write --confirm allow --runs 3 -o mcp_results.jsonl
+
+**Tokens.** The token privileges come from the task's ``privileges`` (a list of
+privileges and presets), else from ``--mcp-privileges`` (comma-separated, default
+the preset ``read``). A task needs a role with a user. The secret is only given to
+the runner; it never appears in the result file, the log or an error message (it is
+replaced by ``***`` if a tool result echoes it). Tokens are ignored by the
+database snapshot, so using them is no database change.
+
+**Conditions.** Only ``full`` (default together with ``none``) and ``none`` exist
+for this agent. ``full`` serves the instructions as the app configures them,
+including ``SDC_MCP['instructions_extra']`` and the listed resources. ``none``
+overrides ``SDC_MCP`` of the server with ``instructions_extra = None`` and
+``resources = []``, so the model only gets sdc's base text and the model index.
+
+**Tasks.** The format of the browser evaluation, with these additions:
+
+.. code-block:: yaml
+
+   id: map-samples
+   role: regular
+   agent: mcp                  # optional: mcp or browser; tasks of the other agent are skipped
+   privileges: [read, "model:Sample:write"]
+   prompt: "Add a sample named NMR 400 in room 3.12."
+   expect:
+     records:                  # checked in the database after the episode
+       - model: Sample         # "Model" or "app_label.Model"
+         filter: {name: "NMR 400"}   # plain ORM filters (trusted)
+         count: 1              # a number or {min: 1, max: 3}; default: at least 1
+         fields: {room: "3.12"}      # values of the first matching record
+     tools_used: [sample_create]     # a nested list = any of its alternatives
+     tools_not_used: [sample_delete]
+     max_tool_errors: 0        # tool calls with isError
+   reference:                  # replayed by --model oracle
+     - sample_create: {name: "NMR 400", room: "3.12"}
+     - answer: I added the sample.
+
+With ``records`` the default of ``allow_db_changes`` is true. ``tools_used``,
+``tools_not_used``, ``max_tool_errors`` and ``records`` apply to the MCP agent
+only; a task that uses them (or ``privileges``) without ``agent`` runs with
+``--agent mcp`` only, a task with browser checks (``controller``, ``path``,
+``args``, ``form``, ``max_error_views``) only with the browser. The checks
+``answer_*``, ``forbidden`` (also in all tool results), ``confirm``, ``judge`` and
+``max_http_errors`` (failed requests to the endpoint) work for both.
+
+**Oracle.** ``--model oracle`` replays the ``reference`` steps of a task as tool
+calls with their arguments and then the ``answer``. It validates the tasks and
+the harness without a model and without cost.
+
+**Results.** One line per episode, like the browser mode, with ``agent: mcp``,
+``tool_calls`` (``name``, ``arguments``, ``is_error``, ``declined``),
+``privileges``, ``records`` (count and fields of the first match per check),
+``confirmations``, ``db_changes`` and the metrics (model requests, tool calls,
+tool errors, tokens, ``turns``, time, hash of the system prompt).
+Use a separate ``--output`` file per agent.
