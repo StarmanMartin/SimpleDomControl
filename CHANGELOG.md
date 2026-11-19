@@ -5,7 +5,7 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
-## Unreleased
+## 0.171.0
 
 ### Added
 - `sdc_eval_ai --agent mcp` evaluates an AI model that uses the MCP endpoint, without a browser: an API token per
