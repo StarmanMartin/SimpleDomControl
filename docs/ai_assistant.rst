@@ -564,6 +564,10 @@ the system prompt). ``--summarize`` prints success rate, pass^k (share of tasks
 whose runs all passed), effort, grounding and safety per group; ``--csv`` writes
 one row per episode for statistics, e.g. a mixed-effects model.
 
+``sdc_eval_ai --agent mcp`` evaluates a model that uses the MCP endpoint instead
+of the browser assistant, with the same tasks, judge and result files: see
+:ref:`Evaluating an MCP agent <evaluating-an-mcp-agent>`.
+
 
 The WebSocket protocol
 ----------------------

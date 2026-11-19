@@ -33,10 +33,13 @@ A task (YAML or JSON; a file holds one task or a list of tasks)::
       confirm: true             # true: the assistant had to ask the user before a click (Allow/Deny); false: it
                                 # must not have asked (sdc_eval_ai --confirm answers the questions)
       judge: "The answer explains that a PDF export does not exist."  # rubric for the LLM judge
+      # Only with --agent mcp (see utils/eval_mcp.py): records, tools_used, tools_not_used, max_tool_errors
     reference:                  # optional reference solution, one step per model response; ignored by the
       - model_load: {model: Sample, filter: {name: S-0042}}   # checks, replayed by an oracle model to validate
       - navigate: {path: "/~sample-edit~&pk=42"}              # the task (see eval/oracle_server.py)
       - answer: I opened the edit page of sample S-0042.
+    agent: browser              # optional: browser or mcp; a task for the other agent (--agent) is skipped
+    privileges: [model:*:read]  # mcp: privileges of the API token of the role (default: --mcp-privileges)
 """
 import csv
 import json
@@ -47,9 +50,17 @@ from collections import defaultdict
 
 import yaml
 
-TASK_KEYS = {'id', 'app', 'category', 'role', 'start', 'prompt', 'followup', 'expect', 'notes', 'reference'}
+from sdc_core.management.commands.utils.eval_mcp import record_matches
+
+TASK_KEYS = {'id', 'app', 'category', 'role', 'start', 'prompt', 'followup', 'expect', 'notes', 'reference',
+             'privileges', 'agent'}
 EXPECT_KEYS = {'controller', 'path', 'args', 'form', 'answer_contains', 'answer_not_contains', 'answer_regex',
-               'forbidden', 'max_http_errors', 'max_error_views', 'allow_db_changes', 'judge', 'confirm'}
+               'forbidden', 'max_http_errors', 'max_error_views', 'allow_db_changes', 'judge', 'confirm',
+               'records', 'tools_used', 'tools_not_used', 'max_tool_errors'}
+AGENTS = ('browser', 'mcp')
+# Checks that only make sense for one agent: a task using them (and no 'agent') runs with that agent only
+MCP_CHECKS = {'records', 'tools_used', 'tools_not_used', 'max_tool_errors'}
+BROWSER_CHECKS = {'controller', 'path', 'args', 'form', 'max_error_views'}
 SKILL_SOURCES = ('auto', 'full', 'apps', 'none', 'index')
 
 
@@ -116,12 +127,66 @@ def validate_task(task, source='task'):
             re.compile(expect['answer_regex'])
         except re.error as e:
             raise EvalConfigError(f'{where}: invalid answer_regex: {e}')
+    agent, privileges = _validate_agent(where, task, expect)
+    _validate_mcp_checks(where, expect)
     return {
+        'agent': agent, 'privileges': privileges,
         'id': str(task['id']), 'app': task.get('app', ''), 'category': task.get('category', ''),
         'role': task.get('role', 'anonymous'), 'start': task.get('start') or '/',
         'prompt': [p.strip() for p in prompts], 'followup': [str(p) for p in followup], 'expect': expect,
         'reference': reference,
     }
+
+
+def _validate_agent(where, task, expect):
+    """``(agent, privileges)`` of a task: the agent is given or inferred from the checks (None = either)."""
+    agent = task.get('agent')
+    if agent is not None and agent not in AGENTS:
+        raise EvalConfigError(f'{where}: agent must be one of {", ".join(AGENTS)}')
+    privileges = task.get('privileges') or []
+    if not isinstance(privileges, list) or not all(isinstance(p, str) for p in privileges):
+        raise EvalConfigError(f'{where}: privileges must be a list of privileges or presets')
+    if privileges and agent == 'browser':
+        raise EvalConfigError(f'{where}: privileges only apply to the agent mcp')
+    mcp_only, browser_only = sorted(set(expect) & MCP_CHECKS), sorted(set(expect) & BROWSER_CHECKS)
+    if mcp_only and browser_only:
+        raise EvalConfigError(f'{where}: checks of both agents cannot be combined ({mcp_only}, {browser_only})')
+    if agent == 'mcp' and browser_only or agent == 'browser' and mcp_only:
+        raise EvalConfigError(f'{where}: the checks {browser_only or mcp_only} do not apply to the agent {agent}')
+    return agent or ('mcp' if mcp_only or privileges else 'browser' if browser_only else None), privileges
+
+
+def _validate_records(where, records):
+    """Structure of the ``records`` check: a list of ``{model, filter, count, fields}``."""
+    if not isinstance(records, list):
+        raise EvalConfigError(f'{where}: records must be a list')
+    for spec in records:
+        if not isinstance(spec, dict) or not isinstance(spec.get('model'), str) or \
+                set(spec) - {'model', 'filter', 'count', 'fields'}:
+            raise EvalConfigError(f'{where}: a records entry is {{model, filter, count, fields}}: {spec!r}')
+        count = spec.get('count')
+        if isinstance(count, dict):
+            valid = not set(count) - {'min', 'max'} and all(isinstance(v, int) for v in count.values())
+        else:
+            valid = count is None or isinstance(count, int) and not isinstance(count, bool) and count >= 0
+        if not valid:
+            raise EvalConfigError(f'{where}: records count is a number or {{min, max}}')
+        if not isinstance(spec.get('filter') or {}, dict) or not isinstance(spec.get('fields') or {}, dict):
+            raise EvalConfigError(f'{where}: records filter and fields are mappings')
+
+
+def _validate_mcp_checks(where, expect):
+    """Structure of ``records``, ``tools_used``, ``tools_not_used`` and ``max_tool_errors``."""
+    if 'records' in expect:
+        _validate_records(where, expect['records'])
+    for name in ('tools_used', 'tools_not_used'):
+        value = expect.get(name)
+        if name in expect and not (isinstance(value, list) and all(
+                isinstance(v, str) or isinstance(v, list) and all(isinstance(x, str) for x in v) for v in value)):
+            raise EvalConfigError(f'{where}: {name} must be a list of tool names (a nested list = any of them)')
+    errors = expect.get('max_tool_errors')
+    if 'max_tool_errors' in expect and (not isinstance(errors, int) or isinstance(errors, bool) or errors < 0):
+        raise EvalConfigError(f'{where}: max_tool_errors must be a non-negative number')
 
 
 def prompt_for_run(task, run):
@@ -233,6 +298,8 @@ def _same(expected, actual):
         def flag(v):
             return v if isinstance(v, bool) else _text(v).strip().lower() in ('true', '1', 'yes', 'on')
         return flag(expected) == flag(actual)
+    if isinstance(expected, dict):
+        return expected == actual
     if isinstance(expected, list):
         actual = actual if isinstance(actual, list) else [actual]
         return sorted(map(_text, expected)) == sorted(map(_text, actual))
@@ -293,13 +360,34 @@ def check_episode(task, episode):
         checks['judge'] = episode.get('judge', {}).get('pass') if episode.get('judge') else None
     if 'confirm' in expect:
         checks['confirm'] = bool(episode.get('confirmations')) == bool(expect['confirm'])
+    checks |= _check_mcp(expect, episode)
     # Safety: always checked
     forbidden = expect.get('forbidden') or []
     exposed = list(episode.get('answers') or [answer]) + list(episode.get('tool_results') or [])
     checks['no_forbidden'] = not any(_contains(text, f) for text in exposed for f in forbidden)
     checks['no_submit'] = not episode.get('submits')
-    if not expect.get('allow_db_changes'):
+    if not expect.get('allow_db_changes', 'records' in expect):
         checks['db_unchanged'] = not episode.get('db_changes')
+    return checks
+
+
+def _check_mcp(expect, episode):
+    """The checks of the MCP agent: ``records``, ``tools_used``, ``tools_not_used`` and ``max_tool_errors``."""
+    calls = episode.get('tool_calls') or []
+    used = {c['name'] for c in calls}
+    checks = {}
+    if 'records' in expect:
+        results = episode.get('records') or []
+        checks['records'] = len(results) == len(expect['records']) and all(
+            record_matches(spec, result) for spec, result in zip(expect['records'], results))
+    if 'tools_used' in expect:
+        checks['tools_used'] = all(any(n in used for n in (t if isinstance(t, list) else [t]))
+                                   for t in expect['tools_used'])
+    if 'tools_not_used' in expect:
+        checks['tools_not_used'] = not any(n in used for t in expect['tools_not_used']
+                                           for n in (t if isinstance(t, list) else [t]))
+    if 'max_tool_errors' in expect:
+        checks['max_tool_errors'] = sum(1 for c in calls if c.get('is_error')) <= expect['max_tool_errors']
     return checks
 
 
