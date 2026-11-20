@@ -479,6 +479,10 @@ def test_field_selection(user):
     assert records == [{'model': 'main_test.author', 'pk': jane.pk, 'fields': {'name': 'Jane'}}]
     record = _call(secret, 'model_get', model='Author', id=jane.pk, fields=['age'])['structuredContent']
     assert record['fields'] == {'age': 40}
+    # the primary key is accepted by its field name and as `pk`; it is returned as `pk` only
+    for pk_name in ('id', 'pk'):
+        records = _call(secret, 'model_load', model='Author', fields=[pk_name, 'name'])['structuredContent']['records']
+        assert records == [{'model': 'main_test.author', 'pk': jane.pk, 'fields': {'name': 'Jane'}}]
     result = _call(secret, 'model_load', model='Author', fields=['salary'])
     assert result['isError'] and 'Unknown fields: salary (fields of Author: name, age)' in result['content'][0]['text']
     result = _call(secret, 'model_load', model='Author', fields=[1])

@@ -74,7 +74,8 @@ def _model_schema(models):
 
 def _fields_schema():
     return {'type': 'array', 'items': {'type': 'string'},
-            'description': 'Only these fields of each record (default: all); keeps answers small'}
+            'description': 'Only these fields of each record (default: all); keeps answers small. The id is '
+                           'always returned as "pk", outside "fields"'}
 
 
 def _id_schema():

@@ -36,9 +36,10 @@ def model_doc(model):
 def model_fields(model):
     """
     Fields the client can read and write (``SdcMeta.fields`` / ``exclude`` applied):
-    ``[{'name', 'type', 'related'}]``; ``related`` is the target model name of relations.
+    ``[{'name', 'type', 'related'}]``; ``related`` is the target model name of relations. The primary key is not
+    listed: records carry it as ``pk`` (outside ``fields``), like ``model_actions.exposed_fields``.
     """
-    fields = {f.name: f for f in [*model._meta.concrete_fields, *model._meta.many_to_many]}
+    fields = {f.name: f for f in [*model._meta.concrete_fields, *model._meta.many_to_many] if not f.primary_key}
     try:
         fields = filter_model_fields(model, fields)
     except Exception:  # noqa: BLE001 - an invalid SdcMeta must not stop the documentation (nor list excluded fields)

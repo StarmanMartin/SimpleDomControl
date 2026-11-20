@@ -98,12 +98,14 @@ def exposed_fields(model):
 def select_fields(model, records, fields):
     """
     ``records`` with only ``fields`` in their ``fields`` dict (``model`` and ``pk`` stay); ``fields=None`` keeps
-    all. ``FieldSelectionError`` for names the model does not expose.
+    all. ``FieldSelectionError`` for names the model does not expose. The primary key (``pk`` or its field name,
+    e.g. ``id``) is accepted: every record carries it as ``pk`` anyway.
     """
     if not fields:
         return records
     allowed = exposed_fields(model)
-    unknown = [name for name in fields if name not in allowed]
+    primary_key = {'pk', model._meta.pk.name}
+    unknown = [name for name in fields if name not in allowed and name not in primary_key]
     if unknown:
         raise FieldSelectionError(f"Unknown fields: {', '.join(unknown)} (fields of {model.__name__}: "
                                   f"{', '.join(allowed)})")
