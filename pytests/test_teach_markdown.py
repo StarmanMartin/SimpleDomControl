@@ -284,7 +284,7 @@ def test_model_fields_respect_sdc_meta():
     from sdc_core.management.commands.utils.teach_models import sdc_models
     fields = {m['name']: [f['name'] for f in m['fields']] for m in sdc_models()}
     assert 'password' not in fields['SdcUser']
-    # no primary key: records carry it as `pk`, and model_load / model_get refuse it as a field name otherwise
+    # no generated primary key: records carry it as `pk` (client model objects as `id`)
     assert fields['Book'] == ['title', 'author']
 
 
