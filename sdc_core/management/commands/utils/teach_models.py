@@ -5,6 +5,7 @@ import os
 import textwrap
 
 from django.apps import apps
+from django.db.models.fields import AutoFieldMixin
 
 from sdc_core.sdc_extentions.models import filter_model_fields
 
@@ -36,9 +37,12 @@ def model_doc(model):
 def model_fields(model):
     """
     Fields the client can read and write (``SdcMeta.fields`` / ``exclude`` applied):
-    ``[{'name', 'type', 'related'}]``; ``related`` is the target model name of relations.
+    ``[{'name', 'type', 'related'}]``; ``related`` is the target model name of relations. A generated primary key
+    (``id``, a parent link) is not listed: records carry it as ``pk`` (outside ``fields``), client model objects as
+    ``id``. A natural primary key (``CharField(primary_key=True)``, ...) is data the client sets, so it stays.
     """
-    fields = {f.name: f for f in [*model._meta.concrete_fields, *model._meta.many_to_many]}
+    fields = {f.name: f for f in [*model._meta.concrete_fields, *model._meta.many_to_many]
+              if not (f.primary_key and (f.auto_created or isinstance(f, AutoFieldMixin)))}
     try:
         fields = filter_model_fields(model, fields)
     except Exception:  # noqa: BLE001 - an invalid SdcMeta must not stop the documentation (nor list excluded fields)

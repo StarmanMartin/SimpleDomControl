@@ -75,11 +75,6 @@
       "doc": "Demo/test model of the framework's test project: an author of `Book` records.\n\n- `name` (text, max. 255 characters) and `age` (integer, years); both required.\n- Has no permission checks: anyone, even anonymous users, may read, create, edit and delete authors.\n- Deleting an author also deletes all of that author's `Book` records.\n- The list search matches `name` or the title of one of the author's books.\n- Calling the `call_echo` / `call_async_echo` server calls of `<main-view>` creates an extra author `XX FF` (age `2`).",
       "fields": [
         {
-          "name": "id",
-          "type": "BigAutoField",
-          "related": null
-        },
-        {
           "name": "name",
           "type": "CharField",
           "related": null
@@ -95,11 +90,6 @@
       "doc": "Demo/test model of the framework's test project: a book with a title, written by one `Author`.\n\n- `title` (text, max. 255 characters); `author` → `Author` (required).\n- Has no permission checks: anyone, even anonymous users, may read, create, edit and delete books.\n- Deleted automatically when its `Author` is deleted.\n- Besides the full form there is a named form `test` that edits only `title`.\n- The list search matches `title` or the author's `name`.\n- Edited in `<book-edit>`.",
       "fields": [
         {
-          "name": "id",
-          "type": "BigAutoField",
-          "related": null
-        },
-        {
           "name": "title",
           "type": "CharField",
           "related": null
@@ -114,11 +104,6 @@
     "BookContent": {
       "doc": "Demo/test model of the framework's test project: an uploaded file that belongs to one user.\n\n- `text`: the uploaded file; `user` → the owning user.\n- If `user` is left empty on save, the currently logged-in user becomes the owner.\n- Only logged-in users may access it, and each user sees and changes only their own records.\n- Deleting the user also deletes the user's `BookContent` records.",
       "fields": [
-        {
-          "name": "id",
-          "type": "BigAutoField",
-          "related": null
-        },
         {
           "name": "user",
           "type": "ForeignKey",

@@ -284,7 +284,8 @@ def test_model_fields_respect_sdc_meta():
     from sdc_core.management.commands.utils.teach_models import sdc_models
     fields = {m['name']: [f['name'] for f in m['fields']] for m in sdc_models()}
     assert 'password' not in fields['SdcUser']
-    assert fields['Book'] == ['id', 'title', 'author']
+    # no generated primary key: records carry it as `pk` (client model objects as `id`)
+    assert fields['Book'] == ['title', 'author']
 
 
 def test_unreached_controllers_are_documented():

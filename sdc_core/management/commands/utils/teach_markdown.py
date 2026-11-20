@@ -299,7 +299,8 @@ def _render_models(models, lines, show_app=True):
         return
     lines += ['## Data models', '',
               'SDC models are loaded and saved over the model WebSocket '
-              '(`this.querySet("Name", {filter})` in a controller).', '']
+              '(`this.querySet("Name", {filter})` in a controller). Every record has its primary key as `id` '
+              '(`pk` in MCP/REST records); it is not listed under Fields.', '']
     for m in models:
         lines += [f'### `{m["name"]}`' + (f' ({m["app"]})' if show_app else ''), '',
                   m['doc'].strip() if m.get('doc') else '_No documentation._', '']
