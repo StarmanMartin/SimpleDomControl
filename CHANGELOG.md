@@ -5,6 +5,15 @@ runtime are listed in the
 [sdc_client changelog](https://github.com/StarmanMartin/SimpleDomControlClient/blob/main/CHANGELOG.md).
 The server and the client are released with the same version number.
 
+## 0.171.1
+
+### Fixed
+- MCP / REST: `model_load` and `model_get` accept the primary key in `fields` (also as `id` when the key field has
+  another name and the model has no field called `id`).
+- `sdc_teach`: auto-created primary keys are no longer listed among a model's fields (the Data models section says
+  that every record carries its key as `id`, `pk` in MCP/REST records); primary keys the client sets, e.g.
+  `CharField(primary_key=True)`, stay listed. The bundled apps' `SDC_SKILL.json` files are updated accordingly.
+
 ## 0.171.0
 
 ### Added
